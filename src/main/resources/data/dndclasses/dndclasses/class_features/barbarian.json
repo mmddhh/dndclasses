@@ -1,0 +1,22 @@
+{
+  "class": "dndclasses:barbarian",
+  "features": [
+    {
+      "id": "dndclasses:fast_movement",
+      "level": 5,
+      "kind": "passive",
+      "name": "快速移动",
+      "name_key": "feature.dndclasses.fast_movement",
+      "description": "快速移动特性描述",
+      "description_key": "feature.dndclasses.fast_movement.desc",
+      "effects": [
+        {
+          "type": "dndclasses:attribute",
+          "attribute": "minecraft:generic.movement_speed",
+          "amount": 0.0333,
+          "operation": "addition"
+        }
+      ]
+    }
+  ]
+}

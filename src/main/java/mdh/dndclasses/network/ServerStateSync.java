@@ -14,8 +14,8 @@ public final class ServerStateSync {
     }
 
     public static void send(ServerPlayer player) {
+        CharacterRefresh.refresh(player);  // refresh limits/slots/preparation BEFORE snapshotting
         send(player, true, false);
-        CharacterRefresh.refresh(player);
     }
 
     public static void sendPrompt(ServerPlayer player) {

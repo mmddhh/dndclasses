@@ -1,39 +1,44 @@
 package mdh.dndclasses.spells;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraftforge.common.util.INBTSerializable;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.resources.ResourceLocation;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Set;
 
-public class Dndspell implements IDndSpell, INBTSerializable<CompoundTag> {
-    HashMap<Integer,Integer>spellslots = new HashMap<>();
-    HashMap<Integer,Integer>maxspellslots = new HashMap<>();
+/**
+ * Implementation of the per-player spell state. Lists are ordered (LinkedHashSet) so the client
+ * UI is deterministic.
+ */
+public class Dndspell implements IDndSpell {
 
-    int knowspell = 2;
-    int knowcantrips = 2;
+    private final HashMap<Integer, Integer> spellslots = new HashMap<>();
+    private final HashMap<Integer, Integer> maxspellslots = new HashMap<>();
 
+    private Preparation preparation = Preparation.NONE;
+    private int knownCantripLimit = 0;
+    private int knownSpellLimit = 0;
+    private int preparedSpellLimit = 0;
 
-    public Dndspell(){
-        spellslots.put(1,2);
-        spellslots.put(2,0);
-        spellslots.put(3,0);
-        spellslots.put(4,0);
-        spellslots.put(5,0);
-        spellslots.put(6,0);
-        spellslots.put(7,0);
-        spellslots.put(8,0);
-        spellslots.put(9,0);
-        maxspellslots.put(1,2);
-        maxspellslots.put(2,0);
-        maxspellslots.put(3,0);
-        maxspellslots.put(4,0);
-        maxspellslots.put(5,0);
-        maxspellslots.put(6,0);
-        maxspellslots.put(7,0);
-        maxspellslots.put(8,0);
-        maxspellslots.put(9,0);
+    private final LinkedHashSet<ResourceLocation> knownCantrips = new LinkedHashSet<>();
+    private final LinkedHashSet<ResourceLocation> knownSpells = new LinkedHashSet<>();
+    private final LinkedHashSet<ResourceLocation> preparedSpells = new LinkedHashSet<>();
+
+    public Dndspell() {
+        for (int level = 1; level <= 9; level++) {
+            spellslots.put(level, 0);
+            maxspellslots.put(level, 0);
+        }
     }
 
+    // ------------------------------------------------------------- slots
 
     @Override
     public int getmaxspellslots(int slotslevel) {
@@ -50,35 +55,30 @@ public class Dndspell implements IDndSpell, INBTSerializable<CompoundTag> {
         if (!isValidSlotLevel(slotslevel)) {
             return;
         }
-
         spellslots.put(slotslevel, Math.min(Math.max(0, slots), getmaxspellslots(slotslevel)));
     }
 
     @Override
-    public  void  setmaxspellslots(int slotslevel,int maxslots){
+    public void setmaxspellslots(int slotslevel, int maxslots) {
         if (!isValidSlotLevel(slotslevel)) {
             return;
         }
-
-        int normalizedMaxSlots = Math.max(0, maxslots);
-        maxspellslots.put(slotslevel, normalizedMaxSlots);
+        maxspellslots.put(slotslevel, Math.max(0, maxslots));
         setspellslots(slotslevel, getspellslots(slotslevel));
-
     }
+
     @Override
-    public void costslots(int slotslevel,int slots){
+    public void costslots(int slotslevel, int slots) {
         if (!isValidSlotLevel(slotslevel) || slots <= 0) {
             return;
         }
-
         spellslots.put(slotslevel, Math.max(0, getspellslots(slotslevel) - slots));
     }
 
     @Override
     public void reslots() {
-        int[] a={1,2,3,4,5,6,7,8,9};
-        for (int b:a){
-            spellslots.put(b, getmaxspellslots(b));
+        for (int level = 1; level <= 9; level++) {
+            spellslots.put(level, getmaxspellslots(level));
         }
     }
 
@@ -87,81 +87,272 @@ public class Dndspell implements IDndSpell, INBTSerializable<CompoundTag> {
         if (!isValidSlotLevel(slotlevel) || slots <= 0) {
             return;
         }
-
         setspellslots(slotlevel, getspellslots(slotlevel) + slots);
     }
 
+    // --------------------------------------------------- preparation/limits
+
     @Override
-    public int getknowspells() {
-        return knowspell;
+    public Preparation getPreparation() {
+        return preparation;
     }
 
     @Override
-    public void setknowspells(int knowspell) {
-        this.knowspell = Math.max(0, knowspell);
+    public void setPreparation(Preparation preparation) {
+        this.preparation = preparation == null ? Preparation.NONE : preparation;
     }
 
     @Override
-    public int getknowcantrips() {
-        return knowcantrips;
+    public int getKnownCantripLimit() {
+        return knownCantripLimit;
     }
 
     @Override
-    public void setknowcantrips(int knowcantrips) {
-        this.knowcantrips = Math.max(0, knowcantrips);
+    public int getKnownSpellLimit() {
+        return knownSpellLimit;
     }
-
-    private boolean isValidSlotLevel(int slotslevel) {
-        return slotslevel >= 1 && slotslevel <= 9;
-    }
-
 
     @Override
-    public CompoundTag serializeNBT(){
+    public int getPreparedSpellLimit() {
+        return preparedSpellLimit;
+    }
+
+    @Override
+    public void setKnownCantripLimit(int n) {
+        this.knownCantripLimit = Math.max(0, n);
+    }
+
+    @Override
+    public void setKnownSpellLimit(int n) {
+        this.knownSpellLimit = Math.max(0, n);
+    }
+
+    @Override
+    public void setPreparedSpellLimit(int n) {
+        this.preparedSpellLimit = Math.max(0, n);
+    }
+
+    // ---------------------------------------------------------------- lists
+
+    @Override
+    public Set<ResourceLocation> getKnownCantrips() {
+        return Collections.unmodifiableSet(knownCantrips);
+    }
+
+    @Override
+    public Set<ResourceLocation> getKnownSpells() {
+        return Collections.unmodifiableSet(knownSpells);
+    }
+
+    @Override
+    public Set<ResourceLocation> getPreparedSpells() {
+        return Collections.unmodifiableSet(preparedSpells);
+    }
+
+    @Override
+    public void setKnownCantrips(Collection<ResourceLocation> ids) {
+        replace(knownCantrips, ids);
+    }
+
+    @Override
+    public void setKnownSpells(Collection<ResourceLocation> ids) {
+        replace(knownSpells, ids);
+    }
+
+    @Override
+    public void setPreparedSpells(Collection<ResourceLocation> ids) {
+        replace(preparedSpells, ids);
+    }
+
+    @Override
+    public boolean addKnownCantrip(ResourceLocation id) {
+        if (id == null || knownCantrips.contains(id) || knownCantrips.size() >= knownCantripLimit) {
+            return false;
+        }
+        return knownCantrips.add(id);
+    }
+
+    @Override
+    public boolean addKnownSpell(ResourceLocation id) {
+        if (id == null || knownSpells.contains(id) || knownSpells.size() >= knownSpellLimit) {
+            return false;
+        }
+        return knownSpells.add(id);
+    }
+
+    @Override
+    public boolean prepareSpell(ResourceLocation id) {
+        if (id == null || preparedSpells.contains(id) || preparedSpells.size() >= preparedSpellLimit) {
+            return false;
+        }
+        return preparedSpells.add(id);
+    }
+
+    @Override
+    public boolean removeKnownCantrip(ResourceLocation id) {
+        return id != null && knownCantrips.remove(id);
+    }
+
+    @Override
+    public boolean removeKnownSpell(ResourceLocation id) {
+        if (id == null) {
+            return false;
+        }
+        boolean removed = knownSpells.remove(id);
+        preparedSpells.remove(id);
+        return removed;
+    }
+
+    @Override
+    public boolean unprepareSpell(ResourceLocation id) {
+        return id != null && preparedSpells.remove(id);
+    }
+
+    // -------------------------------------------------------------- queries
+
+    @Override
+    public boolean knows(ResourceLocation id) {
+        return id != null
+                && (knownCantrips.contains(id) || knownSpells.contains(id) || preparedSpells.contains(id));
+    }
+
+    @Override
+    public boolean canCast(ResourceLocation id) {
+        return id != null && getCastableSpells().contains(id);
+    }
+
+    @Override
+    public Set<ResourceLocation> getCastableSpells() {
+        Set<ResourceLocation> result = new LinkedHashSet<>(knownCantrips);
+        if (preparation == Preparation.PREPARED) {
+            result.addAll(preparedSpells);
+        } else if (preparation == Preparation.KNOWN) {
+            result.addAll(knownSpells);
+        }
+        return result;
+    }
+
+    @Override
+    public void enforceLimits() {
+        trimToLimit(knownCantrips, knownCantripLimit);
+        trimToLimit(knownSpells, knownSpellLimit);
+        trimToLimit(preparedSpells, preparedSpellLimit);
+    }
+
+    // ---------------------------------------------------------------- nbt
+
+    @Override
+    public CompoundTag serializeNBT() {
         CompoundTag nbt = new CompoundTag();
-
-        nbt.putInt("1",getspellslots(1));
-        nbt.putInt("2",getspellslots(2));
-        nbt.putInt("3",getspellslots(3));
-        nbt.putInt("4",getspellslots(4));
-        nbt.putInt("5",getspellslots(5));
-        nbt.putInt("6",getspellslots(6));
-        nbt.putInt("7",getspellslots(7));
-        nbt.putInt("8",getspellslots(8));
-        nbt.putInt("9",getspellslots(9));
-        nbt.putInt("1max",getmaxspellslots(1));
-        nbt.putInt("2max",getmaxspellslots(2));
-        nbt.putInt("3max",getmaxspellslots(3));
-        nbt.putInt("4max",getmaxspellslots(4));
-        nbt.putInt("5max",getmaxspellslots(5));
-        nbt.putInt("6max",getmaxspellslots(6));
-        nbt.putInt("7max",getmaxspellslots(7));
-        nbt.putInt("8max",getmaxspellslots(8));
-        nbt.putInt("9max",getmaxspellslots(9));
-        nbt.putInt("knowspell",getknowspells());
-        nbt.putInt("knowcantrips",getknowcantrips());
+        for (int level = 1; level <= 9; level++) {
+            nbt.putInt(Integer.toString(level), getspellslots(level));
+            nbt.putInt(level + "max", getmaxspellslots(level));
+        }
+        nbt.putInt("knownCantripLimit", knownCantripLimit);
+        nbt.putInt("knownSpellLimit", knownSpellLimit);
+        nbt.putInt("preparedSpellLimit", preparedSpellLimit);
+        nbt.putString("preparation", preparation.name().toLowerCase(Locale.ROOT));
+        nbt.put("knownCantrips", writeIds(knownCantrips));
+        nbt.put("knownSpells", writeIds(knownSpells));
+        nbt.put("preparedSpells", writeIds(preparedSpells));
         return nbt;
     }
 
     @Override
     public void deserializeNBT(CompoundTag nbt) {
-        for (int slotLevel = 1; slotLevel <= 9; slotLevel++) {
-            String key = Integer.toString(slotLevel);
+        for (int level = 1; level <= 9; level++) {
+            String key = Integer.toString(level);
             String maxKey = key + "max";
-
             if (nbt.contains(maxKey)) {
-                setmaxspellslots(slotLevel, nbt.getInt(maxKey));
+                setmaxspellslots(level, nbt.getInt(maxKey));
             }
             if (nbt.contains(key)) {
-                setspellslots(slotLevel, nbt.getInt(key));
+                setspellslots(level, nbt.getInt(key));
             }
         }
 
-        if (nbt.contains("knowspell")) {
-            setknowspells(nbt.getInt("knowspell"));
+        // new keys, with backwards-compatible fallbacks to the old count keys
+        if (nbt.contains("knownCantripLimit")) {
+            setKnownCantripLimit(nbt.getInt("knownCantripLimit"));
+        } else if (nbt.contains("knowcantrips")) {
+            setKnownCantripLimit(nbt.getInt("knowcantrips"));
         }
-        if (nbt.contains("knowcantrips")) {
-            setknowcantrips(nbt.getInt("knowcantrips"));
+        if (nbt.contains("knownSpellLimit")) {
+            setKnownSpellLimit(nbt.getInt("knownSpellLimit"));
+        } else if (nbt.contains("knowspell")) {
+            setKnownSpellLimit(nbt.getInt("knowspell"));
+        }
+        setPreparedSpellLimit(nbt.contains("preparedSpellLimit")
+                ? nbt.getInt("preparedSpellLimit")
+                : knownSpellLimit);
+
+        if (nbt.contains("preparation")) {
+            try {
+                preparation = Preparation.valueOf(nbt.getString("preparation").toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                preparation = Preparation.NONE;
+            }
+        } else {
+            preparation = Preparation.NONE;
+        }
+
+        readIds(nbt, "knownCantrips", knownCantrips);
+        readIds(nbt, "knownSpells", knownSpells);
+        readIds(nbt, "preparedSpells", preparedSpells);
+    }
+
+    // -------------------------------------------------------------- helpers
+
+    private boolean isValidSlotLevel(int slotslevel) {
+        return slotslevel >= 1 && slotslevel <= 9;
+    }
+
+    private static void replace(LinkedHashSet<ResourceLocation> target, Collection<ResourceLocation> ids) {
+        target.clear();
+        if (ids != null) {
+            for (ResourceLocation id : ids) {
+                if (id != null) {
+                    target.add(id);
+                }
+            }
+        }
+    }
+
+    private static <T> void trimToLimit(LinkedHashSet<T> set, int limit) {
+        int effective = Math.max(0, limit);
+        if (set.size() <= effective) {
+            return;
+        }
+        Iterator<T> iterator = set.iterator();
+        int index = 0;
+        while (iterator.hasNext()) {
+            iterator.next();
+            if (index >= effective) {
+                iterator.remove();
+            }
+            index++;
+        }
+    }
+
+    private static ListTag writeIds(Set<ResourceLocation> ids) {
+        ListTag list = new ListTag();
+        for (ResourceLocation id : ids) {
+            list.add(StringTag.valueOf(id.toString()));
+        }
+        return list;
+    }
+
+    private static void readIds(CompoundTag nbt, String key, LinkedHashSet<ResourceLocation> target) {
+        target.clear();
+        if (!nbt.contains(key)) {
+            return;
+        }
+        ListTag list = nbt.getList(key, 8); // 8 = StringTag
+        for (int i = 0; i < list.size(); i++) {
+            ResourceLocation id = ResourceLocation.tryParse(list.getString(i));
+            if (id != null) {
+                target.add(id);
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import mdh.dndclasses.feature.CharacterRefresh;
+import mdh.dndclasses.spells.Preparation;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,6 +42,9 @@ public class SpellcastingReloadListener extends SimpleJsonResourceReloadListener
             try {
                 JsonObject root = entry.getValue().getAsJsonObject();
                 ResourceLocation owner = parseId(root.get("owner").getAsString(), sourceNamespace);
+                Preparation preparation = parsePreparation(root.has("preparation")
+                        ? root.get("preparation").getAsString()
+                        : "none", file);
                 JsonArray levels = root.getAsJsonArray("levels");
 
                 Map<Integer, SpellLevelEntry> byLevel = new HashMap<>();
@@ -48,7 +52,7 @@ public class SpellcastingReloadListener extends SimpleJsonResourceReloadListener
                     byLevel.put(levels.get(i).getAsJsonObject().get("level").getAsInt(),
                             parseLevel(levels.get(i).getAsJsonObject()));
                 }
-                SpellcastingRegistry.register(owner, byLevel);
+                SpellcastingRegistry.register(owner, preparation, byLevel);
                 loaded++;
             } catch (Exception exception) {
                 LOGGER.error("Failed to load spellcasting table from {}", file, exception);
@@ -76,7 +80,27 @@ public class SpellcastingReloadListener extends SimpleJsonResourceReloadListener
         }
         int knownSpells = object.has("known_spells") ? object.get("known_spells").getAsInt() : 0;
         int knownCantrips = object.has("known_cantrips") ? object.get("known_cantrips").getAsInt() : 0;
-        return new SpellLevelEntry(level, slots, knownSpells, knownCantrips);
+        int preparedSpellLimit = object.has("prepared_spell_limit")
+                ? object.get("prepared_spell_limit").getAsInt()
+                : knownSpells;
+        return new SpellLevelEntry(level, slots, knownSpells, knownCantrips, preparedSpellLimit);
+    }
+
+    private static Preparation parsePreparation(String raw, ResourceLocation file) {
+        if (raw == null) {
+            return Preparation.NONE;
+        }
+        switch (raw.toLowerCase(java.util.Locale.ROOT)) {
+            case "known":
+                return Preparation.KNOWN;
+            case "prepared":
+                return Preparation.PREPARED;
+            case "none":
+                return Preparation.NONE;
+            default:
+                LOGGER.warn("Unknown preparation '{}' in {}, defaulting to NONE", raw, file);
+                return Preparation.NONE;
+        }
     }
 
     private static ResourceLocation parseId(String raw, String sourceNamespace) {

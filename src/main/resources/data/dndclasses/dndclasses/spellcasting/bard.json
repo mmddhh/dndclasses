@@ -1,6 +1,7 @@
 {
   "owner": "dndclasses:bard",
   "owner_type": "class",
+  "preparation": "known",
   "levels": [
     { "level": 1,  "slots": [2,0,0,0,0,0,0,0,0], "known_spells": 4,  "known_cantrips": 2 },
     { "level": 2,  "slots": [3,0,0,0,0,0,0,0,0], "known_spells": 5,  "known_cantrips": 2 },

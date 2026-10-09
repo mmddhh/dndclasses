@@ -8,6 +8,7 @@ import mdh.dndclasses.capability.ModCapabilities;
 import mdh.dndclasses.data.ClassRegistry;
 import mdh.dndclasses.data.StartingEquipment;
 import mdh.dndclasses.data.SubclassRegistry;
+import mdh.dndclasses.events.DndCharacterCreatedEvent;
 import mdh.dndclasses.level.Ilevel;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -16,6 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.network.NetworkEvent;
 import org.slf4j.Logger;
 
@@ -126,6 +128,7 @@ public class ClassSelectionPacket {
             player.sendSystemMessage(Component.literal("职业已创建：" + ClassRegistry.getDisplayName(classKey)));
 
             ServerStateSync.send(player);
+            MinecraftForge.EVENT_BUS.post(new DndCharacterCreatedEvent(player));
         } catch (Exception exception) {
             LOGGER.error("Failed to apply AUI class selection payload", exception);
         }

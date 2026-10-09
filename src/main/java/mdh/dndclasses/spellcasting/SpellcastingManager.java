@@ -2,6 +2,7 @@ package mdh.dndclasses.spellcasting;
 
 import mdh.dndclasses.capability.ModCapabilities;
 import mdh.dndclasses.spells.IDndSpell;
+import mdh.dndclasses.spells.Preparation;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -9,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
  * Fills the player's spell capability from the data-driven spellcasting table for their class
  * (or subclass). Non-casters get everything zeroed. Slot maxima are applied without refilling
  * current slots, except that newly gained slots at level-up are added; long rest refills fully.
+ * Spell lists are only trimmed to their limits, never auto-populated.
  */
 public final class SpellcastingManager {
 
@@ -22,7 +24,8 @@ public final class SpellcastingManager {
             }
             ResourceLocation owner = pickOwner(level.getclassName(), level.getSubclassKey());
             SpellLevelEntry entry = owner == null ? null : SpellcastingRegistry.get(owner, level.getlevel());
-            player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(spell -> apply(spell, entry));
+            Preparation preparation = owner == null ? Preparation.NONE : SpellcastingRegistry.getPreparation(owner);
+            player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(spell -> apply(spell, entry, preparation));
         });
     }
 
@@ -42,14 +45,17 @@ public final class SpellcastingManager {
         return null;
     }
 
-    private static void apply(IDndSpell spell, SpellLevelEntry entry) {
+    private static void apply(IDndSpell spell, SpellLevelEntry entry, Preparation preparation) {
         if (entry == null) {
             for (int ring = 1; ring <= 9; ring++) {
                 spell.setmaxspellslots(ring, 0);
                 spell.setspellslots(ring, 0);
             }
-            spell.setknowspells(0);
-            spell.setknowcantrips(0);
+            spell.setPreparation(Preparation.NONE);
+            spell.setKnownCantripLimit(0);
+            spell.setKnownSpellLimit(0);
+            spell.setPreparedSpellLimit(0);
+            spell.enforceLimits();
             return;
         }
 
@@ -62,7 +68,11 @@ public final class SpellcastingManager {
             int target = oldCurrent + Math.max(0, newMax - oldMax);
             spell.setspellslots(ring, Math.min(target, newMax));
         }
-        spell.setknowspells(entry.knownSpells());
-        spell.setknowcantrips(entry.knownCantrips());
+
+        spell.setPreparation(preparation);
+        spell.setKnownCantripLimit(entry.knownCantrips());
+        spell.setKnownSpellLimit(entry.knownSpells());
+        spell.setPreparedSpellLimit(entry.preparedSpellLimit());
+        spell.enforceLimits();
     }
 }

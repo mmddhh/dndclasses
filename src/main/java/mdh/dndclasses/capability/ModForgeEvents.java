@@ -3,6 +3,7 @@ package mdh.dndclasses.capability;
 import mdh.dndclasses.Config;
 import mdh.dndclasses.Dndclasses;
 import mdh.dndclasses.events.LevelUp;
+import mdh.dndclasses.events.DndLongRestEvent;
 import mdh.dndclasses.ability.Iability;
 import mdh.dndclasses.ability.ability;
 import mdh.dndclasses.level.DndLeveling;
@@ -155,6 +156,9 @@ public class ModForgeEvents {
             Player player = event.getEntity();
             player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(IDndSpell::reslots);
             player.getCapability(ModCapabilities.SKILL_CAPABILITY).ifPresent(Iskill::relongskilluse);
+            if (player instanceof ServerPlayer serverPlayer) {
+                MinecraftForge.EVENT_BUS.post(new DndLongRestEvent(serverPlayer));
+            }
         }
     }
 

@@ -4,7 +4,9 @@ import mdh.dndclasses.Dndclasses;
 import mdh.dndclasses.capability.ModCapabilities;
 import mdh.dndclasses.events.DndConditionAppliedEvent;
 import mdh.dndclasses.events.DndConditionRemovedEvent;
+import mdh.dndclasses.events.DndConcentrationBrokenEvent;
 import mdh.dndclasses.network.ServerStateSync;
+import mdh.dndclasses.saves.SaveQteManager;
 import mdh.dndclasses.saves.Saves;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -80,6 +82,9 @@ public final class ConditionManager {
         applyEffects(player, definition, duration);
         if (!existed && definition.has(ConditionFlag.DROP_ITEMS)) {
             dropHeldItems(player);
+        }
+        if (definition.has(ConditionFlag.INCAPACITATED)) {
+            SaveQteManager.breakConcentration(player, DndConcentrationBrokenEvent.Reason.OTHER);
         }
         MinecraftForge.EVENT_BUS.post(new DndConditionAppliedEvent(player, id, duration, sourceId));
         player.displayClientMessage(Component.translatable("message.dndclasses.condition.applied",

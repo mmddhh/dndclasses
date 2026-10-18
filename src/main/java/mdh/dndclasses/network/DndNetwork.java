@@ -9,7 +9,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class DndNetwork {
 
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "6";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(Dndclasses.MODID, "main"),
@@ -34,9 +34,33 @@ public final class DndNetwork {
                 .decoder(ClientboundCharacterStatePacket::decode)
                 .consumerMainThread(ClientboundCharacterStatePacket::handle)
                 .add();
+
+        CHANNEL.messageBuilder(UseFeaturePacket.class, id++)
+                .encoder(UseFeaturePacket::encode)
+                .decoder(UseFeaturePacket::decode)
+                .consumerMainThread(UseFeaturePacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(OpenSaveQtePacket.class, id++)
+                .encoder(OpenSaveQtePacket::encode)
+                .decoder(OpenSaveQtePacket::decode)
+                .consumerMainThread(OpenSaveQtePacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(SaveQteResultPacket.class, id++)
+                .encoder(SaveQteResultPacket::encode)
+                .decoder(SaveQteResultPacket::decode)
+                .consumerMainThread(SaveQteResultPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(ReloadWeaponPacket.class, id++)
+                .encoder(ReloadWeaponPacket::encode)
+                .decoder(ReloadWeaponPacket::decode)
+                .consumerMainThread(ReloadWeaponPacket::handle)
+                .add();
     }
 
-    public static void sendToPlayer(ServerPlayer player, ClientboundCharacterStatePacket packet) {
+    public static <MSG> void sendToPlayer(ServerPlayer player, MSG packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
     }
 }

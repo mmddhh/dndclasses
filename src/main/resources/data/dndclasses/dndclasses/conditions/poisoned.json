@@ -1,0 +1,18 @@
+{
+  "id": "dndclasses:poisoned",
+  "name_key": "condition.dndclasses.poisoned",
+  "description_key": "condition.dndclasses.poisoned.desc",
+  "save_ability": "con",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "weakness"
+  ],
+  "status_effects": [
+    {
+      "effect": "minecraft:weakness"
+    }
+  ],
+  "attribute_modifiers": []
+}

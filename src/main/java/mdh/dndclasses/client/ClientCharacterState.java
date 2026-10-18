@@ -2,6 +2,7 @@ package mdh.dndclasses.client;
 
 import mdh.dndclasses.capability.ModCapabilities;
 import mdh.dndclasses.network.ClientboundCharacterStatePacket;
+import mdh.dndclasses.network.ClientboundCharacterStatePacket.FeatureEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
@@ -26,7 +27,7 @@ public final class ClientCharacterState {
     public static int expLevelStart = 0;
     public static int expToNext = 300;
     public static int[] abilities = new int[]{8, 8, 8, 8, 8, 8};
-    public static List<String> featureIds = new ArrayList<>();
+    public static List<FeatureEntry> features = new ArrayList<>();
 
     private ClientCharacterState() {
     }
@@ -35,7 +36,8 @@ public final class ClientCharacterState {
         created = packet.created;
         expLevelStart = packet.expLevelStart;
         expToNext = packet.expToNext;
-        featureIds = packet.featureIds;
+        features = packet.features;
+        ClientConditionState.apply(packet.conditionsData);
 
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {

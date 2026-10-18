@@ -1,6 +1,8 @@
 package mdh.dndclasses.feature;
 
 import mdh.dndclasses.capability.ModCapabilities;
+import mdh.dndclasses.level.Ilevel;
+import mdh.dndclasses.network.ServerStateSync;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -47,7 +49,18 @@ public final class FeatureManager {
             }
         }
 
+        // Active resource pools also depend on the player level (uses can scale per level), so
+        // re-ensure them every refresh; this is idempotent and grants newly gained uses.
+        for (FeatureDefinition definition : active.values()) {
+            if (definition.kind() == FeatureDefinition.Kind.ACTIVE) {
+                ensureResource(player, definition);
+            }
+        }
+
         APPLIED.put(player.getUUID(), active);
+
+        player.getCapability(ModCapabilities.LEVEL_CAPABILITY).ifPresent(level ->
+                level.setClassFeatures(active.keySet().stream().map(ResourceLocation::toString).toList()));
     }
 
     public static Map<ResourceLocation, FeatureDefinition> activeFeatures(ServerPlayer player) {
@@ -107,6 +120,9 @@ public final class FeatureManager {
             success[0] = true;
         });
 
+        if (success[0]) {
+            ServerStateSync.send(player);
+        }
         return success[0] ? UseResult.SUCCESS : UseResult.NO_USES;
     }
 
@@ -155,15 +171,26 @@ public final class FeatureManager {
     private static void ensureResource(ServerPlayer player, FeatureDefinition feature) {
         player.getCapability(ModCapabilities.SKILL_CAPABILITY).ifPresent(skill -> {
             String key = feature.id().toString();
-            int max = Math.max(1, feature.maxUses());
+            int max = Math.max(1, feature.usesAtLevel(playerLevel(player)));
             boolean shortRest = feature.rest() == FeatureDefinition.Rest.SHORT;
-            if (skill.getmaxskilluse(key) <= 0) {
+            int oldMax = skill.getmaxskilluse(key);
+            if (oldMax <= 0) {
                 // addskill creates the pool at full; only call it when missing so we never reset uses
                 skill.addskill(key, max, shortRest);
             } else {
+                int current = skill.getskilluse(key);
                 skill.setmaxskilluse(key, max);
+                // grant newly gained uses on level-up, like spell slots
+                skill.setskilluse(key, current + Math.max(0, max - oldMax));
+                skill.setskillrest(key, shortRest);
             }
         });
+    }
+
+    private static int playerLevel(ServerPlayer player) {
+        int[] value = {0};
+        player.getCapability(ModCapabilities.LEVEL_CAPABILITY).ifPresent((Ilevel level) -> value[0] = level.getlevel());
+        return value[0];
     }
 
     private static void removeResource(ServerPlayer player, FeatureDefinition feature) {

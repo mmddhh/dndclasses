@@ -358,6 +358,18 @@
   font-size: 30px;
 }
 
+.grimoire .seal svg {
+  width: 62%;
+  height: 62%;
+  display: block;
+}
+
+.grimoire .emblem svg {
+  width: 60%;
+  height: 60%;
+  display: block;
+}
+
 /* ---------------------------------------------------------------- detail */
 
 .detail-hero {

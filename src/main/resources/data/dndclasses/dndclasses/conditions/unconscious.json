@@ -1,0 +1,22 @@
+{
+  "id": "dndclasses:unconscious",
+  "name_key": "condition.dndclasses.unconscious",
+  "description_key": "condition.dndclasses.unconscious.desc",
+  "save_ability": "",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "incapacitated",
+    "immobile",
+    "unconscious",
+    "drop_items",
+    "blind"
+  ],
+  "status_effects": [
+    {
+      "effect": "minecraft:blindness"
+    }
+  ],
+  "attribute_modifiers": []
+}

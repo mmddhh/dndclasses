@@ -6,19 +6,25 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import mdh.dndclasses.Dndclasses;
 import mdh.dndclasses.capability.ModCapabilities;
+import mdh.dndclasses.conditions.ConditionManager;
 import mdh.dndclasses.data.ClassRegistry;
+import mdh.dndclasses.events.DndConditionRemovedEvent;
+import mdh.dndclasses.events.LevelUp;
 import mdh.dndclasses.feature.CharacterRefresh;
 import mdh.dndclasses.feature.FeatureDefinition;
 import mdh.dndclasses.feature.FeatureManager;
 import mdh.dndclasses.level.DndLeveling;
 import mdh.dndclasses.network.ServerStateSync;
+import mdh.dndclasses.saves.SaveQteManager;
 import mdh.dndclasses.spells.SpellClassifiers;
 import mdh.dndclasses.spells.SpellKind;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -55,10 +61,39 @@ public final class DndCommands {
                                 .executes(context -> featuresList(context.getSource()))))
                 .then(Commands.literal("refresh")
                         .executes(context -> refresh(context.getSource())))
-                .then(Commands.literal("use")
-                        .then(Commands.argument("id", StringArgumentType.string())
-                                .executes(context -> use(context.getSource(),
-                                        StringArgumentType.getString(context, "id")))))
+                .then(Commands.literal("save")
+                        .then(Commands.argument("ability", StringArgumentType.word())
+                                .then(Commands.argument("dc", IntegerArgumentType.integer(1))
+                                        .then(Commands.argument("mode", StringArgumentType.word())
+                                                .executes(context -> save(context.getSource(),
+                                                        StringArgumentType.getString(context, "ability"),
+                                                        IntegerArgumentType.getInteger(context, "dc"),
+                                                        StringArgumentType.getString(context, "mode")))))))
+                .then(Commands.literal("condition")
+                        .then(Commands.literal("apply")
+                                .then(Commands.argument("id", ResourceLocationArgument.id())
+                                        .executes(context -> conditionApply(context.getSource(),
+                                                ResourceLocationArgument.getId(context, "id"), -1, -1))
+                                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1))
+                                                .executes(context -> conditionApply(context.getSource(),
+                                                        ResourceLocationArgument.getId(context, "id"),
+                                                        IntegerArgumentType.getInteger(context, "seconds"), -1))
+                                                .then(Commands.argument("dc", IntegerArgumentType.integer(1, 40))
+                                                        .executes(context -> conditionApply(context.getSource(),
+                                                                ResourceLocationArgument.getId(context, "id"),
+                                                                IntegerArgumentType.getInteger(context, "seconds"),
+                                                                IntegerArgumentType.getInteger(context, "dc")))))))
+                        .then(Commands.literal("remove")
+                                .then(Commands.argument("id", ResourceLocationArgument.id())
+                                        .executes(context -> conditionRemove(context.getSource(),
+                                                ResourceLocationArgument.getId(context, "id")))))
+                        .then(Commands.literal("list")
+                                .executes(context -> conditionList(context.getSource()))))
+                .then(Commands.literal("exhaustion")
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("level", IntegerArgumentType.integer(0, 6))
+                                        .executes(context -> exhaustionSet(context.getSource(),
+                                                IntegerArgumentType.getInteger(context, "level"))))))
                 .then(Commands.literal("spell")
                         .then(Commands.literal("list")
                                 .executes(context -> spellList(context.getSource())))
@@ -108,6 +143,7 @@ public final class DndCommands {
             source.sendSuccess(() -> Component.literal(
                     "经验 +" + amount + " → " + level.getExp() + "（等级 " + level.getlevel() + "）"), false);
             if (level.getlevel() > before) {
+                MinecraftForge.EVENT_BUS.post(new LevelUp(player, before, level.getlevel()));
                 source.sendSuccess(() -> Component.literal(
                         "升级！Lv " + before + " → " + level.getlevel()), true);
             }
@@ -118,8 +154,12 @@ public final class DndCommands {
     private static int xpSet(CommandSourceStack source, int amount) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         player.getCapability(ModCapabilities.LEVEL_CAPABILITY).ifPresent(level -> {
+            int before = level.getlevel();
             level.setExp(amount);
             ServerStateSync.send(player);
+            if (level.getlevel() > before) {
+                MinecraftForge.EVENT_BUS.post(new LevelUp(player, before, level.getlevel()));
+            }
             source.sendSuccess(() -> Component.literal(
                     "经验设为 " + level.getExp() + "（等级 " + level.getlevel() + "）"), false);
         });
@@ -129,8 +169,12 @@ public final class DndCommands {
     private static int levelSet(CommandSourceStack source, int value) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         player.getCapability(ModCapabilities.LEVEL_CAPABILITY).ifPresent(level -> {
+            int before = level.getlevel();
             level.setlevel(value);
             ServerStateSync.send(player);
+            if (level.getlevel() > before) {
+                MinecraftForge.EVENT_BUS.post(new LevelUp(player, before, level.getlevel()));
+            }
             source.sendSuccess(() -> Component.literal(
                     "等级设为 " + level.getlevel() + "（经验 " + level.getExp() + "）"), false);
         });
@@ -157,6 +201,64 @@ public final class DndCommands {
         ServerPlayer player = source.getPlayerOrException();
         CharacterRefresh.refresh(player);
         source.sendSuccess(() -> Component.literal("已刷新特性与施法进度。"), false);
+        return 1;
+    }
+
+    private static int save(CommandSourceStack source, String ability, int dc, String mode) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        SaveQteManager.Mode parsed;
+        try {
+            parsed = SaveQteManager.Mode.valueOf(mode.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            source.sendFailure(Component.literal("模式必须是 timing / mash / hidden"));
+            return 0;
+        }
+        SaveQteManager.request(player, ability.toLowerCase(java.util.Locale.ROOT), dc, parsed);
+        source.sendSuccess(() -> Component.literal("豁免 " + ability + " DC " + dc + " (" + parsed + ")"), false);
+        return 1;
+    }
+
+    private static int conditionApply(CommandSourceStack source, ResourceLocation id, int seconds, int dc) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        int ticks = seconds > 0 ? seconds * 20 : -1;
+        boolean ok = ConditionManager.apply(player, id, ticks, null, dc);
+        if (ok) {
+            source.sendSuccess(() -> Component.literal("已施加状态 " + id), false);
+        } else {
+            source.sendFailure(Component.literal("未知状态或免疫：" + id));
+        }
+        return ok ? 1 : 0;
+    }
+
+    private static int conditionRemove(CommandSourceStack source, ResourceLocation id) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        boolean ok = ConditionManager.remove(player, id, DndConditionRemovedEvent.Reason.CURED);
+        if (ok) {
+            source.sendSuccess(() -> Component.literal("已移除状态 " + id), false);
+        } else {
+            source.sendFailure(Component.literal("该状态未生效：" + id));
+        }
+        return ok ? 1 : 0;
+    }
+
+    private static int conditionList(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        java.util.List<net.minecraft.nbt.CompoundTag> list = ConditionManager.snapshot(player);
+        if (list.isEmpty()) {
+            source.sendSuccess(() -> Component.literal("当前没有状态。"), false);
+            return 0;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            final net.minecraft.nbt.CompoundTag tag = list.get(i);
+            source.sendSuccess(() -> Component.literal("- " + tag.getString("id") + " (" + tag.getInt("duration") + "t)"), false);
+        }
+        return list.size();
+    }
+
+    private static int exhaustionSet(CommandSourceStack source, int level) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ConditionManager.setExhaustion(player, level);
+        source.sendSuccess(() -> Component.literal("力竭等级设为 " + level), false);
         return 1;
     }
 
@@ -286,23 +388,5 @@ public final class DndCommands {
             builder.append(id);
         }
         return builder.toString();
-    }
-
-    private static int use(CommandSourceStack source, String raw) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        ResourceLocation id = ResourceLocation.tryParse(raw);
-        if (id == null) {
-            source.sendFailure(Component.literal("无效的特性 id：" + raw));
-            return 0;
-        }
-        FeatureManager.UseResult result = FeatureManager.use(player, id);
-        switch (result) {
-            case SUCCESS -> source.sendSuccess(() -> Component.literal(
-                    "使用 " + id + "，剩余 " + FeatureManager.remainingUses(player, id) + " 次"), false);
-            case UNKNOWN_FEATURE -> source.sendFailure(Component.literal("你尚未获得该特性：" + id));
-            case NOT_ACTIVE -> source.sendFailure(Component.literal("该特性不是主动特性：" + id));
-            case NO_USES -> source.sendFailure(Component.literal("次数不足：" + id));
-        }
-        return result == FeatureManager.UseResult.SUCCESS ? 1 : 0;
     }
 }

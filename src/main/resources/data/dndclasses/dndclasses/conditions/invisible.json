@@ -1,0 +1,18 @@
+{
+  "id": "dndclasses:invisible",
+  "name_key": "condition.dndclasses.invisible",
+  "description_key": "condition.dndclasses.invisible.desc",
+  "save_ability": "",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "invisible"
+  ],
+  "status_effects": [
+    {
+      "effect": "minecraft:invisibility"
+    }
+  ],
+  "attribute_modifiers": []
+}

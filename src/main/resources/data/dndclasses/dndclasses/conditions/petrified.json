@@ -1,0 +1,16 @@
+{
+  "id": "dndclasses:petrified",
+  "name_key": "condition.dndclasses.petrified",
+  "description_key": "condition.dndclasses.petrified.desc",
+  "save_ability": "con",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "incapacitated",
+    "immobile",
+    "half_damage"
+  ],
+  "status_effects": [],
+  "attribute_modifiers": []
+}

@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
 import mdh.dndclasses.feature.CharacterRefresh;
+import mdh.dndclasses.feature.FeatureDefinition;
 import mdh.dndclasses.spells.Preparation;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -45,6 +46,10 @@ public class SpellcastingReloadListener extends SimpleJsonResourceReloadListener
                 Preparation preparation = parsePreparation(root.has("preparation")
                         ? root.get("preparation").getAsString()
                         : "none", file);
+                String ability = optionalString(root, "ability", "");
+                boolean shortRestRecovery = root.has("short_rest_recovery")
+                        && root.get("short_rest_recovery").getAsBoolean();
+                FeatureDefinition.OwnerType ownerType = parseOwnerType(optionalString(root, "owner_type", "class"));
                 JsonArray levels = root.getAsJsonArray("levels");
 
                 Map<Integer, SpellLevelEntry> byLevel = new HashMap<>();
@@ -52,7 +57,7 @@ public class SpellcastingReloadListener extends SimpleJsonResourceReloadListener
                     byLevel.put(levels.get(i).getAsJsonObject().get("level").getAsInt(),
                             parseLevel(levels.get(i).getAsJsonObject()));
                 }
-                SpellcastingRegistry.register(owner, preparation, byLevel);
+                SpellcastingRegistry.register(owner, preparation, ability, shortRestRecovery, ownerType, byLevel);
                 loaded++;
             } catch (Exception exception) {
                 LOGGER.error("Failed to load spellcasting table from {}", file, exception);
@@ -101,6 +106,19 @@ public class SpellcastingReloadListener extends SimpleJsonResourceReloadListener
                 LOGGER.warn("Unknown preparation '{}' in {}, defaulting to NONE", raw, file);
                 return Preparation.NONE;
         }
+    }
+
+    private static FeatureDefinition.OwnerType parseOwnerType(String raw) {
+        return "subclass".equalsIgnoreCase(raw)
+                ? FeatureDefinition.OwnerType.SUBCLASS
+                : FeatureDefinition.OwnerType.CLASS;
+    }
+
+    private static String optionalString(JsonObject object, String key, String fallback) {
+        if (!object.has(key) || object.get(key).isJsonNull()) {
+            return fallback;
+        }
+        return object.get(key).getAsString();
     }
 
     private static ResourceLocation parseId(String raw, String sourceNamespace) {

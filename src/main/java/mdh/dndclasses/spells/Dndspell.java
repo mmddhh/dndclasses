@@ -31,6 +31,9 @@ public class Dndspell implements IDndSpell {
     private final LinkedHashSet<ResourceLocation> knownSpells = new LinkedHashSet<>();
     private final LinkedHashSet<ResourceLocation> preparedSpells = new LinkedHashSet<>();
 
+    private ResourceLocation concentration = null;
+    private int concentrationTicks = 0;
+
     public Dndspell() {
         for (int level = 1; level <= 9; level++) {
             spellslots.put(level, 0);
@@ -239,6 +242,30 @@ public class Dndspell implements IDndSpell {
         trimToLimit(preparedSpells, preparedSpellLimit);
     }
 
+    // ----------------------------------------------------- concentration
+
+    @Override
+    public ResourceLocation getConcentration() {
+        return concentration;
+    }
+
+    @Override
+    public int getConcentrationTicks() {
+        return concentrationTicks;
+    }
+
+    @Override
+    public void startConcentration(ResourceLocation spell, int ticks) {
+        this.concentration = spell;
+        this.concentrationTicks = ticks;
+    }
+
+    @Override
+    public void clearConcentration() {
+        this.concentration = null;
+        this.concentrationTicks = 0;
+    }
+
     // ---------------------------------------------------------------- nbt
 
     @Override
@@ -255,6 +282,10 @@ public class Dndspell implements IDndSpell {
         nbt.put("knownCantrips", writeIds(knownCantrips));
         nbt.put("knownSpells", writeIds(knownSpells));
         nbt.put("preparedSpells", writeIds(preparedSpells));
+        if (concentration != null) {
+            nbt.putString("concentration", concentration.toString());
+        }
+        nbt.putInt("concentrationTicks", concentrationTicks);
         return nbt;
     }
 
@@ -299,6 +330,9 @@ public class Dndspell implements IDndSpell {
         readIds(nbt, "knownCantrips", knownCantrips);
         readIds(nbt, "knownSpells", knownSpells);
         readIds(nbt, "preparedSpells", preparedSpells);
+
+        concentration = nbt.contains("concentration") ? ResourceLocation.tryParse(nbt.getString("concentration")) : null;
+        concentrationTicks = nbt.contains("concentrationTicks") ? nbt.getInt("concentrationTicks") : 0;
     }
 
     // -------------------------------------------------------------- helpers

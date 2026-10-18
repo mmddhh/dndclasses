@@ -1,0 +1,12 @@
+{
+  "id": "dndclasses:deafened",
+  "name_key": "condition.dndclasses.deafened",
+  "description_key": "condition.dndclasses.deafened.desc",
+  "save_ability": "",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [],
+  "status_effects": [],
+  "attribute_modifiers": []
+}

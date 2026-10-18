@@ -1,0 +1,14 @@
+{
+  "id": "dndclasses:grappled",
+  "name_key": "condition.dndclasses.grappled",
+  "description_key": "condition.dndclasses.grappled.desc",
+  "save_ability": "str",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "immobile"
+  ],
+  "status_effects": [],
+  "attribute_modifiers": []
+}

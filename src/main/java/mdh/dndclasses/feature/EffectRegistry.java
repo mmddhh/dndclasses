@@ -1,6 +1,8 @@
 package mdh.dndclasses.feature;
 
 import mdh.dndclasses.feature.effect.AttributeEffectHandler;
+import mdh.dndclasses.feature.effect.HealEffectHandler;
+import mdh.dndclasses.feature.effect.StatusEffectHandler;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashMap;
@@ -15,6 +17,8 @@ public final class EffectRegistry {
 
     public static void registerDefaults() {
         register(new AttributeEffectHandler());
+        register(new HealEffectHandler());
+        register(new StatusEffectHandler());
     }
 
     public static void register(EffectHandler handler) {

@@ -4,6 +4,9 @@ import com.google.gson.JsonObject;
 import com.sighs.apricityui.init.Document;
 import com.sighs.apricityui.init.Element;
 import com.sighs.apricityui.screen.ApricityScreen;
+import mdh.dndclasses.capability.ModCapabilities;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * Read-only character sheet. Reuses the class-creation page but switches it into
@@ -62,6 +65,30 @@ public class CharacterSheetScreen extends ApricityScreen {
         abilities.addProperty("wis", at(values, 4));
         abilities.addProperty("cha", at(values, 5));
         root.add("abilities", abilities);
+
+        // Resources (client-side only): hit points, AC placeholder, carry capacity, spell slots.
+        root.addProperty("ac", 0);
+        root.addProperty("weightCapacity", at(values, 0) * 15);
+
+        Player player = Minecraft.getInstance().player;
+        if (player != null) {
+            root.addProperty("hp", player.getHealth());
+            root.addProperty("hpMax", player.getMaxHealth());
+            player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(spell -> {
+                JsonObject slots = new JsonObject();
+                for (int ring = 1; ring <= 9; ring++) {
+                    int max = spell.getmaxspellslots(ring);
+                    if (max <= 0) {
+                        continue;
+                    }
+                    JsonObject entry = new JsonObject();
+                    entry.addProperty("cur", spell.getspellslots(ring));
+                    entry.addProperty("max", max);
+                    slots.add(Integer.toString(ring), entry);
+                }
+                root.add("slots", slots);
+            });
+        }
 
         return root.toString();
     }

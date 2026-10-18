@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="aui-viewport" content="mode=browser">
+  <title>Save QTE</title>
+  <link rel="stylesheet" href="/apricityui/theme/ore/ore.css">
+  <link rel="stylesheet" href="save_qte.css">
+</head>
+<body class="ore-theme">
+  <div id="qte-root" class="hidden">
+    <div class="qte-panel">
+      <div class="qte-head">
+        <span class="qte-title"><translation>screen.dndclasses.qte.title</translation></span>
+        <span id="qte-ability" class="qte-ability"></span>
+        <span id="qte-numbers" class="qte-numbers"></span>
+      </div>
+
+      <div class="qte-timing" id="qte-timing">
+        <div class="qte-track" id="qte-track">
+          <div class="qte-box" id="qte-box"></div>
+          <div class="qte-blocks" id="qte-blocks"></div>
+        </div>
+      </div>
+
+      <div class="qte-mash" id="qte-mash">
+        <div class="qte-ring" id="qte-ring">
+          <div class="qte-ring-bg" id="qte-ring-bg"></div>
+          <div class="qte-ring-fill" id="qte-ring-fill"></div>
+        </div>
+        <div class="qte-button" id="qte-button"><span id="qte-key-label"></span></div>
+        <div class="qte-percent" id="qte-percent"></div>
+      </div>
+
+      <div class="qte-hint" id="qte-hint"></div>
+    </div>
+  </div>
+
+  <input id="qte-data" type="hidden" value="">
+  <input id="qte-press" type="hidden" value="">
+  <input id="qte-key" type="hidden" value="">
+  <input id="qte-result" type="hidden" value="">
+  <script src="save_qte.js"></script>
+</body>
+</html>

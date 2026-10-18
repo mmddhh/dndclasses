@@ -1,0 +1,19 @@
+{
+  "id": "dndclasses:frightened",
+  "name_key": "condition.dndclasses.frightened",
+  "description_key": "condition.dndclasses.frightened.desc",
+  "save_ability": "wis",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "weakness",
+    "cannot_approach_source"
+  ],
+  "status_effects": [
+    {
+      "effect": "minecraft:weakness"
+    }
+  ],
+  "attribute_modifiers": []
+}

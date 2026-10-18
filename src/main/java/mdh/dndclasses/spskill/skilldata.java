@@ -56,6 +56,11 @@ public class skilldata implements INBTSerializable<CompoundTag> {
         this.rest = !rest;
     }
 
+    /** Sets the short-rest recovery flag directly. */
+    public void setRestFlag(boolean value){
+        this.rest = value;
+    }
+
     public boolean getrest(){
         return rest;
     }

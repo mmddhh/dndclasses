@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:silver_nugget"
+    }
+  ],
+  "result": {
+    "item": "dndclasses:silver_blowgun_needle",
+    "count": 8
+  }
+}

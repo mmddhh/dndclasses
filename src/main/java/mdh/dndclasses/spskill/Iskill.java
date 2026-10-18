@@ -11,6 +11,9 @@ public interface Iskill extends INBTSerializable<CompoundTag> {
     void reshortskilluse();
     void relongskilluse();
     void addskill(String skillName, int maxUses, boolean isShortRest);
+    /** Whether this skill recovers on a short rest. */
+    boolean getskillrest(String skillname);
+    void setskillrest(String skillname, boolean isShortRest);
     //deepseek写的，因为我懒了
     boolean removeSkill(String skillname);
 }

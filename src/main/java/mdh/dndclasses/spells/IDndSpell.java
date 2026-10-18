@@ -88,6 +88,33 @@ public interface IDndSpell extends INBTSerializable<CompoundTag> {
      */
     Set<ResourceLocation> getCastableSpells();
 
+    /** Highest ring (1-9) that has spell slots; 0 when the player has no slots. */
+    default int getMaxSpellLevel() {
+        for (int ring = 9; ring >= 1; ring--) {
+            if (getmaxspellslots(ring) > 0) {
+                return ring;
+            }
+        }
+        return 0;
+    }
+
     /** Trims the three lists down to their limits (called after limits change). */
     void enforceLimits();
+
+    // ---- concentration ----
+
+    /** Spell the player is concentrating on, or null. */
+    ResourceLocation getConcentration();
+
+    /** Remaining concentration ticks; {@code <= 0} means "until broken". */
+    int getConcentrationTicks();
+
+    default boolean isConcentrating() {
+        return getConcentration() != null;
+    }
+
+    /** Starts (or replaces) concentration. {@code ticks <= 0} = until broken. */
+    void startConcentration(ResourceLocation spell, int ticks);
+
+    void clearConcentration();
 }

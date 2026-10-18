@@ -5,7 +5,7 @@
   <meta name="aui-font-mode" content="web">
   <meta name="aui-viewport" content="mode=browser">
   <meta name="aui-mouse-events" content="intercept">
-  <title>冒险者名册 · 职业创建</title>
+  <title>Adventurer's Tome</title>
   <link rel="stylesheet" href="/apricityui/theme/ore/ore.css">
   <link rel="stylesheet" href="class_creation.css">
 </head>
@@ -13,48 +13,48 @@
   <div class="grimoire-shell">
 
     <header class="grimoire-header">
-      <div class="emblem">卷</div>
+      <div class="emblem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,4 12,6 19,4 19,19 12,21 5,19"/><line x1="12" y1="6" x2="12" y2="21"/></svg></div>
       <div class="grimoire-headings">
-        <h1 class="grimoire-title">冒险者名册</h1>
-        <p class="grimoire-sub">THE ADVENTURER'S TOME · 职业创建</p>
+        <h1 class="grimoire-title"><translation>screen.dndclasses.creation.title</translation></h1>
+        <p class="grimoire-sub">THE ADVENTURER'S TOME · <translation>screen.dndclasses.creation.subtitle</translation></p>
       </div>
-      <div class="grimoire-badge">DND 5E · 27 点购点</div>
+      <div class="grimoire-badge"><translation>screen.dndclasses.creation.badge</translation></div>
     </header>
 
     <main class="grimoire-main">
 
       <section id="col-left" class="card tome tome-left">
-        <div class="card-header">职业名册</div>
+        <div class="card-header"><translation>screen.dndclasses.creation.roster</translation></div>
         <div class="card-body tome-body tome-body-fixed">
           <div id="class-list" class="class-list"></div>
         </div>
       </section>
 
       <section id="col-mid" class="card tome tome-mid">
-        <div class="card-header" id="detail-header">职业详情</div>
+        <div class="card-header" id="detail-header"><translation>screen.dndclasses.creation.detail_title</translation></div>
         <div class="card-body tome-body tome-body-scroll" id="detail-body"></div>
       </section>
 
       <section id="col-right" class="card tome tome-right">
-        <div class="card-header">属性点分配</div>
+        <div class="card-header"><translation>screen.dndclasses.creation.ability_points</translation></div>
         <div class="card-body tome-body tome-body-scroll" id="ability-body"></div>
         <div class="card-footer">
-          <button id="btn-confirm" class="button confirm-button" type="button" disabled>确认创建角色</button>
+          <button id="btn-confirm" class="button confirm-button" type="button" disabled><translation>screen.dndclasses.creation.confirm</translation></button>
           <div id="confirm-msg" class="confirm-msg"></div>
         </div>
       </section>
 
       <section id="sheet-view" class="card tome sheet-view hidden">
-        <div class="card-header" id="sheet-header">角色信息</div>
+        <div class="card-header" id="sheet-header"><translation>screen.dndclasses.sheet.character</translation></div>
         <div class="card-body tome-body tome-body-scroll" id="character-sheet-body"></div>
       </section>
 
-      <div id="page-loading" class="page-loading hidden">载入中…</div>
+      <div id="page-loading" class="page-loading hidden"><translation>screen.dndclasses.creation.loading</translation></div>
 
     </main>
 
     <footer id="grimoire-footer" class="grimoire-footer">
-      <div id="footer-summary" class="footer-summary">尚未选择职业。</div>
+      <div id="footer-summary" class="footer-summary"><translation>screen.dndclasses.creation.footer_no_class</translation></div>
       <div class="rune-row">
         <span class="rune">8 → 0</span>
         <span class="rune">12 → 4</span>
@@ -70,11 +70,11 @@
 
   <div id="sheet-overlay" class="sheet-overlay">
     <div class="sheet-modal">
-      <div class="sheet-modal-header">命运已定 · 确认角色</div>
+      <div class="sheet-modal-header"><translation>screen.dndclasses.creation.modal_title</translation></div>
       <div class="sheet-modal-body" id="sheet-body"></div>
       <div class="sheet-modal-footer">
-        <button id="sheet-cancel" class="button button-tertiary" type="button">返回修改</button>
-        <button id="sheet-commit" class="button" type="button">最终确认</button>
+        <button id="sheet-cancel" class="button button-tertiary" type="button"><translation>screen.dndclasses.creation.back</translation></button>
+        <button id="sheet-commit" class="button" type="button"><translation>screen.dndclasses.creation.commit</translation></button>
       </div>
     </div>
   </div>

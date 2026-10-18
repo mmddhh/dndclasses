@@ -192,3 +192,14 @@ tasks.named('jar', Jar).configure {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
 }
+
+// ApricityUI reads screen templates from <gamedir>/apricity. Keep run/apricity in sync
+// with the master copies under ./apricity before launching a run.
+tasks.register('syncApricity', Copy) {
+    from layout.projectDirectory.dir('apricity')
+    into layout.projectDirectory.dir('run/apricity')
+}
+
+tasks.matching { it.name in ['runClient', 'runServer', 'runData', 'runGameTestServer'] }.configureEach {
+    dependsOn 'syncApricity'
+}

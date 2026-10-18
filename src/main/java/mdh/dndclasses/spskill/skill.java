@@ -68,6 +68,20 @@ public class skill implements Iskill, INBTSerializable<CompoundTag> {
     }
 
     @Override
+    public boolean getskillrest(String skillname) {
+        skilldata data = skillmap.get(skillname);
+        return data != null && data.getrest();
+    }
+
+    @Override
+    public void setskillrest(String skillname, boolean isShortRest) {
+        skilldata data = skillmap.get(skillname);
+        if (data != null) {
+            data.setRestFlag(isShortRest);
+        }
+    }
+
+    @Override
     public boolean removeSkill(String skillname) {
         return skillmap.remove(skillname) != null;
     }

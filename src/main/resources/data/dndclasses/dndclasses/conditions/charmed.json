@@ -1,0 +1,14 @@
+{
+  "id": "dndclasses:charmed",
+  "name_key": "condition.dndclasses.charmed",
+  "description_key": "condition.dndclasses.charmed.desc",
+  "save_ability": "wis",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "cannot_attack_source"
+  ],
+  "status_effects": [],
+  "attribute_modifiers": []
+}

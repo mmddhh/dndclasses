@@ -1,0 +1,14 @@
+{
+  "id": "dndclasses:restrained",
+  "name_key": "condition.dndclasses.restrained",
+  "description_key": "condition.dndclasses.restrained.desc",
+  "save_ability": "str",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "immobile"
+  ],
+  "status_effects": [],
+  "attribute_modifiers": []
+}

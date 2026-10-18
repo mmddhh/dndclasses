@@ -1,0 +1,15 @@
+{
+  "id": "dndclasses:paralyzed",
+  "name_key": "condition.dndclasses.paralyzed",
+  "description_key": "condition.dndclasses.paralyzed.desc",
+  "save_ability": "con",
+  "save_dc": 12,
+  "save_interval_ticks": 80,
+  "duration_ticks": 600,
+  "flags": [
+    "incapacitated",
+    "immobile"
+  ],
+  "status_effects": [],
+  "attribute_modifiers": []
+}

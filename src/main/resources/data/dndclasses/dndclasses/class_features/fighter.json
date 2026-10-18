@@ -1,0 +1,22 @@
+{
+  "class": "dndclasses:fighter",
+  "features": [
+    {
+      "id": "dndclasses:second_wind",
+      "level": 1,
+      "kind": "active",
+      "rest": "short",
+      "max_uses": 1,
+      "name": "回气",
+      "name_key": "feature.dndclasses.second_wind",
+      "description": "恢复 1d10 + 战士等级 点生命值（按期望结算）。",
+      "description_key": "feature.dndclasses.second_wind.desc",
+      "effects": [
+        {
+          "type": "dndclasses:heal",
+          "amount": { "dice": "1d10", "per_level": 1 }
+        }
+      ]
+    }
+  ]
+}

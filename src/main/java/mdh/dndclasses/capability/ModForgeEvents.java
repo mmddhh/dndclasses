@@ -4,6 +4,12 @@ import mdh.dndclasses.Config;
 import mdh.dndclasses.Dndclasses;
 import mdh.dndclasses.events.LevelUp;
 import mdh.dndclasses.events.DndLongRestEvent;
+import mdh.dndclasses.events.DndShortRestEvent;
+import mdh.dndclasses.events.DndConcentrationBrokenEvent;
+import mdh.dndclasses.conditions.ConditionManager;
+import mdh.dndclasses.conditions.Conditions;
+import mdh.dndclasses.conditions.IConditions;
+import mdh.dndclasses.saves.SaveQteManager;
 import mdh.dndclasses.ability.Iability;
 import mdh.dndclasses.ability.ability;
 import mdh.dndclasses.level.DndLeveling;
@@ -12,6 +18,7 @@ import mdh.dndclasses.level.level;
 import mdh.dndclasses.network.ServerStateSync;
 import mdh.dndclasses.race.Irace;
 import mdh.dndclasses.race.race;
+import mdh.dndclasses.spellcasting.SpellcastingManager;
 import mdh.dndclasses.spells.Dndspell;
 import mdh.dndclasses.spells.IDndSpell;
 import mdh.dndclasses.spskill.Iskill;
@@ -32,6 +39,7 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.INBTSerializable;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
 import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
@@ -50,6 +58,7 @@ public class ModForgeEvents {
             Provider<Ilevel> levelProvider = new Provider<>(ModCapabilities.LEVEL_CAPABILITY, new level());
             Provider<IDndSpell> spellProvider = new Provider<>(ModCapabilities.DND_SPELL_CAPABILITY, new Dndspell());
             Provider<Irace> raceProvider = new Provider<>(ModCapabilities.RACE_CAPABILITY, new race());
+            Provider<IConditions> conditionsProvider = new Provider<>(ModCapabilities.CONDITIONS_CAPABILITY, new Conditions());
 
             event.addCapability(
                     new ResourceLocation(Dndclasses.MODID, "skill"),
@@ -76,6 +85,11 @@ public class ModForgeEvents {
                     raceProvider
             );
             event.addListener(raceProvider::invalidate);
+            event.addCapability(
+                    new ResourceLocation(Dndclasses.MODID, "conditions"),
+                    conditionsProvider
+            );
+            event.addListener(conditionsProvider::invalidate);
         }
     }
 
@@ -107,6 +121,7 @@ public class ModForgeEvents {
         copyCapability(original, current, ModCapabilities.LEVEL_CAPABILITY);
         copyCapability(original, current, ModCapabilities.DND_SPELL_CAPABILITY);
         copyCapability(original, current, ModCapabilities.RACE_CAPABILITY);
+        copyCapability(original, current, ModCapabilities.CONDITIONS_CAPABILITY);
         original.invalidateCaps();
     }
 
@@ -142,7 +157,7 @@ public class ModForgeEvents {
             player.sendSystemMessage(Component.literal("DND XP +" + gainedExperience + " (" + newExperience + ")").withStyle(ChatFormatting.GRAY));
 
             if (newLevel > oldLevel) {
-                MinecraftForge.EVENT_BUS.post(new LevelUp(newLevel));
+                MinecraftForge.EVENT_BUS.post(new LevelUp(player, oldLevel, newLevel));
                 player.sendSystemMessage(Component.literal("DND level up! Level " + oldLevel + " -> " + newLevel + ", proficiency +" + levelData.getproficiencybonus()).withStyle(ChatFormatting.GOLD));
             }
 
@@ -152,12 +167,18 @@ public class ModForgeEvents {
 
     @SubscribeEvent
     public static void onPlayerWakeUp(PlayerWakeUpEvent event) {
-        if (!event.wakeImmediately() && event.updateLevel()) {
+        // wakeImmediately is false for natural wakes (the night-skip wakeUpAllPlayers uses
+        // (false,false), the dawn time-check uses (false,true)) and true for getting up early /
+        // taking damage / disconnecting. So !wakeImmediately() means "completed a long rest".
+        if (!event.wakeImmediately()) {
             Player player = event.getEntity();
             player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(IDndSpell::reslots);
             player.getCapability(ModCapabilities.SKILL_CAPABILITY).ifPresent(Iskill::relongskilluse);
             if (player instanceof ServerPlayer serverPlayer) {
+                SaveQteManager.breakConcentration(serverPlayer, DndConcentrationBrokenEvent.Reason.OTHER);
+                ConditionManager.decreaseExhaustion(serverPlayer);
                 MinecraftForge.EVENT_BUS.post(new DndLongRestEvent(serverPlayer));
+                ServerStateSync.send(serverPlayer);
             }
         }
     }
@@ -168,9 +189,41 @@ public class ModForgeEvents {
         if (player.level().isDay() && player.level() instanceof ServerLevel serverLevel) {
             serverLevel.setDayTime(serverLevel.getDayTime() + 1000);
             player.getCapability(ModCapabilities.SKILL_CAPABILITY).ifPresent(Iskill::reshortskilluse);
+            if (player instanceof ServerPlayer serverPlayer) {
+                MinecraftForge.EVENT_BUS.post(new DndShortRestEvent(serverPlayer));
+                SpellcastingManager.onShortRest(serverPlayer);
+                ServerStateSync.send(serverPlayer);
+            }
             event.setResult(Player.BedSleepingProblem.NOT_POSSIBLE_NOW);
             player.sendSystemMessage(Component.translatable("message.dndclasses.short_rest").withStyle(ChatFormatting.GREEN));
         }
+    }
+
+    @SubscribeEvent
+    public static void onLivingDamage(LivingDamageEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || event.getAmount() <= 0) {
+            return;
+        }
+        boolean[] concentrating = {false};
+        player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(spell -> concentrating[0] = spell.isConcentrating());
+        if (!concentrating[0]) {
+            return;
+        }
+        int dc = Math.max(10, (int) Math.floor(event.getAmount() / 2.0));
+        SaveQteManager.request(player, "con", dc, SaveQteManager.Mode.TIMING);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            SaveQteManager.breakConcentration(player, DndConcentrationBrokenEvent.Reason.DEATH);
+            ConditionManager.clearOnDeath(player);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        event.getEntity().getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(IDndSpell::clearConcentration);
     }
 
     private static <T extends INBTSerializable<CompoundTag>> void copyCapability(Player original, Player current, Capability<T> capability) {

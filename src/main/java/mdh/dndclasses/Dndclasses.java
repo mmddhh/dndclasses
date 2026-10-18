@@ -3,6 +3,10 @@ package mdh.dndclasses;
 import com.mojang.logging.LogUtils;
 import mdh.dndclasses.feature.EffectRegistry;
 import mdh.dndclasses.network.DndNetwork;
+import mdh.dndclasses.weapon.RemoveForbiddenLootModifier;
+import mdh.dndclasses.weapon.WeaponCreativeTab;
+import mdh.dndclasses.weapon.WeaponEntities;
+import mdh.dndclasses.weapon.WeaponItems;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -22,6 +26,11 @@ public class Dndclasses {
 
     public Dndclasses() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+
+        WeaponItems.register(modEventBus);
+        WeaponEntities.register(modEventBus);
+        WeaponCreativeTab.register(modEventBus);
+        RemoveForbiddenLootModifier.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
 

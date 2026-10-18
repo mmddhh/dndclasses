@@ -1,0 +1,134 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+#wheel-root {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* revealed by JS once feature data arrives */
+.wheel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 560px;
+  height: 560px;
+  transform: translate(-50%, -50%);
+}
+
+#layer-rune-band,
+#layer-sectors,
+#layer-dividers,
+#layer-labels {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- baked static decor: one element (~1 batch) per svg ---------- */
+.deco-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#wheel-root .deco-svg[data-deco="plate"] { color: #2e2212; opacity: 0.62; }
+#wheel-root .deco-svg[data-deco="band"] { color: #d9b45a; }
+#wheel-root .deco-svg[data-deco="hole"] { color: #0e0a05; opacity: 0.88; }
+#wheel-root .deco-svg[data-deco="holering"] { color: #d9b45a; }
+
+/* ---------- dynamic sectors / dividers / labels ---------- */
+.sector { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: transparent; }
+.sector.active { background: rgba(217, 180, 90, 0.18); filter: drop-shadow(0 0 14px rgba(217, 180, 90, 0.9)); }
+.sector.active.spent { background: rgba(140, 80, 60, 0.18); filter: drop-shadow(0 0 14px rgba(140, 80, 60, 0.8)); }
+.sector.spent { opacity: 0.4; }
+
+.divider {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 134px;
+  background: #6b5527;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+}
+
+.label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150px;
+  text-align: center;
+  color: #ecdcb4;
+  font-size: 15px;
+  font-weight: 700;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.95);
+}
+
+/* ---------- center hole ---------- */
+.wheel-hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150px;
+  height: 150px;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+#hud-seal { width: 40px; height: 40px; color: #d9b45a; }
+#hud-seal svg { width: 100%; height: 100%; display: block; }
+
+#hud-name {
+  margin-top: 2px;
+  color: #f0e2be;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.95);
+}
+
+#hud-uses { color: #d9b45a; font-size: 13px; font-weight: 700; text-shadow: 0 0 5px rgba(0, 0, 0, 0.95); }
+#hud-uses.spent { color: #b06a4a; }
+#hud-rest { color: #9b8a63; font-size: 11px; text-shadow: 0 0 4px rgba(0, 0, 0, 0.9); }
+
+/* ---------- input layer (JS writes #use-request on mouseup) ---------- */
+#wheel-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#no-features {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  text-align: center;
+  color: #ecdcb4;
+  font-size: 20px;
+  font-weight: 700;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.95);
+}
+
+input[type="hidden"] { display: none; }

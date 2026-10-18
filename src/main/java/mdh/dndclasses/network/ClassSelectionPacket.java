@@ -125,7 +125,7 @@ public class ClassSelectionPacket {
                 }
             }
 
-            player.sendSystemMessage(Component.literal("职业已创建：" + ClassRegistry.getDisplayName(classKey)));
+            player.sendSystemMessage(Component.translatable("message.dndclasses.class_created", Component.translatable("class.dndclasses." + classKey)));
 
             ServerStateSync.send(player);
             MinecraftForge.EVENT_BUS.post(new DndCharacterCreatedEvent(player));

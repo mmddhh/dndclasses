@@ -88,11 +88,24 @@ public class ClassFeatureReloadListener extends SimpleJsonResourceReloadListener
                 kind,
                 rest,
                 maxUses,
+                parseUsesByLevel(object),
                 optionalString(object, "name", ""),
                 optionalString(object, "name_key", ""),
                 optionalString(object, "description", ""),
                 optionalString(object, "description_key", ""),
                 parseEffects(object));
+    }
+
+    private static List<Integer> parseUsesByLevel(JsonObject object) {
+        if (!object.has("max_uses_by_level") || object.get("max_uses_by_level").isJsonNull()) {
+            return List.of();
+        }
+        JsonArray array = object.getAsJsonArray("max_uses_by_level");
+        List<Integer> list = new ArrayList<>(array.size());
+        for (int i = 0; i < array.size(); i++) {
+            list.add(array.get(i).getAsInt());
+        }
+        return list;
     }
 
     private static List<EffectDefinition> parseEffects(JsonObject object) {

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="aui-viewport" content="mode=browser">
+  <meta name="aui-mouse-events" content="intercept">
+  <title>Feature Wheel</title>
+  <link rel="stylesheet" href="/apricityui/theme/ore/ore.css">
+  <link rel="stylesheet" href="feature_wheel.css">
+</head>
+<body class="ore-theme">
+  <div id="wheel-root">
+    <div class="wheel" style="display:none">
+      <div id="layer-rune-band">
+        <svg class="deco-svg" data-deco="plate" viewBox="0 0 560 560"><circle cx="280" cy="280" r="258" fill="currentColor"/></svg>
+        <svg class="deco-svg" data-deco="band" viewBox="0 0 560 560"><circle cx="280" cy="280" r="253" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="280" cy="280" r="257" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      </div>
+
+      <div id="layer-sectors"></div>
+      <div id="layer-dividers"></div>
+      <div id="layer-labels"></div>
+
+      <svg class="deco-svg" data-deco="hole" viewBox="0 0 560 560"><circle cx="280" cy="280" r="70" fill="currentColor"/></svg>
+
+      <div class="wheel-hole">
+        <div id="hud-seal"></div>
+        <div id="hud-name">&nbsp;</div>
+        <div id="hud-uses"></div>
+        <div id="hud-rest"></div>
+      </div>
+
+      <svg class="deco-svg" data-deco="holering" viewBox="0 0 560 560"><circle cx="280" cy="280" r="70" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+    </div>
+
+    <div id="no-features">No features available</div>
+
+    <div id="wheel-input"></div>
+  </div>
+
+  <input id="feature-data" type="hidden" value="">
+  <input id="hover-index" type="hidden" value="">
+  <input id="use-request" type="hidden" value="">
+  <script src="feature_wheel.js"></script>
+</body>
+</html>

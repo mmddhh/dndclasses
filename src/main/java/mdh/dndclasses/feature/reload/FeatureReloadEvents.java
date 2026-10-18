@@ -1,6 +1,7 @@
 package mdh.dndclasses.feature.reload;
 
 import mdh.dndclasses.Dndclasses;
+import mdh.dndclasses.conditions.ConditionReloadListener;
 import mdh.dndclasses.spellcasting.SpellcastingReloadListener;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -16,5 +17,6 @@ public final class FeatureReloadEvents {
     public static void onAddReloadListener(AddReloadListenerEvent event) {
         event.addListener(new ClassFeatureReloadListener());
         event.addListener(new SpellcastingReloadListener());
+        event.addListener(new ConditionReloadListener());
     }
 }

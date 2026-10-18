@@ -196,11 +196,11 @@ CLASS_FEATURES["druid"] = {
     { lv: 1, items: [ { n: "德鲁伊语", e: "Druidic" }, { n: "施法", e: "Spellcasting" } ] },
     { lv: 2, items: [ { n: "野性形态", e: "Wild Shape" }, { n: "德鲁伊结社", e: "Druid Circle" } ] },
     { lv: 3, items: [] },
-    { lv: 4, items: [ { n: "野性形态强化（CR 1/2）", e: "Wild Shape improvement" }, { n: "属性值提升", e: "Ability Score Improvement" } ] },
+    { lv: 4, items: [ { n: "野性形态强化（CR 1/2）", e: "Wild Shape improvement (CR 1/2)" }, { n: "属性值提升", e: "Ability Score Improvement" } ] },
     { lv: 5, items: [] },
     { lv: 6, items: [ { n: "德鲁伊结社特性", e: "Druid Circle feature" } ] },
     { lv: 7, items: [] },
-    { lv: 8, items: [ { n: "野性形态强化（CR 1）", e: "Wild Shape improvement" }, { n: "属性值提升", e: "Ability Score Improvement" } ] },
+    { lv: 8, items: [ { n: "野性形态强化（CR 1）", e: "Wild Shape improvement (CR 1)" }, { n: "属性值提升", e: "Ability Score Improvement" } ] },
     { lv: 9, items: [] },
     { lv: 10, items: [ { n: "德鲁伊结社特性", e: "Druid Circle feature" } ] },
     { lv: 11, items: [] },
@@ -340,9 +340,9 @@ CLASS_FEATURES["monk"] = {
       name: "四象之道", en: "Way of the Four Elements",
       features: [
         { lv: 3, items: [ { n: "元素门徒", e: "Disciple of the Elements" }, { n: "元素法门", e: "Elemental Disciplines" } ] },
-        { lv: 6, items: [ { n: "元素法门（更多）", e: "Elemental Disciplines" } ] },
-        { lv: 11, items: [ { n: "元素法门（更多）", e: "Elemental Disciplines" } ] },
-        { lv: 17, items: [ { n: "元素法门（更多）", e: "Elemental Disciplines" } ] }
+        { lv: 6, items: [ { n: "元素法门（更多）", e: "Elemental Disciplines (More)" } ] },
+        { lv: 11, items: [ { n: "元素法门（更多）", e: "Elemental Disciplines (More)" } ] },
+        { lv: 17, items: [ { n: "元素法门（更多）", e: "Elemental Disciplines (More)" } ] }
       ]
     }
   ]
@@ -706,186 +706,215 @@ var MIN_SCORE = 8;
 var MAX_SCORE = 15;
 var POINT_COST = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
 
-var ITEM_NAMES = {
-  "minecraft:iron_axe": "战斧",
-  "minecraft:iron_sword": "长剑",
-  "minecraft:wooden_axe": "硬头锤",
-  "minecraft:shield": "盾牌",
-  "minecraft:stick": "长棍",
-  "minecraft:chainmail_chestplate": "锁子甲",
-  "minecraft:leather_chestplate": "皮甲",
-  "minecraft:diamond_chestplate": "板甲",
-  "minecraft:bow": "长弓",
-  "minecraft:crossbow": "轻弩"
-};
 
 var ABILITIES = [
-  { key: "str", name: "力量" },
-  { key: "dex", name: "敏捷" },
-  { key: "con", name: "体质" },
-  { key: "int", name: "智力" },
-  { key: "wis", name: "感知" },
-  { key: "cha", name: "魅力" }
+  { key: "str" }, { key: "dex" }, { key: "con" },
+  { key: "int" }, { key: "wis" }, { key: "cha" }
 ];
 
-var TABS = ["职业概览", "等级特性", "子职", "起始装备"];
+var TABS = [
+  "screen.dndclasses.creation.tab.overview",
+  "screen.dndclasses.creation.tab.levels",
+  "screen.dndclasses.creation.tab.subclass",
+  "screen.dndclasses.creation.tab.equipment"
+];
 
-/* 子职元数据：该职业子职选择等级 + 子职名 -> 全局 ID。
+/* 子职元数据：该职业 子职选择等级 + 子职 ID 有序表。
+ * 显示名由 id 的 path 生成键 subclass.dndclasses.<path>.name。
  * 只有选择等级 <= 1 的职业可在创建界面选择，其余仅作预览。 */
 var SUBCLASS_META = {
-  barbarian: { level: 3, ids: { "狂战士道途": "dndclasses:berserker", "图腾战士道途": "dndclasses:totem_warrior" } },
-  bard: { level: 3, ids: { "博识学院": "dndclasses:lore", "勇气学院": "dndclasses:valor" } },
-  cleric: { level: 1, ids: {
-    "知识领域": "dndclasses:knowledge", "生命领域": "dndclasses:life", "光明领域": "dndclasses:light",
-    "自然领域": "dndclasses:nature", "风暴领域": "dndclasses:tempest", "诡计领域": "dndclasses:trickery",
-    "战争领域": "dndclasses:war" } },
-  druid: { level: 2, ids: { "大地结社": "dndclasses:land", "月亮结社": "dndclasses:moon" } },
-  fighter: { level: 3, ids: {
-    "勇士": "dndclasses:champion", "战斗大师": "dndclasses:battle_master", "奥法骑士": "dndclasses:eldritch_knight" } },
-  monk: { level: 3, ids: {
-    "开手之道": "dndclasses:open_hand", "暗影之道": "dndclasses:shadow", "四象之道": "dndclasses:four_elements" } },
-  paladin: { level: 3, ids: {
-    "奉献之誓": "dndclasses:devotion", "上古之誓": "dndclasses:ancients", "复仇之誓": "dndclasses:vengeance" } },
-  ranger: { level: 3, ids: { "猎人": "dndclasses:hunter", "驯兽师": "dndclasses:beast_master" } },
-  rogue: { level: 3, ids: {
-    "盗贼": "dndclasses:thief", "刺客": "dndclasses:assassin", "奥法诡术师": "dndclasses:arcane_trickster" } },
-  sorcerer: { level: 1, ids: { "龙族血脉": "dndclasses:draconic_bloodline", "狂野魔法": "dndclasses:wild_magic" } },
-  warlock: { level: 1, ids: {
-    "妖精宗主": "dndclasses:archfey", "邪魔宗主": "dndclasses:fiend", "旧日支配者": "dndclasses:great_old_one" } },
-  wizard: { level: 2, ids: {
-    "防护学派": "dndclasses:abjuration", "咒法学派": "dndclasses:conjuration", "预言学派": "dndclasses:divination",
-    "附魔学派": "dndclasses:enchantment", "塑能学派": "dndclasses:evocation", "幻术学派": "dndclasses:illusion",
-    "死灵学派": "dndclasses:necromancy", "变化学派": "dndclasses:transmutation" } }
+  barbarian: { level: 3, ids: ["dndclasses:berserker", "dndclasses:totem_warrior"] },
+  bard: { level: 3, ids: ["dndclasses:lore", "dndclasses:valor"] },
+  cleric: { level: 1, ids: [
+    "dndclasses:knowledge", "dndclasses:life", "dndclasses:light", "dndclasses:nature",
+    "dndclasses:tempest", "dndclasses:trickery", "dndclasses:war"] },
+  druid: { level: 2, ids: ["dndclasses:land", "dndclasses:moon"] },
+  fighter: { level: 3, ids: ["dndclasses:champion", "dndclasses:battle_master", "dndclasses:eldritch_knight"] },
+  monk: { level: 3, ids: ["dndclasses:open_hand", "dndclasses:shadow", "dndclasses:four_elements"] },
+  paladin: { level: 3, ids: ["dndclasses:devotion", "dndclasses:ancients", "dndclasses:vengeance"] },
+  ranger: { level: 3, ids: ["dndclasses:hunter", "dndclasses:beast_master"] },
+  rogue: { level: 3, ids: ["dndclasses:thief", "dndclasses:assassin", "dndclasses:arcane_trickster"] },
+  sorcerer: { level: 1, ids: ["dndclasses:draconic_bloodline", "dndclasses:wild_magic"] },
+  warlock: { level: 1, ids: ["dndclasses:archfey", "dndclasses:fiend", "dndclasses:great_old_one"] },
+  wizard: { level: 2, ids: [
+    "dndclasses:abjuration", "dndclasses:conjuration", "dndclasses:divination", "dndclasses:enchantment",
+    "dndclasses:evocation", "dndclasses:illusion", "dndclasses:necromancy", "dndclasses:transmutation"] }
 };
 
 function subclassMeta(c) {
-  return SUBCLASS_META[c.key] || { level: 3, ids: {} };
+  return SUBCLASS_META[c.key] || { level: 3, ids: [] };
 }
 
-function eq(label, items) { return { label: label, items: items }; }
+function subclassNameKey(c, index) {
+  var meta = subclassMeta(c);
+  if (!meta.ids || index < 0 || index >= meta.ids.length) return "";
+  var id = String(meta.ids[index]);
+  var path = id.indexOf(":") >= 0 ? id.split(":")[1] : id;
+  return "subclass.dndclasses." + path + ".name";
+}
+
+function itemName(id) {
+  var s = String(id);
+  var ns = "minecraft", path = s;
+  if (s.indexOf(":") >= 0) { ns = s.split(":")[0]; path = s.split(":")[1]; }
+  return t("item." + ns + "." + path);
+}
+
+function eq(items) { return { items: items }; }
 
 var CLASSES = [
   {
-    key: "barbarian", name: "野蛮人", en: "Barbarian", icon: "蛮",
-    hitDie: "D12", primary: "力量", saves: ["力量", "体质"],
-    armor: ["轻甲", "中甲", "盾牌"], weapons: ["军用武器", "简易武器"],
-    desc: "狂暴的战士，用愤怒摧毁敌人。来自荒野的怒吼，在鲜血与狂怒中撕裂一切阻碍。",
+    key: "barbarian", hitDie: "D12",
+    primaryKey: "class.dndclasses.barbarian.primary", primaryAbilities: ["str"],
+    saves: ["str", "con"],
+    armor: ["light", "medium", "shield"], weapons: ["martial", "simple"],
     equipment: [
-      eq("巨斧 + 手斧 ×2", ["minecraft:iron_axe", "minecraft:iron_axe", "minecraft:iron_axe"]),
-      eq("任意军用近战武器", ["minecraft:iron_sword"])
+      eq(["minecraft:iron_axe", "minecraft:iron_axe", "minecraft:iron_axe"]),
+      eq(["minecraft:iron_sword"])
     ]
   },
   {
-    key: "bard", name: "吟游诗人", en: "Bard", icon: "吟",
-    hitDie: "D8", primary: "魅力", saves: ["敏捷", "魅力"],
-    armor: ["轻甲"], weapons: ["手弩", "长剑", "细剑", "短剑", "简易武器"],
-    desc: "用音乐和魔法激励同伴的艺术家，言词与旋律皆能化作力量。",
+    key: "bard", hitDie: "D8",
+    primaryKey: "class.dndclasses.bard.primary", primaryAbilities: ["cha"],
+    saves: ["dex", "cha"],
+    armor: ["light"], weapons: ["hand_crossbow", "longsword", "rapier", "shortsword", "simple"],
     equipment: [
-      eq("细剑 + 匕首", ["minecraft:iron_sword", "minecraft:iron_sword"]),
-      eq("长剑 + 匕首", ["minecraft:iron_sword", "minecraft:iron_sword"])
+      eq(["minecraft:iron_sword", "minecraft:iron_sword"]),
+      eq(["minecraft:iron_sword", "minecraft:iron_sword"])
     ]
   },
   {
-    key: "cleric", name: "牧师", en: "Cleric", icon: "牧",
-    hitDie: "D8", primary: "感知", saves: ["感知", "魅力"],
-    armor: ["轻甲", "中甲", "盾牌"], weapons: ["简易武器"],
-    desc: "侍奉神祇的施法者，以信仰引导神术，治愈同伴或降下裁决。",
+    key: "cleric", hitDie: "D8",
+    primaryKey: "class.dndclasses.cleric.primary", primaryAbilities: ["wis"],
+    saves: ["wis", "cha"],
+    armor: ["light", "medium", "shield"], weapons: ["simple"],
     equipment: [
-      eq("钉头锤 + 盾牌", ["minecraft:iron_axe", "minecraft:shield"]),
-      eq("硬头锤 + 盾牌", ["minecraft:wooden_axe", "minecraft:shield"])
+      eq(["minecraft:iron_axe", "minecraft:shield"]),
+      eq(["minecraft:wooden_axe", "minecraft:shield"])
     ]
   },
   {
-    key: "druid", name: "德鲁伊", en: "Druid", icon: "德",
-    hitDie: "D8", primary: "感知", saves: ["智力", "感知"],
-    armor: ["轻甲", "中甲", "盾牌—非金属"], weapons: ["简易武器", "弯刀", "长棍", "投石索"],
-    desc: "守护自然的古老施法者，能化身野兽，呼唤风雷与藤蔓。",
+    key: "druid", hitDie: "D8",
+    primaryKey: "class.dndclasses.druid.primary", primaryAbilities: ["wis"],
+    saves: ["int", "wis"],
+    armor: ["light", "medium", "shield_nonmetal"], weapons: ["simple", "scimitar", "quarterstaff", "sling"],
     equipment: [
-      eq("橡木法杖", ["minecraft:stick"]),
-      eq("弯刀 + 木盾", ["minecraft:iron_sword", "minecraft:shield"])
+      eq(["minecraft:stick"]),
+      eq(["minecraft:iron_sword", "minecraft:shield"])
     ]
   },
   {
-    key: "fighter", name: "战士", en: "Fighter", icon: "战",
-    hitDie: "D10", primary: "力量或敏捷", saves: ["力量", "体质"],
-    armor: ["所有护甲", "盾牌"], weapons: ["军用武器", "简易武器"],
-    desc: "武器大师，战场上的勇士，以钢铁与纪律赢得每一场交锋。",
+    key: "fighter", hitDie: "D10",
+    primaryKey: "class.dndclasses.fighter.primary", primaryAbilities: ["str", "dex"],
+    saves: ["str", "con"],
+    armor: ["all", "shield"], weapons: ["martial", "simple"],
     equipment: [
-      eq("链甲 + 盾牌 + 长剑", ["minecraft:chainmail_chestplate", "minecraft:shield", "minecraft:iron_sword"]),
-      eq("链甲 + 巨剑", ["minecraft:chainmail_chestplate", "minecraft:iron_sword"])
+      eq(["minecraft:chainmail_chestplate", "minecraft:shield", "minecraft:iron_sword"]),
+      eq(["minecraft:chainmail_chestplate", "minecraft:iron_sword"])
     ]
   },
   {
-    key: "monk", name: "武僧", en: "Monk", icon: "武",
-    hitDie: "D8", primary: "敏捷与感知", saves: ["力量", "敏捷"],
-    armor: ["无"], weapons: ["简易武器", "短剑"],
-    desc: "以气为力量的武术大师，拳脚之间流转着超越肉身的力量。",
+    key: "monk", hitDie: "D8",
+    primaryKey: "class.dndclasses.monk.primary", primaryAbilities: ["dex", "wis"],
+    saves: ["str", "dex"],
+    armor: ["none"], weapons: ["simple", "shortsword"],
     equipment: [
-      eq("短剑 + 匕首", ["minecraft:iron_sword", "minecraft:iron_sword"]),
-      eq("长棍", ["minecraft:stick"])
+      eq(["minecraft:iron_sword", "minecraft:iron_sword"]),
+      eq(["minecraft:stick"])
     ]
   },
   {
-    key: "paladin", name: "圣骑士", en: "Paladin", icon: "圣",
-    hitDie: "D10", primary: "力量与魅力", saves: ["感知", "魅力"],
-    armor: ["所有护甲", "盾牌"], weapons: ["军用武器", "简易武器"],
-    desc: "誓约守护者，圣光的使者，以信念为盾、以誓言为剑。",
+    key: "paladin", hitDie: "D10",
+    primaryKey: "class.dndclasses.paladin.primary", primaryAbilities: ["str", "cha"],
+    saves: ["wis", "cha"],
+    armor: ["all", "shield"], weapons: ["martial", "simple"],
     equipment: [
-      eq("链甲 + 盾牌 + 长剑", ["minecraft:chainmail_chestplate", "minecraft:shield", "minecraft:iron_sword"]),
-      eq("板甲 + 巨剑", ["minecraft:diamond_chestplate", "minecraft:iron_sword"])
+      eq(["minecraft:chainmail_chestplate", "minecraft:shield", "minecraft:iron_sword"]),
+      eq(["minecraft:diamond_chestplate", "minecraft:iron_sword"])
     ]
   },
   {
-    key: "ranger", name: "游侠", en: "Ranger", icon: "游",
-    hitDie: "D10", primary: "敏捷与感知", saves: ["力量", "敏捷"],
-    armor: ["轻甲", "中甲", "盾牌"], weapons: ["军用武器", "简易武器"],
-    desc: "荒野中的追踪者和猎手，熟悉每一条兽径与每一处险境。",
+    key: "ranger", hitDie: "D10",
+    primaryKey: "class.dndclasses.ranger.primary", primaryAbilities: ["dex", "wis"],
+    saves: ["str", "dex"],
+    armor: ["light", "medium", "shield"], weapons: ["martial", "simple"],
     equipment: [
-      eq("皮甲 + 短剑 + 长弓", ["minecraft:leather_chestplate", "minecraft:iron_sword", "minecraft:bow"]),
-      eq("皮甲 + 双短剑", ["minecraft:leather_chestplate", "minecraft:iron_sword", "minecraft:iron_sword"])
+      eq(["minecraft:leather_chestplate", "minecraft:iron_sword", "minecraft:bow"]),
+      eq(["minecraft:leather_chestplate", "minecraft:iron_sword", "minecraft:iron_sword"])
     ]
   },
   {
-    key: "rogue", name: "游荡者", en: "Rogue", icon: "盗",
-    hitDie: "D8", primary: "敏捷", saves: ["敏捷", "智力"],
-    armor: ["轻甲"], weapons: ["手弩", "长剑", "细剑", "短剑", "简易武器"],
-    desc: "阴影中的潜行者和偷袭专家，每一击都精准地落在要害。",
+    key: "rogue", hitDie: "D8",
+    primaryKey: "class.dndclasses.rogue.primary", primaryAbilities: ["dex"],
+    saves: ["dex", "int"],
+    armor: ["light"], weapons: ["hand_crossbow", "longsword", "rapier", "shortsword", "simple"],
     equipment: [
-      eq("细剑 + 短弓", ["minecraft:iron_sword", "minecraft:bow"]),
-      eq("双短剑", ["minecraft:iron_sword", "minecraft:iron_sword"])
+      eq(["minecraft:iron_sword", "minecraft:bow"]),
+      eq(["minecraft:iron_sword", "minecraft:iron_sword"])
     ]
   },
   {
-    key: "sorcerer", name: "术士", en: "Sorcerer", icon: "术",
-    hitDie: "D6", primary: "魅力", saves: ["体质", "魅力"],
-    armor: ["无"], weapons: ["匕首", "投石索", "长棍", "轻弩"],
-    desc: "体内流淌着魔法之血的施法者，无需研习便可驱使奥术。",
+    key: "sorcerer", hitDie: "D6",
+    primaryKey: "class.dndclasses.sorcerer.primary", primaryAbilities: ["cha"],
+    saves: ["con", "cha"],
+    armor: ["none"], weapons: ["dagger", "sling", "quarterstaff", "light_crossbow"],
     equipment: [
-      eq("轻弩 + 匕首", ["minecraft:crossbow", "minecraft:iron_sword"]),
-      eq("长棍 + 匕首", ["minecraft:stick", "minecraft:iron_sword"])
+      eq(["minecraft:crossbow", "minecraft:iron_sword"]),
+      eq(["minecraft:stick", "minecraft:iron_sword"])
     ]
   },
   {
-    key: "warlock", name: "邪术师", en: "Warlock", icon: "邪",
-    hitDie: "D8", primary: "魅力", saves: ["感知", "魅力"],
-    armor: ["轻甲"], weapons: ["简易武器"],
-    desc: "与强大存在缔结契约的施法者，以禁忌的知识换取力量。",
+    key: "warlock", hitDie: "D8",
+    primaryKey: "class.dndclasses.warlock.primary", primaryAbilities: ["cha"],
+    saves: ["wis", "cha"],
+    armor: ["light"], weapons: ["simple"],
     equipment: [
-      eq("轻弩 + 匕首", ["minecraft:crossbow", "minecraft:iron_sword"]),
-      eq("长棍 + 匕首", ["minecraft:stick", "minecraft:iron_sword"])
+      eq(["minecraft:crossbow", "minecraft:iron_sword"]),
+      eq(["minecraft:stick", "minecraft:iron_sword"])
     ]
   },
   {
-    key: "wizard", name: "法师", en: "Wizard", icon: "法",
-    hitDie: "D6", primary: "智力", saves: ["智力", "感知"],
-    armor: ["无"], weapons: ["匕首", "投石索", "长棍", "轻弩"],
-    desc: "通过研习掌握奥术的学者，法术书是他们最锋利的武器。",
+    key: "wizard", hitDie: "D6",
+    primaryKey: "class.dndclasses.wizard.primary", primaryAbilities: ["int"],
+    saves: ["int", "wis"],
+    armor: ["none"], weapons: ["dagger", "sling", "quarterstaff", "light_crossbow"],
     equipment: [
-      eq("长棍 + 匕首", ["minecraft:stick", "minecraft:iron_sword"]),
-      eq("轻弩 + 匕首", ["minecraft:crossbow", "minecraft:iron_sword"])
+      eq(["minecraft:stick", "minecraft:iron_sword"]),
+      eq(["minecraft:crossbow", "minecraft:iron_sword"])
     ]
   }
 ];
+
+/* 语言中立的职业图标：内联 SVG，颜色继承 .seal 的 color（金色）。
+ * 竖/横笔画用 rect 而非 line：AUI 的 Svg 渲染会跳过零面积的退化笔画。 */
+function svg(inner) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+    + 'stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+}
+
+function bar(x, y, w, h) {
+  return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h
+    + '" fill="currentColor" stroke="none"/>';
+}
+
+var SEALS = {
+  barbarian: svg(bar(12, 4, 2, 17) + '<polygon points="13,4 21,7 20,13 13,11"/>'),
+  bard: svg('<circle cx="7" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>'
+    + bar(9, 6, 2, 12) + bar(19, 5, 2, 11) + '<line x1="10" y1="6" x2="20" y2="5"/>'),
+  cleric: svg(bar(11, 3, 2, 18) + bar(6, 8, 12, 2)),
+  druid: svg('<polygon points="12,3 19,10 12,21 5,10"/>' + bar(11, 8, 2, 13)),
+  fighter: svg(bar(11, 5, 2, 16) + bar(7, 9, 10, 2) + '<polygon points="12,2 14,6 10,6"/>'),
+  monk: svg('<rect x="9" y="10" width="6" height="9"/>'
+    + bar(8, 6, 2, 4) + bar(11, 5, 2, 5) + bar(14, 6, 2, 4) + bar(6, 12, 3, 2)),
+  paladin: svg('<polygon points="12,3 20,6 20,12 12,21 4,12 4,6"/>'
+    + bar(11, 7, 2, 8) + bar(8, 9, 8, 2)),
+  ranger: svg('<line x1="5" y1="19" x2="19" y2="5"/><polygon points="19,5 12,5 19,12"/>'
+    + '<line x1="11" y1="13" x2="7" y2="17"/>'),
+  rogue: svg('<polygon points="12,3 15,10 9,10"/>' + bar(11, 10, 2, 8) + bar(9, 17, 6, 2)),
+  sorcerer: svg('<polygon points="12,2 14,10 22,12 14,14 12,22 10,14 2,12 10,10"/>'),
+  warlock: svg('<ellipse cx="12" cy="12" rx="9" ry="5"/><circle cx="12" cy="12" r="2.5"/>'),
+  wizard: svg('<polygon points="12,3 18,16 6,16"/>' + bar(4, 15, 16, 2) + '<circle cx="12" cy="11" r="1"/>')
+};
 
 var state = {
   selected: null,
@@ -897,6 +926,22 @@ var state = {
 };
 
 function byId(id) { return document.getElementById(id); }
+
+/* ---- i18n helpers --------------------------------------------------------
+ * Text is rendered through AUI's <translation> element, which resolves the key
+ * against the client language. There is no parameter interpolation, so any
+ * "label + value" text is built as a translated label plus a plain value. */
+function t(key) { return "<translation>" + key + "</translation>"; }
+
+function mk(tag, cls, key) {
+  var e = document.createElement(tag);
+  if (cls) e.setAttribute("class", cls);
+  if (key !== undefined && key !== null && key !== "") e.innerHTML = t(key);
+  return e;
+}
+
+function abilName(key) { return t("ability.dndclasses." + key); }
+
 
 function make(tag, cls, text) {
   var e = document.createElement(tag);
@@ -948,7 +993,7 @@ function describeAbilities() {
     var a = ABILITIES[i];
     var sc = state.abilities[a.key];
     var mod = Math.floor((sc - 10) / 2);
-    parts.push(a.name + " " + sc + "(" + (mod >= 0 ? "+" : "") + mod + ")");
+    parts.push(a.key + " " + sc + "(" + (mod >= 0 ? "+" : "") + mod + ")");
   }
   return parts.join("  ");
 }
@@ -963,10 +1008,11 @@ function renderClassList() {
     var c = CLASSES[i];
     var active = state.selected === c.key ? " active" : "";
     var item = make("div", "class-item" + active);
-    var seal = make("span", "seal", c.icon);
+    var seal = make("span", "seal");
+    seal.innerHTML = SEALS[c.key] || "";
     var info = make("span", "class-info");
-    info.appendChild(make("span", "class-name", c.name));
-    info.appendChild(make("span", "class-en", c.en));
+    info.appendChild(mk("span", "class-name", "class.dndclasses." + c.key));
+    info.appendChild(mk("span", "class-en", "class.dndclasses." + c.key + ".subtitle"));
     var die = make("span", "class-die", c.hitDie);
     item.appendChild(seal);
     item.appendChild(info);
@@ -994,22 +1040,23 @@ function selectClass(key) {
   setMsg("", false);
 }
 
-function sectionLabel(text) {
-  return make("div", "section-label", text);
+function sectionLabel(key) {
+  return mk("div", "section-label", key);
 }
 
 function runeRow(items) {
   var row = make("div", "rune-row");
   for (var i = 0; i < items.length; i++) {
-    row.appendChild(make("span", "rune", items[i]));
+    row.appendChild(mk("span", "rune", items[i]));
   }
   return row;
 }
 
-function statBox(label, value) {
+function statBox(labelKey, value) {
   var box = make("div", "stat");
-  box.appendChild(make("div", "stat-label", label));
-  box.appendChild(make("div", "stat-value", value));
+  box.appendChild(mk("div", "stat-label", labelKey));
+  if (value && typeof value === "object" && value.nodeType) box.appendChild(value);
+  else box.appendChild(make("div", "stat-value", value));
   return box;
 }
 
@@ -1019,30 +1066,33 @@ function renderDetail() {
   if (!header || !body) return;
   clearNode(body);
   if (!state.selected) {
-    header.textContent = "职业详情";
-    var empty = make("div", "empty-state");
-    empty.innerHTML = "从左侧名册中挑选一个职业，<br>翻开属于你的命运之页。";
+    header.innerHTML = t("screen.dndclasses.creation.detail_title");
+    var empty = mk("div", "empty-state", "screen.dndclasses.creation.detail_empty");
     body.appendChild(empty);
     return;
   }
 
   var c = findClass(state.selected);
-  header.textContent = c.name + " · " + c.en;
+  header.innerHTML = t("class.dndclasses." + c.key) + t("class.dndclasses." + c.key + ".subtitle_inline");
 
   var hero = make("div", "detail-hero");
-  hero.appendChild(make("span", "seal seal-lg", c.icon));
+  var heroSeal = make("span", "seal seal-lg");
+  heroSeal.innerHTML = SEALS[c.key] || "";
+  hero.appendChild(heroSeal);
   var heroText = make("div", null, null);
-  heroText.appendChild(make("div", "detail-name", c.name));
-  heroText.appendChild(make("div", "detail-en", c.en + " · " + c.hitDie));
+  heroText.appendChild(mk("div", "detail-name", "class.dndclasses." + c.key));
+  var enLine = make("div", "detail-en", null);
+  enLine.innerHTML = t("class.dndclasses." + c.key + ".subtitle");
+  heroText.appendChild(enLine);
   hero.appendChild(heroText);
   body.appendChild(hero);
 
-  body.appendChild(make("p", "detail-desc", c.desc));
+  body.appendChild(mk("p", "detail-desc", "class.dndclasses." + c.key + ".desc"));
 
   var stats = make("div", "stat-grid");
-  stats.appendChild(statBox("生命骰", c.hitDie));
-  stats.appendChild(statBox("主属性", c.primary));
-  stats.appendChild(statBox("豁免熟练", c.saves.join(" / ")));
+  stats.appendChild(statBox("screen.dndclasses.creation.hit_die", c.hitDie));
+  stats.appendChild(statBox("screen.dndclasses.creation.primary", mk("div", "stat-value", c.primaryKey)));
+  stats.appendChild(statBox("screen.dndclasses.creation.saves", runeRow(c.saves)));
   body.appendChild(stats);
 
   var tabsBar = make("div", "tabs detail-tabs");
@@ -1054,9 +1104,9 @@ function renderDetail() {
   body.appendChild(renderActivePane(c));
 }
 
-function bindTabButton(bar, index, label) {
+function bindTabButton(bar, index, labelKey) {
   var active = state.tab === index ? " active" : "";
-  var btn = make("button", "tab" + active, label);
+  var btn = mk("button", "tab" + active, labelKey);
   btn.setAttribute("type", "button");
   btn.addEventListener("click", function () { state.tab = index; renderDetail(); });
   bar.appendChild(btn);
@@ -1069,24 +1119,43 @@ function renderActivePane(c) {
   return paneEquipment(c);
 }
 
+function prefixKeys(prefix, arr) {
+  var out = [];
+  for (var i = 0; i < arr.length; i++) out.push(prefix + arr[i]);
+  return out;
+}
+
 function paneOverview(c) {
   var pane = make("div", "tab-pane");
-  pane.appendChild(sectionLabel("护甲熟练"));
-  pane.appendChild(runeRow(c.armor));
-  pane.appendChild(sectionLabel("武器熟练"));
-  pane.appendChild(runeRow(c.weapons));
-  pane.appendChild(sectionLabel("豁免熟练"));
-  pane.appendChild(runeRow(c.saves));
+  pane.appendChild(sectionLabel("screen.dndclasses.creation.armor_prof"));
+  pane.appendChild(runeRow(prefixKeys("prof.dndclasses.", c.armor)));
+  pane.appendChild(sectionLabel("screen.dndclasses.creation.weapon_prof"));
+  pane.appendChild(runeRow(prefixKeys("prof.dndclasses.", c.weapons)));
+  pane.appendChild(sectionLabel("screen.dndclasses.creation.saves"));
+  pane.appendChild(runeRow(prefixKeys("ability.dndclasses.", c.saves)));
   return pane;
+}
+
+function slugify(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/'/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function featureBlock(item) {
   var box = make("div", "feature");
+  var key = "feature.dndclasses." + slugify(item.e || item.n);
   var title = make("div", "feature-title");
-  title.appendChild(make("span", "feature-name", item.e ? (item.n + " " + item.e) : item.n));
+  var name = make("span", "feature-name", null);
+  name.innerHTML = t(key) + t(key + ".subtitle");
+  title.appendChild(name);
   box.appendChild(title);
-  var text = item.t ? item.t : (item.n + "特性描述");
-  box.appendChild(make("div", "feature-text", text));
+  var text = make("div", "feature-text", null);
+  if (item.t) text.textContent = item.t;
+  else text.innerHTML = t("feature.dndclasses.desc_placeholder");
+  box.appendChild(text);
   return box;
 }
 
@@ -1094,7 +1163,9 @@ function levelRow(level, items) {
   var row = make("div", "level-row" + (items.length ? "" : " empty"));
   var head = make("div", "level-head");
   head.appendChild(make("span", "level-badge", "Lv " + level));
-  head.appendChild(make("span", "level-prof", "熟练 +" + profBonus(level)));
+  var prof = make("span", "level-prof", null);
+  prof.innerHTML = t("screen.dndclasses.creation.level_prof") + profBonus(level);
+  head.appendChild(prof);
   row.appendChild(head);
   var list = make("div", "level-items");
   if (!items.length) {
@@ -1120,14 +1191,14 @@ function paneLevels(c) {
   var pane = make("div", "tab-pane");
   var data = CLASS_FEATURES[c.key];
   if (!data) {
-    pane.appendChild(make("div", "empty-state", "暂无等级特性数据。"));
+    pane.appendChild(mk("div", "empty-state", "screen.dndclasses.creation.no_level_data"));
     return pane;
   }
   if (data.intro) {
-    pane.appendChild(sectionLabel("职业总述"));
+    pane.appendChild(sectionLabel("screen.dndclasses.creation.class_intro"));
     pane.appendChild(make("div", "level-intro", data.intro));
   }
-  pane.appendChild(sectionLabel("等级特性"));
+  pane.appendChild(sectionLabel("screen.dndclasses.creation.level_features"));
   for (var lv = 1; lv <= 20; lv++) {
     pane.appendChild(levelRow(lv, itemsAtLevel(data.levels, lv)));
   }
@@ -1137,40 +1208,49 @@ function paneLevels(c) {
 function paneSubclasses(c) {
   var pane = make("div", "tab-pane");
   var data = CLASS_FEATURES[c.key];
-  if (!data || !data.subclasses || data.subclasses.length === 0) {
-    pane.appendChild(make("div", "empty-state", "暂无子职数据。"));
+  var meta = subclassMeta(c);
+  if (!data || !meta.ids || meta.ids.length === 0) {
+    pane.appendChild(mk("div", "empty-state", "screen.dndclasses.creation.no_subclass_data"));
     return pane;
   }
-  var meta = subclassMeta(c);
   var selectable = meta.level <= 1;
 
-  pane.appendChild(make("div", "subclass-hint",
-      selectable ? "选择你的子职（点击下方选项）" : ("该职业将于 " + meta.level + " 级选择子职，以下仅供预览")));
+  var hint = make("div", "subclass-hint", null);
+  if (selectable) {
+    hint.innerHTML = t("screen.dndclasses.creation.subclass_select");
+  } else {
+    hint.innerHTML = t("screen.dndclasses.creation.subclass_preview")
+      + meta.level + t("screen.dndclasses.creation.subclass_preview_suffix");
+  }
+  pane.appendChild(hint);
 
   var bar = make("div", "subclass-list");
-  for (var i = 0; i < data.subclasses.length; i++) {
-    bindSubclassButton(bar, i, data.subclasses[i].name, selectable);
+  for (var i = 0; i < meta.ids.length; i++) {
+    bindSubclassButton(bar, i, subclassNameKey(c, i), selectable);
   }
   pane.appendChild(bar);
 
-  var idx = state.subclass < data.subclasses.length ? state.subclass : 0;
-  var sc = data.subclasses[idx];
-  pane.appendChild(make("div", "subclass-intro", sc.en ? (sc.name + " · " + sc.en) : sc.name));
-  if (sc.intro) {
+  var count = data.subclasses ? data.subclasses.length : 0;
+  var idx = state.subclass < count ? state.subclass : 0;
+  var sc = data.subclasses ? data.subclasses[idx] : null;
+  pane.appendChild(mk("div", "subclass-intro", subclassNameKey(c, idx)));
+  if (sc && sc.intro) {
     pane.appendChild(make("div", "level-intro", sc.intro));
   }
-  for (var lv = 1; lv <= 20; lv++) {
-    var items = itemsAtLevel(sc.features, lv);
-    if (!items.length) continue;
-    pane.appendChild(levelRow(lv, items));
+  if (sc) {
+    for (var lv = 1; lv <= 20; lv++) {
+      var items = itemsAtLevel(sc.features, lv);
+      if (!items.length) continue;
+      pane.appendChild(levelRow(lv, items));
+    }
   }
   return pane;
 }
 
-function bindSubclassButton(bar, index, label, selectable) {
+function bindSubclassButton(bar, index, labelKey, selectable) {
   var active = state.subclass === index ? " active" : "";
   var chosen = selectable && state.subclassChosen === index ? " chosen" : "";
-  var btn = make("button", "subclass-tab" + active + chosen, label);
+  var btn = mk("button", "subclass-tab" + active + chosen, labelKey);
   btn.setAttribute("type", "button");
   btn.addEventListener("click", function () {
     state.subclass = index;
@@ -1183,15 +1263,13 @@ function bindSubclassButton(bar, index, label, selectable) {
 function chosenSubclassId(c) {
   var meta = subclassMeta(c);
   if (meta.level > 1 || state.subclassChosen === null) return "";
-  var data = CLASS_FEATURES[c.key];
-  if (!data || !data.subclasses || state.subclassChosen >= data.subclasses.length) return "";
-  var name = data.subclasses[state.subclassChosen].name;
-  return meta.ids[name] || "";
+  if (!meta.ids || state.subclassChosen >= meta.ids.length) return "";
+  return meta.ids[state.subclassChosen];
 }
 
 function paneEquipment(c) {
   var pane = make("div", "tab-pane");
-  pane.appendChild(sectionLabel("选择一套起始装备"));
+  pane.appendChild(sectionLabel("screen.dndclasses.creation.choose_equipment"));
   for (var i = 0; i < c.equipment.length; i++) {
     bindEquipChoice(pane, c, i);
   }
@@ -1204,13 +1282,15 @@ function bindEquipChoice(pane, c, idx) {
   var row = make("div", "equip-choice" + active);
   row.appendChild(make("span", "equip-radio"));
   var body = make("div", "equip-body");
-  body.appendChild(make("div", "equip-label", choice.label));
+  body.appendChild(mk("div", "equip-label", "equip.dndclasses." + c.key + "." + idx));
   var items = make("div", "item-row");
   for (var j = 0; j < choice.items.length; j++) {
     var id = choice.items[j];
     var chip = make("div", "item-chip");
     chip.appendChild(make("div", "item-placeholder"));
-    chip.appendChild(make("span", "item-name", ITEM_NAMES[id] ? ITEM_NAMES[id] : String(id).split(":")[1]));
+    var nameSpan = make("span", "item-name", null);
+    nameSpan.innerHTML = itemName(id);
+    chip.appendChild(nameSpan);
     items.appendChild(chip);
   }
   body.appendChild(items);
@@ -1226,10 +1306,10 @@ function renderAbility() {
   var spent = totalCost();
   var remaining = BUDGET - spent;
   var c = state.selected ? findClass(state.selected) : null;
-  var primary = c ? c.primary : "";
+  var primary = c ? c.primaryAbilities : [];
 
   var line = make("div", "points-line");
-  line.appendChild(make("span", "points-label", "已花费 / 总预算"));
+  line.appendChild(mk("span", "points-label", "screen.dndclasses.creation.points_spent"));
   line.appendChild(make("span", "points-value", spent + " / " + BUDGET));
   body.appendChild(line);
 
@@ -1240,15 +1320,17 @@ function renderAbility() {
   body.appendChild(progress);
 
   var costRow = make("div", "cost-row rune-row");
-  costRow.appendChild(make("span", "rune", "剩余 " + remaining + " 点"));
-  costRow.appendChild(make("span", "rune", "范围 8 - 15"));
+  var remainRune = make("span", "rune", null);
+  remainRune.innerHTML = t("screen.dndclasses.creation.points_remaining") + remaining;
+  costRow.appendChild(remainRune);
+  costRow.appendChild(mk("span", "rune", "screen.dndclasses.creation.points_range"));
   body.appendChild(costRow);
 
   for (var i = 0; i < ABILITIES.length; i++) {
     bindAbilityRow(body, ABILITIES[i], remaining, primary);
   }
 
-  body.appendChild(make("div", "ability-caption", "金色 = 本职业主属性，建议优先提升"));
+  body.appendChild(mk("div", "ability-caption", "screen.dndclasses.creation.ability_caption"));
 }
 
 function bindAbilityRow(body, a, remaining, primary) {
@@ -1256,7 +1338,7 @@ function bindAbilityRow(body, a, remaining, primary) {
   var mod = Math.floor((sc - 10) / 2);
   var canPlus = sc < MAX_SCORE && remaining >= (scoreCost(sc + 1) - scoreCost(sc));
   var canMinus = sc > MIN_SCORE;
-  var isPrimary = primary.indexOf(a.name) >= 0;
+  var isPrimary = primary.indexOf(a.key) >= 0;
 
   var row = make("div", "ability-row" + (isPrimary ? " primary" : ""));
   var minus = make("button", "pip-btn", "-");
@@ -1269,7 +1351,9 @@ function bindAbilityRow(body, a, remaining, primary) {
   row.appendChild(minus);
   row.appendChild(score);
   row.appendChild(plus);
-  row.appendChild(make("span", "ability-name", a.name));
+  var abName = make("span", "ability-name", null);
+  abName.innerHTML = abilName(a.key);
+  row.appendChild(abName);
   row.appendChild(make("span", "ability-mod", (mod >= 0 ? "+" : "") + mod));
 
   minus.addEventListener("click", function () { changeAbility(a.key, -1); });
@@ -1299,12 +1383,13 @@ function updateFooterSummary() {
   var el = byId("footer-summary");
   if (!el) return;
   if (!state.selected) {
-    el.textContent = "尚未选择职业。";
+    el.innerHTML = t("screen.dndclasses.creation.footer_no_class");
     return;
   }
   var c = findClass(state.selected);
   var remaining = BUDGET - totalCost();
-  el.textContent = "已选职业：" + c.name + "（" + c.hitDie + "）　剩余属性点：" + remaining;
+  el.innerHTML = t("screen.dndclasses.creation.footer_selected") + t("class.dndclasses." + c.key)
+    + " (" + c.hitDie + ")  " + t("screen.dndclasses.creation.footer_remaining") + remaining;
 }
 
 function refreshConfirmState() {
@@ -1315,10 +1400,10 @@ function refreshConfirmState() {
   else btn.setAttribute("disabled", "disabled");
 }
 
-function setMsg(text, ok) {
+function setMsg(key, ok) {
   var el = byId("confirm-msg");
   if (!el) return;
-  el.textContent = text ? text : "";
+  el.innerHTML = key ? t(key) : "";
   if (ok) el.setAttribute("class", "confirm-msg ok");
   else el.setAttribute("class", "confirm-msg");
 }
@@ -1326,16 +1411,18 @@ function setMsg(text, ok) {
 /* ---------------------------------------------------------------- modal */
 
 function onConfirm() {
-  if (!state.selected) { setMsg("请先选择一个职业。", false); return; }
-  if (totalCost() !== BUDGET) { setMsg("必须恰好分配 " + BUDGET + " 点属性。", false); return; }
+  if (!state.selected) { setMsg("screen.dndclasses.creation.msg_no_class", false); return; }
+  if (totalCost() !== BUDGET) { setMsg("screen.dndclasses.creation.msg_budget", false); return; }
   setMsg("", false);
   openSummary();
 }
 
-function summaryLine(key, value) {
+function summaryLine(keyKey, valueMarkup) {
   var line = make("div", "summary-line");
-  line.appendChild(make("span", "summary-key", key));
-  line.appendChild(make("span", "summary-val", value));
+  line.appendChild(mk("span", "summary-key", keyKey));
+  var val = make("span", "summary-val", null);
+  val.innerHTML = valueMarkup;
+  line.appendChild(val);
   return line;
 }
 
@@ -1356,7 +1443,7 @@ function summaryAbilities() {
       var sc = state.abilities[ab.key];
       var mod = Math.floor((sc - 10) / 2);
       var cell = make("div", "summary-ability");
-      cell.appendChild(make("div", "summary-ability-name", ab.name));
+      cell.appendChild(mk("div", "summary-ability-name", "ability.dndclasses." + ab.key));
       cell.appendChild(make("div", "summary-ability-score", sc + " (" + (mod >= 0 ? "+" : "") + mod + ")"));
       row.appendChild(cell);
     }
@@ -1371,18 +1458,20 @@ function openSummary() {
   var body = byId("sheet-body");
   if (!body) return;
   clearNode(body);
-  body.appendChild(summaryLine("职业", c.name + " · " + c.en));
-  body.appendChild(summaryLine("生命骰", c.hitDie));
-  body.appendChild(summaryLine("主属性", c.primary));
-  body.appendChild(summaryLine("豁免熟练", c.saves.join("，")));
+  body.appendChild(summaryLine("screen.dndclasses.creation.summary_class",
+    t("class.dndclasses." + c.key) + t("class.dndclasses." + c.key + ".subtitle_inline")));
+  body.appendChild(summaryLine("screen.dndclasses.creation.hit_die", c.hitDie));
+  body.appendChild(summaryLine("screen.dndclasses.creation.primary", c.primaryKey));
+  body.appendChild(summaryLine("screen.dndclasses.creation.saves",
+    prefixKeys("ability.dndclasses.", c.saves).map(function (k) { return t(k); }).join(" / ")));
   var subId = chosenSubclassId(c);
   if (subId) {
-    var subName = CLASS_FEATURES[c.key].subclasses[state.subclassChosen].name;
-    body.appendChild(summaryLine("子职", subName));
+    body.appendChild(summaryLine("screen.dndclasses.creation.summary_subclass", subclassNameKey(c, state.subclassChosen)));
   }
-  body.appendChild(make("div", "summary-key summary-abilities-label", "属性值"));
+  body.appendChild(mk("div", "summary-key summary-abilities-label", "screen.dndclasses.creation.abilities"));
   body.appendChild(summaryAbilities());
-  body.appendChild(summaryLine("起始装备", choice.label));
+  body.appendChild(summaryLine("screen.dndclasses.creation.summary_equipment",
+    t("equip.dndclasses." + c.key + "." + state.equipment)));
   var overlay = byId("sheet-overlay");
   if (overlay) overlay.setAttribute("class", "sheet-overlay open");
 }
@@ -1397,12 +1486,12 @@ function commitCharacter() {
   var choice = c.equipment[state.equipment];
   var payload = {
     class: state.selected,
-    className: c.name,
+    className: c.key,
     subclass: chosenSubclassId(c),
     abilities: state.abilities,
     pointsSpent: totalCost(),
     equipmentChoice: state.equipment,
-    equipmentLabel: choice.label,
+    equipmentLabel: "equip.dndclasses." + c.key + "." + state.equipment,
     equipment: choice.items
   };
 
@@ -1418,7 +1507,7 @@ function commitCharacter() {
 
   console.log("[dndClasses] character payload " + JSON.stringify(payload));
   closeSummary();
-  setMsg("角色已提交，愿命运眷顾你。", true);
+  setMsg("screen.dndclasses.creation.msg_submitted", true);
 }
 
 /* ------------------------------------------------------------- sheet mode */
@@ -1441,26 +1530,26 @@ function setHidden(el, hidden) {
   }
 }
 
-function subclassNameByKey(c, key) {
-  if (!key) return "";
-  var data = CLASS_FEATURES[c.key];
+function subclassIndexByKey(c, key) {
+  if (!key) return -1;
   var meta = subclassMeta(c);
-  if (!data || !data.subclasses) return "";
-  for (var i = 0; i < data.subclasses.length; i++) {
-    if (meta.ids[data.subclasses[i].name] === key) return data.subclasses[i].name;
+  if (!meta.ids) return -1;
+  for (var i = 0; i < meta.ids.length; i++) {
+    if (meta.ids[i] === key) return i;
   }
-  return "";
+  return -1;
+}
+
+function subclassNameByKey(c, key) {
+  var idx = subclassIndexByKey(c, key);
+  return idx >= 0 ? subclassNameKey(c, idx) : "";
 }
 
 function findSubclassByKey(c, key) {
-  if (!key) return null;
+  var idx = subclassIndexByKey(c, key);
   var data = CLASS_FEATURES[c.key];
-  var meta = subclassMeta(c);
-  if (!data || !data.subclasses) return null;
-  for (var i = 0; i < data.subclasses.length; i++) {
-    if (meta.ids[data.subclasses[i].name] === key) return data.subclasses[i];
-  }
-  return null;
+  if (idx < 0 || !data || !data.subclasses || idx >= data.subclasses.length) return null;
+  return data.subclasses[idx];
 }
 
 function sheetAbilities(abilities) {
@@ -1473,7 +1562,7 @@ function sheetAbilities(abilities) {
       var sc = abilities && abilities[ab.key] !== undefined ? abilities[ab.key] : 8;
       var mod = Math.floor((sc - 10) / 2);
       var cell = make("div", "summary-ability");
-      cell.appendChild(make("div", "summary-ability-name", ab.name));
+      cell.appendChild(mk("div", "summary-ability-name", "ability.dndclasses." + ab.key));
       cell.appendChild(make("div", "summary-ability-score", sc + " (" + (mod >= 0 ? "+" : "") + mod + ")"));
       row.appendChild(cell);
     }
@@ -1490,11 +1579,13 @@ function expBlock(data) {
   var wrap = make("div", "exp-block");
 
   var line = make("div", "exp-line");
-  line.appendChild(make("span", "exp-label", "经验"));
+  line.appendChild(mk("span", "exp-label", "screen.dndclasses.sheet.experience"));
 
   var bar = make("div", "progress-bar");
   if (level >= 20) {
-    line.appendChild(make("span", "exp-value", exp + " / 已满级"));
+    var maxed = make("span", "exp-value", null);
+    maxed.innerHTML = exp + " / " + t("screen.dndclasses.sheet.max_level");
+    line.appendChild(maxed);
     bar.setAttribute("style", "width:100%");
   } else {
     line.appendChild(make("span", "exp-value", exp + " / " + next));
@@ -1529,44 +1620,84 @@ function collectFeatures(c, level, subclassKey) {
   return groups;
 }
 
+function sheetNum(v) {
+  return (v === undefined || v === null) ? 0 : Math.round(v);
+}
+
+function sheetResources(data) {
+  var grid = make("div", "stat-grid");
+  grid.appendChild(statBox("screen.dndclasses.sheet.hp", sheetNum(data.hp) + " / " + sheetNum(data.hpMax)));
+  grid.appendChild(statBox("screen.dndclasses.sheet.ac", String(data.ac === undefined ? 0 : data.ac)));
+  grid.appendChild(statBox("screen.dndclasses.sheet.carry",
+    String(data.weightCapacity === undefined ? 0 : data.weightCapacity)));
+  return grid;
+}
+
+function sheetSlots(slots) {
+  var row = make("div", "rune-row");
+  var any = false;
+  if (slots) {
+    for (var ring in slots) {
+      var s = slots[ring];
+      if (!s) continue;
+      any = true;
+      var span = make("span", "rune", null);
+      span.innerHTML = t("screen.dndclasses.sheet.slot_ring") + " " + ring + ": "
+        + sheetNum(s.cur) + "/" + sheetNum(s.max);
+      row.appendChild(span);
+    }
+  }
+  if (!any) row.appendChild(make("span", "rune", "—"));
+  return row;
+}
+
 function renderSheet(data) {
   var body = byId("character-sheet-body");
   var header = byId("sheet-header");
   if (!body) return;
   clearNode(body);
   var c = findClass(data["class"]);
-  if (header) header.textContent = "角色信息";
+  if (header) header.innerHTML = t("screen.dndclasses.sheet.character");
 
   if (!c) {
-    body.appendChild(make("div", "empty-state", "未知职业。"));
+    body.appendChild(mk("div", "empty-state", "screen.dndclasses.sheet.unknown_class"));
   } else {
     var hero = make("div", "detail-hero");
-    hero.appendChild(make("span", "seal seal-lg", c.icon));
+    var heroSeal = make("span", "seal seal-lg");
+    heroSeal.innerHTML = SEALS[c.key] || "";
+    hero.appendChild(heroSeal);
     var ht = make("div");
-    ht.appendChild(make("div", "detail-name", c.name));
+    ht.appendChild(mk("div", "detail-name", "class.dndclasses." + c.key));
     var subName = subclassNameByKey(c, data.subclass);
-    ht.appendChild(make("div", "detail-en", c.en + (subName ? (" · " + subName) : "")));
+    var enLine = make("div", "detail-en", null);
+    enLine.innerHTML = t("class.dndclasses." + c.key + ".subtitle") + (subName ? (" · " + t(subName)) : "");
+    ht.appendChild(enLine);
     hero.appendChild(ht);
     body.appendChild(hero);
 
-    body.appendChild(make("p", "detail-desc", c.desc));
+    body.appendChild(mk("p", "detail-desc", "class.dndclasses." + c.key + ".desc"));
 
     var stats = make("div", "stat-grid");
-    stats.appendChild(statBox("等级", "Lv " + (data.level ? data.level : 1)));
-    stats.appendChild(statBox("熟练加值", "+" + (data.proficiency ? data.proficiency : 2)));
-    stats.appendChild(statBox("生命骰", c.hitDie));
+    stats.appendChild(statBox("screen.dndclasses.sheet.level", "Lv " + (data.level ? data.level : 1)));
+    stats.appendChild(statBox("screen.dndclasses.sheet.proficiency", "+" + (data.proficiency ? data.proficiency : 2)));
+    stats.appendChild(statBox("screen.dndclasses.creation.hit_die", c.hitDie));
     body.appendChild(stats);
 
-    body.appendChild(sectionLabel("经验"));
+    body.appendChild(sectionLabel("screen.dndclasses.sheet.experience"));
     body.appendChild(expBlock(data));
 
-    body.appendChild(sectionLabel("属性值"));
+    body.appendChild(sectionLabel("screen.dndclasses.creation.abilities"));
     body.appendChild(sheetAbilities(data.abilities));
 
-    body.appendChild(sectionLabel("已获得特性"));
+    body.appendChild(sectionLabel("screen.dndclasses.sheet.resources"));
+    body.appendChild(sheetResources(data));
+    body.appendChild(sectionLabel("screen.dndclasses.sheet.slots"));
+    body.appendChild(sheetSlots(data.slots));
+
+    body.appendChild(sectionLabel("screen.dndclasses.sheet.gained_features"));
     var groups = collectFeatures(c, data.level ? data.level : 1, data.subclass);
     if (!groups.length) {
-      body.appendChild(make("div", "empty-state", "暂无特性。"));
+      body.appendChild(mk("div", "empty-state", "screen.dndclasses.sheet.no_features"));
     } else {
       for (var g = 0; g < groups.length; g++) {
         body.appendChild(levelRow(groups[g].lv, groups[g].items));

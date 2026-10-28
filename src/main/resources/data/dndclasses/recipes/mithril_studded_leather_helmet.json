@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "X##",
+    "# M"
+  ],
+  "key": {
+    "#": { "item": "minecraft:leather" },
+    "X": { "item": "minecraft:iron_nugget" },
+    "M": { "item": "dndclasses:mithril_ingot" }
+  },
+  "result": {
+    "item": "dndclasses:mithril_studded_leather_helmet"
+  }
+}

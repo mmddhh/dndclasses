@@ -4,5 +4,6 @@ package mdh.dndclasses.weapon;
 public enum AbilityMode {
     STRENGTH,
     DEXTERITY,
+    CONSTITUTION,
     FINESSE
 }

@@ -8,6 +8,7 @@ import mdh.dndclasses.Dndclasses;
 import mdh.dndclasses.capability.ModCapabilities;
 import mdh.dndclasses.conditions.ConditionManager;
 import mdh.dndclasses.data.ClassRegistry;
+import mdh.dndclasses.data.SubclassSelection;
 import mdh.dndclasses.events.DndConditionRemovedEvent;
 import mdh.dndclasses.events.LevelUp;
 import mdh.dndclasses.feature.CharacterRefresh;
@@ -59,6 +60,13 @@ public final class DndCommands {
                 .then(Commands.literal("features")
                         .then(Commands.literal("list")
                                 .executes(context -> featuresList(context.getSource()))))
+                .then(Commands.literal("subclass")
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("id", StringArgumentType.word())
+                                        .executes(context -> subclassSet(context.getSource(),
+                                                StringArgumentType.getString(context, "id")))))
+                        .then(Commands.literal("list")
+                                .executes(context -> subclassList(context.getSource()))))
                 .then(Commands.literal("refresh")
                         .executes(context -> refresh(context.getSource())))
                 .then(Commands.literal("save")
@@ -116,6 +124,11 @@ public final class DndCommands {
                         .then(Commands.literal("clear")
                                 .executes(context -> spellClear(context.getSource()))))
         );
+        // Player-usable alias used by the clickable subclass prompt (the /dnd tree is op-only).
+        dispatcher.register(Commands.literal("dndsubclass")
+                .then(Commands.argument("id", StringArgumentType.word())
+                        .executes(context -> subclassSet(context.getSource(),
+                                StringArgumentType.getString(context, "id")))));
     }
 
     private static int info(CommandSourceStack source) throws CommandSyntaxException {
@@ -388,5 +401,43 @@ public final class DndCommands {
             builder.append(id);
         }
         return builder.toString();
+    }
+
+    private static int subclassSet(CommandSourceStack source, String rawId) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        SubclassSelection.Result result = SubclassSelection.pick(player, rawId);
+        switch (result) {
+            case SUCCESS -> source.sendSuccess(() -> Component.translatable(
+                    "message.dndclasses.subclass.selected",
+                    SubclassSelection.displayName(SubclassSelection.normalize(rawId))), false);
+            case NO_CHARACTER -> source.sendFailure(Component.translatable("message.dndclasses.subclass.no_character"));
+            case ALREADY_CHOSEN -> source.sendFailure(Component.translatable("message.dndclasses.subclass.already"));
+            case TOO_EARLY -> source.sendFailure(Component.translatable("message.dndclasses.subclass.too_early"));
+            case INVALID -> source.sendFailure(Component.translatable("message.dndclasses.subclass.invalid"));
+        }
+        return result == SubclassSelection.Result.SUCCESS ? 1 : 0;
+    }
+
+    private static int subclassList(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        player.getCapability(ModCapabilities.LEVEL_CAPABILITY).ifPresent(level -> {
+            String current = level.getSubclassKey();
+            if (current != null && !current.isEmpty()) {
+                source.sendSuccess(() -> Component.translatable("message.dndclasses.subclass.current",
+                        SubclassSelection.displayName(current)), false);
+                return;
+            }
+            java.util.List<String> ids = SubclassSelection.available(player);
+            if (ids.isEmpty()) {
+                source.sendSuccess(() -> Component.translatable("message.dndclasses.subclass.none"), false);
+                return;
+            }
+            for (String id : ids) {
+                String key = id.indexOf(':') >= 0 ? id.substring(id.indexOf(':') + 1) : id;
+                source.sendSuccess(() -> Component.literal("/dndsubclass " + key + "  ("
+                        + SubclassSelection.displayName(id) + ")"), false);
+            }
+        });
+        return 1;
     }
 }

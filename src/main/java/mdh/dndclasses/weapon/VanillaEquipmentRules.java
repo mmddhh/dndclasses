@@ -5,7 +5,7 @@ import net.minecraft.world.item.Items;
 
 import java.util.Set;
 
-/** Vanilla melee weapons/tools that the D&amp;D rules disallow (crafting disabled + inert when held). */
+/** Vanilla weapons/tools/armor that the D&amp;D rules disallow (crafting disabled + inert when held). */
 public final class VanillaEquipmentRules {
     private static final Set<Item> FORBIDDEN = Set.of(
             Items.WOODEN_SWORD, Items.STONE_SWORD, Items.IRON_SWORD, Items.GOLDEN_SWORD, Items.DIAMOND_SWORD, Items.NETHERITE_SWORD,
@@ -13,7 +13,16 @@ public final class VanillaEquipmentRules {
             Items.GOLDEN_PICKAXE, Items.DIAMOND_PICKAXE, Items.NETHERITE_PICKAXE,
             Items.GOLDEN_SHOVEL, Items.DIAMOND_SHOVEL, Items.NETHERITE_SHOVEL,
             Items.GOLDEN_HOE, Items.DIAMOND_HOE, Items.NETHERITE_HOE,
-            Items.BOW, Items.CROSSBOW, Items.TRIDENT
+            // Temporary creative-test access to vanilla bows/crossbows:
+            // Items.BOW, Items.CROSSBOW,
+            Items.TRIDENT,
+            Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS,
+            Items.CHAINMAIL_HELMET, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_LEGGINGS, Items.CHAINMAIL_BOOTS,
+            Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS,
+            Items.GOLDEN_HELMET, Items.GOLDEN_CHESTPLATE, Items.GOLDEN_LEGGINGS, Items.GOLDEN_BOOTS,
+            Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS,
+            Items.NETHERITE_HELMET, Items.NETHERITE_CHESTPLATE, Items.NETHERITE_LEGGINGS, Items.NETHERITE_BOOTS,
+            Items.TURTLE_HELMET
     );
 
     private static final Set<Item> ALLOWED_TOOLS = Set.of(

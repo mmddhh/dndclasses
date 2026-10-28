@@ -1,0 +1,18 @@
+{
+  "replace": false,
+  "values": [
+    "dndclasses:acid",
+    "dndclasses:bludgeoning",
+    "dndclasses:cold",
+    "dndclasses:fire",
+    "dndclasses:force",
+    "dndclasses:lightning",
+    "dndclasses:necrotic",
+    "dndclasses:piercing",
+    "dndclasses:poison",
+    "dndclasses:psychic",
+    "dndclasses:radiant",
+    "dndclasses:slashing",
+    "dndclasses:thunder"
+  ]
+}

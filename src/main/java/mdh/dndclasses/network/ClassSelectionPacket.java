@@ -113,13 +113,13 @@ public class ClassSelectionPacket {
                 ability.setcha(cha);
             });
 
-            List<String> items = StartingEquipment.getItems(classKey, equipmentChoice);
-            for (String itemId : items) {
-                Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(itemId));
+            List<StartingEquipment.EquipmentItem> items = StartingEquipment.getItems(classKey, equipmentChoice);
+            for (StartingEquipment.EquipmentItem entry : items) {
+                Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(entry.id()));
                 if (item == null) {
                     continue;
                 }
-                ItemStack stack = new ItemStack(item);
+                ItemStack stack = new ItemStack(item, entry.count());
                 if (!player.getInventory().add(stack)) {
                     player.drop(stack, false);
                 }

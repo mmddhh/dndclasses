@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "dndclasses:orichalcum_ore",
+    "dndclasses:deepslate_orichalcum_ore",
+    "dndclasses:mithril_ore",
+    "dndclasses:deepslate_mithril_ore",
+    "dndclasses:silver_ore",
+    "dndclasses:deepslate_silver_ore",
+    "dndclasses:orichalcum_block",
+    "dndclasses:mithril_block",
+    "dndclasses:silver_block"
+  ]
+}

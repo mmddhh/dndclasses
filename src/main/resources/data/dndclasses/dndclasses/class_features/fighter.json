@@ -17,6 +17,36 @@
           "amount": { "dice": "1d10", "per_level": 1 }
         }
       ]
+    },
+    {
+      "id": "dndclasses:fighter_extra_attack",
+      "level": 5,
+      "kind": "passive",
+      "name_key": "feature.dndclasses.extra_attack",
+      "description_key": "feature.dndclasses.extra_attack.subtitle",
+      "effects": [
+        { "type": "dndclasses:extra_attack", "attacks": 1 }
+      ]
+    },
+    {
+      "id": "dndclasses:fighter_extra_attack_2",
+      "level": 11,
+      "kind": "passive",
+      "name_key": "feature.dndclasses.extra_attack_2",
+      "description_key": "feature.dndclasses.extra_attack_2.subtitle",
+      "effects": [
+        { "type": "dndclasses:extra_attack", "attacks": 1 }
+      ]
+    },
+    {
+      "id": "dndclasses:fighter_extra_attack_3",
+      "level": 20,
+      "kind": "passive",
+      "name_key": "feature.dndclasses.extra_attack_3",
+      "description_key": "feature.dndclasses.extra_attack_3.subtitle",
+      "effects": [
+        { "type": "dndclasses:extra_attack", "attacks": 1 }
+      ]
     }
   ]
 }

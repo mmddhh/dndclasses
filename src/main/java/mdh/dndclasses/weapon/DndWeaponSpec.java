@@ -43,6 +43,23 @@ public record DndWeaponSpec(
         return has(WeaponProperty.AMMUNITION);
     }
 
+    public boolean isBow() {
+        return "shortbow".equals(type) || "longbow".equals(type);
+    }
+
+    public boolean isCrossbow() {
+        return "light_crossbow".equals(type) || "hand_crossbow".equals(type) || "heavy_crossbow".equals(type);
+    }
+
+    /** D&amp;D ranges are stored in feet; Minecraft uses blocks (1 block = 5 feet). */
+    public double rangeBlocks() {
+        return range / 5.0D;
+    }
+
+    public double longRangeBlocks() {
+        return longRange / 5.0D;
+    }
+
     public boolean isLoading() {
         return has(WeaponProperty.LOADING);
     }

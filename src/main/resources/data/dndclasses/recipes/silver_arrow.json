@@ -3,7 +3,7 @@
   "category": "misc",
   "ingredients": [
     {
-      "item": "minecraft:silver_nugget"
+      "item": "dndclasses:silver_ingot"
     },
     {
       "item": "minecraft:feather"

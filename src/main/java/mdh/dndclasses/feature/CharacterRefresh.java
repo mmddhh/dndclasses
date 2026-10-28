@@ -1,6 +1,7 @@
 package mdh.dndclasses.feature;
 
 import mdh.dndclasses.Dndclasses;
+import mdh.dndclasses.armor.ArmorManager;
 import mdh.dndclasses.level.HealthManager;
 import mdh.dndclasses.spellcasting.SpellcastingManager;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,6 +20,7 @@ public final class CharacterRefresh {
         FeatureManager.refreshAll(player);
         SpellcastingManager.refresh(player);
         HealthManager.apply(player);
+        ArmorManager.update(player);
     }
 
     @SubscribeEvent

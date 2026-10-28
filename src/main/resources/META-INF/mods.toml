@@ -77,3 +77,12 @@ mandatory = true
 versionRange = "[2001.0.0,)"
 ordering = "AFTER"
 side = "BOTH"
+
+# Better Combat is optional. When installed it provides attack animations and geometric hit
+# detection; this mod then only keeps ownership of its D&D damage rules and weapon data.
+[[dependencies."${mod_id}"]]
+modId = "bettercombat"
+mandatory = false
+versionRange = "[1.9.0,)"
+ordering = "AFTER"
+side = "BOTH"

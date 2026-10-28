@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "###",
+    "###",
+    "###"
+  ],
+  "key": {
+    "#": {
+      "item": "dndclasses:mithril_ingot"
+    }
+  },
+  "result": {
+    "item": "dndclasses:mithril_block"
+  }
+}

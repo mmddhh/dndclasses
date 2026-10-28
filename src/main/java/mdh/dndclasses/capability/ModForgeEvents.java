@@ -34,6 +34,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.INBTSerializable;
@@ -45,6 +49,9 @@ import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
 import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Mod.EventBusSubscriber(modid = Dndclasses.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -103,10 +110,36 @@ public class ModForgeEvents {
                 .map(Ilevel::hasCreatedCharacter)
                 .orElse(false);
 
+        awardModRecipes(player);
+
         if (created) {
             ServerStateSync.send(player);
         } else {
             ServerStateSync.sendPrompt(player);
+        }
+    }
+
+    /**
+     * Unlocks every D&amp;D crafting recipe (weapons, armor, orichalcum nugget/chain, ...) in the
+     * recipe book on join.
+     * <p>
+     * The recipes ship as plain datapack JSON without vanilla-style recipe advancements, so
+     * without this they would never show up in the recipe book; awarding them is idempotent.
+     */
+    private static void awardModRecipes(ServerPlayer player) {
+        if (player.getServer() == null) {
+            return;
+        }
+        List<Recipe<?>> recipes = new ArrayList<>();
+        for (CraftingRecipe recipe : player.getServer().getRecipeManager()
+                .getAllRecipesFor(RecipeType.CRAFTING)) {
+            Item result = recipe.getResultItem(player.level().registryAccess()).getItem();
+            if (BuiltInRegistries.ITEM.getKey(result).getNamespace().equals(Dndclasses.MODID)) {
+                recipes.add(recipe);
+            }
+        }
+        if (!recipes.isEmpty()) {
+            player.awardRecipes(recipes);
         }
     }
 

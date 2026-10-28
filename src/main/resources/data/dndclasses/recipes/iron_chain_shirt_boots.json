@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "# #",
+    "# #"
+  ],
+  "key": {
+    "#": { "item": "minecraft:chain" }
+  },
+  "result": {
+    "item": "dndclasses:iron_chain_shirt_boots"
+  }
+}

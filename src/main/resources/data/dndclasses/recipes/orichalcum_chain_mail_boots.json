@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "###",
+    "#  "
+  ],
+  "key": {
+    "#": { "item": "dndclasses:orichalcum_chain" }
+  },
+  "result": {
+    "item": "dndclasses:orichalcum_chain_mail_boots"
+  }
+}

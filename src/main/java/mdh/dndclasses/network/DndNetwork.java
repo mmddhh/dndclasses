@@ -9,7 +9,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class DndNetwork {
 
-    private static final String PROTOCOL_VERSION = "6";
+    private static final String PROTOCOL_VERSION = "9";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(Dndclasses.MODID, "main"),
@@ -57,6 +57,30 @@ public final class DndNetwork {
                 .encoder(ReloadWeaponPacket::encode)
                 .decoder(ReloadWeaponPacket::decode)
                 .consumerMainThread(ReloadWeaponPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(RollPacket.class, id++)
+                .encoder(RollPacket::encode)
+                .decoder(RollPacket::decode)
+                .consumerMainThread(RollPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(StaminaSyncPacket.class, id++)
+                .encoder(StaminaSyncPacket::encode)
+                .decoder(StaminaSyncPacket::decode)
+                .consumerMainThread(StaminaSyncPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(RollAnimationPacket.class, id++)
+                .encoder(RollAnimationPacket::encode)
+                .decoder(RollAnimationPacket::decode)
+                .consumerMainThread(RollAnimationPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(StuckProjectileSyncPacket.class, id++)
+                .encoder(StuckProjectileSyncPacket::encode)
+                .decoder(StuckProjectileSyncPacket::decode)
+                .consumerMainThread(StuckProjectileSyncPacket::handle)
                 .add();
     }
 

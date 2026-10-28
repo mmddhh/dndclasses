@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "# #",
+    "###",
+    "###"
+  ],
+  "key": {
+    "#": { "item": "minecraft:rabbit_hide" }
+  },
+  "result": {
+    "item": "dndclasses:iron_hide_chestplate"
+  }
+}

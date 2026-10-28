@@ -45,10 +45,19 @@ public class ClassFeatureReloadListener extends SimpleJsonResourceReloadListener
             String sourceNamespace = file.getNamespace();
             try {
                 JsonObject root = entry.getValue().getAsJsonObject();
-                ResourceLocation owner = parseId(requiredString(root, "class"));
+                // A file describes either a class or a subclass: {"class": "..."} / {"subclass": "..."}.
+                ResourceLocation owner;
+                FeatureDefinition.OwnerType ownerType;
+                if (root.has("subclass") && !root.get("subclass").isJsonNull()) {
+                    owner = parseId(root.get("subclass").getAsString());
+                    ownerType = FeatureDefinition.OwnerType.SUBCLASS;
+                } else {
+                    owner = parseId(requiredString(root, "class"));
+                    ownerType = FeatureDefinition.OwnerType.CLASS;
+                }
                 JsonArray features = root.has("features") ? root.getAsJsonArray("features") : new JsonArray();
                 for (int i = 0; i < features.size(); i++) {
-                    FeatureDefinition definition = parseFeature(features.get(i).getAsJsonObject(), owner);
+                    FeatureDefinition definition = parseFeature(features.get(i).getAsJsonObject(), owner, ownerType);
                     if (FeatureRegistry.register(definition, sourceNamespace)) {
                         loaded++;
                     }
@@ -70,7 +79,8 @@ public class ClassFeatureReloadListener extends SimpleJsonResourceReloadListener
         }
     }
 
-    private static FeatureDefinition parseFeature(JsonObject object, ResourceLocation owner) {
+    private static FeatureDefinition parseFeature(JsonObject object, ResourceLocation owner,
+                                                  FeatureDefinition.OwnerType ownerType) {
         ResourceLocation id = parseId(requiredString(object, "id"));
         int level = object.get("level").getAsInt();
         FeatureDefinition.Kind kind =
@@ -82,7 +92,7 @@ public class ClassFeatureReloadListener extends SimpleJsonResourceReloadListener
 
         return new FeatureDefinition(
                 id,
-                FeatureDefinition.OwnerType.CLASS,
+                ownerType,
                 owner,
                 level,
                 kind,

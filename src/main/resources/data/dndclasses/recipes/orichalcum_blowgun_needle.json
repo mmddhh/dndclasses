@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "dndclasses:orichalcum_ingot"
+    }
+  ],
+  "result": {
+    "item": "dndclasses:orichalcum_blowgun_needle",
+    "count": 8
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "###",
+    "###",
+    "###"
+  ],
+  "key": {
+    "#": {
+      "item": "dndclasses:orichalcum_ingot"
+    }
+  },
+  "result": {
+    "item": "dndclasses:orichalcum_block"
+  }
+}

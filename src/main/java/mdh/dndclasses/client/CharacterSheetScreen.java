@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.sighs.apricityui.init.Document;
 import com.sighs.apricityui.init.Element;
 import com.sighs.apricityui.screen.ApricityScreen;
+import mdh.dndclasses.armor.ArmorManager;
 import mdh.dndclasses.capability.ModCapabilities;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
@@ -66,11 +67,11 @@ public class CharacterSheetScreen extends ApricityScreen {
         abilities.addProperty("cha", at(values, 5));
         root.add("abilities", abilities);
 
-        // Resources (client-side only): hit points, AC placeholder, carry capacity, spell slots.
-        root.addProperty("ac", 0);
+        // Resources (client-side only): hit points, AC, carry capacity, spell slots.
         root.addProperty("weightCapacity", at(values, 0) * 15);
 
         Player player = Minecraft.getInstance().player;
+        root.addProperty("ac", player != null ? ArmorManager.getAc(player) : 10);
         if (player != null) {
             root.addProperty("hp", player.getHealth());
             root.addProperty("hpMax", player.getMaxHealth());

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "# #",
+    "###",
+    "##M"
+  ],
+  "key": {
+    "#": { "item": "minecraft:white_wool" },
+    "M": { "item": "dndclasses:orichalcum_ingot" }
+  },
+  "result": {
+    "item": "dndclasses:orichalcum_padded_chestplate"
+  }
+}

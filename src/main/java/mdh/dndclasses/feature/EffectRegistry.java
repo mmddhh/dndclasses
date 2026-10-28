@@ -1,6 +1,10 @@
 package mdh.dndclasses.feature;
 
+import mdh.dndclasses.feature.effect.AttackBonusEffectHandler;
 import mdh.dndclasses.feature.effect.AttributeEffectHandler;
+import mdh.dndclasses.feature.effect.ConditionEffectHandler;
+import mdh.dndclasses.feature.effect.DamageEffectHandler;
+import mdh.dndclasses.feature.effect.ExtraAttackEffectHandler;
 import mdh.dndclasses.feature.effect.HealEffectHandler;
 import mdh.dndclasses.feature.effect.StatusEffectHandler;
 import net.minecraft.resources.ResourceLocation;
@@ -19,6 +23,10 @@ public final class EffectRegistry {
         register(new AttributeEffectHandler());
         register(new HealEffectHandler());
         register(new StatusEffectHandler());
+        register(new DamageEffectHandler());
+        register(new ExtraAttackEffectHandler());
+        register(new AttackBonusEffectHandler());
+        register(new ConditionEffectHandler());
     }
 
     public static void register(EffectHandler handler) {

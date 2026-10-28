@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "   ",
+    " L ",
+    " 1 "
+  ],
+  "key": {
+    "1": { "item": "dndclasses:orichalcum_ingot" },
+    "L": { "item": "dndclasses:orichalcum_block" }
+  },
+  "result": {
+    "item": "dndclasses:orichalcum_greatclub"
+  }
+}

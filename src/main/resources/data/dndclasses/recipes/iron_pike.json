@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "   ",
+    " S ",
+    " 1 "
+  ],
+  "key": {
+    "1": { "item": "minecraft:stick" },
+    "S": { "item": "dndclasses:iron_spear" }
+  },
+  "result": {
+    "item": "dndclasses:iron_pike"
+  }
+}

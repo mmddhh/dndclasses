@@ -85,3 +85,9 @@ if (!event.wakeImmediately()) {
 - `ModForgeEvents` 在长休/短休处补了 `ServerStateSync.send`。
 
 dndspells 侧已跟进:改用 `cap.getMaxSpellLevel()`;去掉重复的休息同步(`onShortRest` 删除、`onLongRest` 不再 send)。`onLevelUp` 仍保留一次 `ServerStateSync.send`,因为 dndclasses 在 XP 路径上是"先 post LevelUp、后 sync",dndspells 需先刷新上限再建页面。
+
+## 七、崩溃修复(启动时 `Unable to have damage AND stack`)
+- **现象**:`runClient` 在注册阶段崩溃,`DndWeaponItem.<init>` → `Item.Properties.stacksTo`。
+- **原因**:`WeaponItems` 已传 `new Item.Properties().durability(...)`,而 1.20.1 的 `durability()` 会设 `maxStackSize=1`,且 `stacksTo(k)` 只要 `maxDamage > 0` 就抛异常。`DndWeaponItem` 构造里又多调了 `.stacksTo(1)`。
+- **修复**:`weapon/DndWeaponItem.java` 构造改为 `super(properties);`(去掉 `.stacksTo(1)`)。`durability()` 已保证堆叠为 1。
+- 重编 `gradlew -p E:\dndClasses jar --offline` 并覆盖 `E:\dndspells\libs\dndclasses-1.0.0.jar`。

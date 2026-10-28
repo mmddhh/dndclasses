@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "dndclasses:orichalcum_ingot"
+    },
+    {
+      "item": "minecraft:feather"
+    },
+    {
+      "item": "minecraft:flint"
+    }
+  ],
+  "result": {
+    "item": "dndclasses:orichalcum_arrow",
+    "count": 4
+  }
+}

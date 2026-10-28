@@ -19,6 +19,13 @@ public final class WeaponEntities {
                     .updateInterval(10)
                     .build("thrown_weapon"));
 
+    public static final RegistryObject<EntityType<DndArrowEntity>> DND_ARROW = ENTITY_TYPES.register("dnd_arrow",
+            () -> EntityType.Builder.<DndArrowEntity>of(DndArrowEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(4)
+                    .updateInterval(20)
+                    .build("dnd_arrow"));
+
     private WeaponEntities() {
     }
 

@@ -1,9 +1,9 @@
 package mdh.dndclasses.weapon;
 
-/** Material of a D&amp;D weapon. Silver counts as a magic weapon; adamantine is far more durable. */
+/** Material of a D&amp;D weapon. Silver counts as a magic weapon; orichalcum crits constructs. */
 public enum DndWeaponMaterial {
     IRON("iron", 250, false),
-    ADAMANTINE("adamantine", 500, false),
+    ORICHALCUM("orichalcum", 250, false),
     SILVER("silver", 250, true);
 
     private final String id;

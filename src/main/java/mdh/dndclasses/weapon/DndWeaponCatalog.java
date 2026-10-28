@@ -2,14 +2,27 @@ package mdh.dndclasses.weapon;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static mdh.dndclasses.weapon.AbilityMode.DEXTERITY;
 import static mdh.dndclasses.weapon.AbilityMode.STRENGTH;
 import static mdh.dndclasses.weapon.DndDamageType.*;
 import static mdh.dndclasses.weapon.WeaponProperty.*;
 
-/** All 37 D&amp;D 5e (2014) weapons, generated for every {@link DndWeaponMaterial}. */
+/** All 37 D&amp;D 5e (2014) weapons; ranged launchers exist only in the iron tier. */
 public final class DndWeaponCatalog {
+
+    /**
+     * Ranged weapons exist only in the mundane (iron) tier: their material difference lives in the
+     * ammunition (arrows, bolts, needles, bullets), so silver/orichalcum versions of the launcher
+     * itself are obsolete. The dart is excluded on purpose - it is its own ammunition.
+     * <p>
+     * Declared before {@link #WEAPONS}: the static initialiser runs top-down, so a later field
+     * would still be {@code null} while {@link #build()} filters the list.
+     */
+    private static final Set<String> IRON_ONLY_RANGED = Set.of(
+            "light_crossbow", "shortbow", "sling", "blowgun",
+            "hand_crossbow", "heavy_crossbow", "longbow", "net");
 
     public static final List<DndWeaponSpec> WEAPONS = build();
 
@@ -61,6 +74,8 @@ public final class DndWeaponCatalog {
             out.add(DndWeaponSpec.ranged(material, "longbow", 4, PIERCING, 150, 600, HEAVY, TWO_HANDED));
             out.add(DndWeaponSpec.melee(material, "net", 0, BLUDGEONING, DEXTERITY, SPECIAL, THROWN));
         }
+        out.removeIf(spec -> spec.material() != DndWeaponMaterial.IRON
+                && IRON_ONLY_RANGED.contains(spec.type()));
         return List.copyOf(out);
     }
 }

@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "X##",
+    "###",
+    "# #"
+  ],
+  "key": {
+    "#": { "item": "dndclasses:orichalcum_ingot" },
+    "X": { "item": "minecraft:stick" }
+  },
+  "result": {
+    "item": "dndclasses:orichalcum_splint_leggings"
+  }
+}

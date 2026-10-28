@@ -762,6 +762,11 @@ function itemName(id) {
 
 function eq(items) { return { items: items }; }
 
+function armorSet(prefix) {
+  return [prefix + "_helmet", prefix + "_chestplate", prefix + "_leggings", prefix + "_boots"];
+}
+
+
 var CLASSES = [
   {
     key: "barbarian", hitDie: "D12",
@@ -769,8 +774,8 @@ var CLASSES = [
     saves: ["str", "con"],
     armor: ["light", "medium", "shield"], weapons: ["martial", "simple"],
     equipment: [
-      eq(["minecraft:iron_axe", "minecraft:iron_axe", "minecraft:iron_axe"]),
-      eq(["minecraft:iron_sword"])
+      eq(["dndclasses:iron_greataxe", "dndclasses:iron_handaxe", "dndclasses:iron_handaxe"]),
+      eq(["dndclasses:iron_longsword"])
     ]
   },
   {
@@ -779,8 +784,8 @@ var CLASSES = [
     saves: ["dex", "cha"],
     armor: ["light"], weapons: ["hand_crossbow", "longsword", "rapier", "shortsword", "simple"],
     equipment: [
-      eq(["minecraft:iron_sword", "minecraft:iron_sword"]),
-      eq(["minecraft:iron_sword", "minecraft:iron_sword"])
+      eq(armorSet("dndclasses:iron_leather").concat(["dndclasses:iron_rapier", "dndclasses:iron_dagger"])),
+      eq(armorSet("dndclasses:iron_leather").concat(["dndclasses:iron_longsword", "dndclasses:iron_dagger"]))
     ]
   },
   {
@@ -789,8 +794,8 @@ var CLASSES = [
     saves: ["wis", "cha"],
     armor: ["light", "medium", "shield"], weapons: ["simple"],
     equipment: [
-      eq(["minecraft:iron_axe", "minecraft:shield"]),
-      eq(["minecraft:wooden_axe", "minecraft:shield"])
+      eq(armorSet("dndclasses:iron_scale_mail").concat(["dndclasses:iron_mace", "minecraft:shield"])),
+      eq(armorSet("dndclasses:iron_scale_mail").concat(["dndclasses:iron_warhammer", "minecraft:shield"]))
     ]
   },
   {
@@ -799,8 +804,8 @@ var CLASSES = [
     saves: ["int", "wis"],
     armor: ["light", "medium", "shield_nonmetal"], weapons: ["simple", "scimitar", "quarterstaff", "sling"],
     equipment: [
-      eq(["minecraft:stick"]),
-      eq(["minecraft:iron_sword", "minecraft:shield"])
+      eq(armorSet("dndclasses:iron_leather").concat(["dndclasses:iron_quarterstaff"])),
+      eq(armorSet("dndclasses:iron_leather").concat(["dndclasses:iron_scimitar", "minecraft:shield"]))
     ]
   },
   {
@@ -809,8 +814,8 @@ var CLASSES = [
     saves: ["str", "con"],
     armor: ["all", "shield"], weapons: ["martial", "simple"],
     equipment: [
-      eq(["minecraft:chainmail_chestplate", "minecraft:shield", "minecraft:iron_sword"]),
-      eq(["minecraft:chainmail_chestplate", "minecraft:iron_sword"])
+      eq(armorSet("dndclasses:iron_chain_mail").concat(["minecraft:shield", "dndclasses:iron_longsword"])),
+      eq(armorSet("dndclasses:iron_chain_mail").concat(["dndclasses:iron_greatsword"]))
     ]
   },
   {
@@ -819,8 +824,8 @@ var CLASSES = [
     saves: ["str", "dex"],
     armor: ["none"], weapons: ["simple", "shortsword"],
     equipment: [
-      eq(["minecraft:iron_sword", "minecraft:iron_sword"]),
-      eq(["minecraft:stick"])
+      eq(["dndclasses:iron_shortsword", "dndclasses:iron_dagger"]),
+      eq(["dndclasses:iron_quarterstaff"])
     ]
   },
   {
@@ -829,8 +834,8 @@ var CLASSES = [
     saves: ["wis", "cha"],
     armor: ["all", "shield"], weapons: ["martial", "simple"],
     equipment: [
-      eq(["minecraft:chainmail_chestplate", "minecraft:shield", "minecraft:iron_sword"]),
-      eq(["minecraft:diamond_chestplate", "minecraft:iron_sword"])
+      eq(armorSet("dndclasses:iron_chain_mail").concat(["minecraft:shield", "dndclasses:iron_longsword"])),
+      eq(armorSet("dndclasses:iron_plate").concat(["dndclasses:iron_greatsword"]))
     ]
   },
   {
@@ -839,8 +844,8 @@ var CLASSES = [
     saves: ["str", "dex"],
     armor: ["light", "medium", "shield"], weapons: ["martial", "simple"],
     equipment: [
-      eq(["minecraft:leather_chestplate", "minecraft:iron_sword", "minecraft:bow"]),
-      eq(["minecraft:leather_chestplate", "minecraft:iron_sword", "minecraft:iron_sword"])
+      eq(armorSet("dndclasses:iron_leather").concat(["dndclasses:iron_shortsword", "dndclasses:iron_longbow", "dndclasses:iron_arrow"])),
+      eq(armorSet("dndclasses:iron_leather").concat(["dndclasses:iron_shortsword", "dndclasses:iron_shortsword"]))
     ]
   },
   {
@@ -849,8 +854,8 @@ var CLASSES = [
     saves: ["dex", "int"],
     armor: ["light"], weapons: ["hand_crossbow", "longsword", "rapier", "shortsword", "simple"],
     equipment: [
-      eq(["minecraft:iron_sword", "minecraft:bow"]),
-      eq(["minecraft:iron_sword", "minecraft:iron_sword"])
+      eq(armorSet("dndclasses:iron_leather").concat(["dndclasses:iron_rapier", "dndclasses:iron_shortbow", "dndclasses:iron_arrow"])),
+      eq(armorSet("dndclasses:iron_leather").concat(["dndclasses:iron_shortsword", "dndclasses:iron_shortsword"]))
     ]
   },
   {
@@ -859,8 +864,8 @@ var CLASSES = [
     saves: ["con", "cha"],
     armor: ["none"], weapons: ["dagger", "sling", "quarterstaff", "light_crossbow"],
     equipment: [
-      eq(["minecraft:crossbow", "minecraft:iron_sword"]),
-      eq(["minecraft:stick", "minecraft:iron_sword"])
+      eq(["dndclasses:iron_light_crossbow", "dndclasses:iron_dagger", "dndclasses:iron_bolt"]),
+      eq(["dndclasses:iron_quarterstaff", "dndclasses:iron_dagger"])
     ]
   },
   {
@@ -869,8 +874,8 @@ var CLASSES = [
     saves: ["wis", "cha"],
     armor: ["light"], weapons: ["simple"],
     equipment: [
-      eq(["minecraft:crossbow", "minecraft:iron_sword"]),
-      eq(["minecraft:stick", "minecraft:iron_sword"])
+      eq(["dndclasses:iron_light_crossbow", "dndclasses:iron_dagger", "dndclasses:iron_bolt"]),
+      eq(["dndclasses:iron_quarterstaff", "dndclasses:iron_dagger"])
     ]
   },
   {
@@ -879,8 +884,8 @@ var CLASSES = [
     saves: ["int", "wis"],
     armor: ["none"], weapons: ["dagger", "sling", "quarterstaff", "light_crossbow"],
     equipment: [
-      eq(["minecraft:stick", "minecraft:iron_sword"]),
-      eq(["minecraft:crossbow", "minecraft:iron_sword"])
+      eq(["dndclasses:iron_quarterstaff", "dndclasses:iron_dagger"]),
+      eq(["dndclasses:iron_light_crossbow", "dndclasses:iron_dagger", "dndclasses:iron_bolt"])
     ]
   }
 ];

@@ -12,15 +12,20 @@ import java.util.Map;
 
 public final class WeaponItems {
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, Dndclasses.MODID);
-    public static final Map<String, RegistryObject<DndWeaponItem>> WEAPONS = new LinkedHashMap<>();
+    public static final Map<String, RegistryObject<? extends Item>> WEAPONS = new LinkedHashMap<>();
     public static final Map<String, RegistryObject<Item>> AMMO = new LinkedHashMap<>();
 
     private static final String[] AMMO_SUFFIXES = {"arrow", "bolt", "blowgun_needle", "sling_bullet"};
 
     static {
         for (DndWeaponSpec spec : DndWeaponCatalog.WEAPONS) {
-            WEAPONS.put(spec.id(), ITEMS.register(spec.id(),
-                    () -> new DndWeaponItem(spec, new Item.Properties().durability(spec.durability()))));
+            if (spec.isCrossbow()) {
+                WEAPONS.put(spec.id(), ITEMS.register(spec.id(),
+                        () -> new DndCrossbowItem(spec, new Item.Properties().durability(spec.durability()))));
+            } else {
+                WEAPONS.put(spec.id(), ITEMS.register(spec.id(),
+                        () -> new DndWeaponItem(spec, new Item.Properties().durability(spec.durability()))));
+            }
         }
         for (DndWeaponMaterial material : DndWeaponMaterial.values()) {
             for (String suffix : AMMO_SUFFIXES) {
@@ -33,8 +38,12 @@ public final class WeaponItems {
     private WeaponItems() {
     }
 
-    public static RegistryObject<DndWeaponItem> weapon(String id) {
+    public static RegistryObject<? extends Item> weapon(String id) {
         return WEAPONS.get(id);
+    }
+
+    public static DndWeaponSpec specOf(Item item) {
+        return item instanceof DndWeapon weapon ? weapon.spec() : null;
     }
 
     public static RegistryObject<Item> ammo(String id) {

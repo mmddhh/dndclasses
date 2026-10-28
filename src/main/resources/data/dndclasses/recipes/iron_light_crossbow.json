@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "1 1",
+    "3T3",
+    " 1 "
+  ],
+  "key": {
+    "1": { "item": "minecraft:stick" },
+    "3": { "item": "minecraft:string" },
+    "T": { "item": "minecraft:tripwire_hook" }
+  },
+  "result": {
+    "item": "dndclasses:iron_light_crossbow"
+  }
+}

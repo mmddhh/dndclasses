@@ -1,0 +1,15 @@
+{
+  "subclass": "dndclasses:berserker",
+  "features": [
+    {
+      "id": "dndclasses:berserker_frenzy",
+      "level": 3,
+      "kind": "passive",
+      "name_key": "feature.dndclasses.frenzy",
+      "description_key": "feature.dndclasses.frenzy.subtitle",
+      "effects": [
+        { "type": "dndclasses:extra_attack", "attacks": 1 }
+      ]
+    }
+  ]
+}

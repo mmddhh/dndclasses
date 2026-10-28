@@ -5,8 +5,9 @@
 ## 一、这次新增了什么
 - **dndweapon 已合并进 dndclasses**（武器/弹药/伤害类型/战斗规则/装填）。原 `dndweapon:*` 物品 id 全部改为 `dndclasses:*`。
 - **新增 D&D 状态系统**（14 个 5e 状态 + 力竭）。
-- 网络协议升到 **6**；`ClientboundCharacterStatePacket` 多了一个 `conditionsData`（NBT）。
-- 键位：`O`=职业/角色界面，`V`=特性轮盘，`G`=豁免 QTE，`R`=武器装填。
+- 网络协议升到 **8**；`ClientboundCharacterStatePacket` 多了一个 `conditionsData`（NBT），并新增 `RollPacket` / `StaminaSyncPacket` / `RollAnimationPacket`。
+- 键位：`O`=职业/角色界面，`V`=特性轮盘，`G`=豁免 QTE，`R`=武器装填，`Mouse 4`=翻滚。
+- **护甲/体力/矿石**：144 件护甲（3 材质 × 12 类 × 4 部位，整套才给 AC）、体力与翻滚、暴击、耐久损坏 + 铁砧修复、禁用原版护甲；矿石合并（orichalcum/mithril/silver）与 JSON 世界生成。武器材质 `adamantine` 已统一改名为 `orichalcum`（含物品 id/贴图/配方/语言键）。
 
 ## 二、条件数据（数据包）
 位置：`data/<namespace>/dndclasses/conditions/<id>.json`。内置 14 个，id 为 `dndclasses:<name>`：

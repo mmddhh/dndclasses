@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "  4",
+    " C ",
+    "1  "
+  ],
+  "key": {
+    "1": { "item": "minecraft:stick" },
+    "C": { "item": "minecraft:chain" },
+    "4": { "item": "dndclasses:orichalcum_ingot" }
+  },
+  "result": {
+    "item": "dndclasses:orichalcum_flail"
+  }
+}

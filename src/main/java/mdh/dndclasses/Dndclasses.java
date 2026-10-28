@@ -1,8 +1,13 @@
 package mdh.dndclasses;
 
 import com.mojang.logging.LogUtils;
+import mdh.dndclasses.armor.ArmorCreativeTab;
+import mdh.dndclasses.armor.ArmorItems;
 import mdh.dndclasses.feature.EffectRegistry;
 import mdh.dndclasses.network.DndNetwork;
+import mdh.dndclasses.ore.OreBlocks;
+import mdh.dndclasses.ore.OreCreativeTab;
+import mdh.dndclasses.ore.OreItems;
 import mdh.dndclasses.weapon.RemoveForbiddenLootModifier;
 import mdh.dndclasses.weapon.WeaponCreativeTab;
 import mdh.dndclasses.weapon.WeaponEntities;
@@ -30,6 +35,11 @@ public class Dndclasses {
         WeaponItems.register(modEventBus);
         WeaponEntities.register(modEventBus);
         WeaponCreativeTab.register(modEventBus);
+        OreBlocks.register(modEventBus);
+        OreItems.register(modEventBus);
+        OreCreativeTab.register(modEventBus);
+        ArmorItems.register(modEventBus);
+        ArmorCreativeTab.register(modEventBus);
         RemoveForbiddenLootModifier.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
@@ -37,6 +47,7 @@ public class Dndclasses {
         MinecraftForge.EVENT_BUS.register(this);
 
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {

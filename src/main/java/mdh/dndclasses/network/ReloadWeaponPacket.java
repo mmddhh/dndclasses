@@ -25,7 +25,7 @@ public class ReloadWeaponPacket {
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player != null) {
-                DndCombat.reload(player);
+                DndCombat.startReload(player);
             }
         });
         context.setPacketHandled(true);

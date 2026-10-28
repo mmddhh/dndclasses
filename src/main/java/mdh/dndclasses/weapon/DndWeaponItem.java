@@ -16,6 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
@@ -27,9 +28,10 @@ import net.minecraftforge.common.ToolActions;
 import java.util.List;
 import java.util.UUID;
 
-public class DndWeaponItem extends Item {
+public class DndWeaponItem extends Item implements DndWeapon {
     public static final String TAG_LOADED = "DndLoaded";
     public static final String TAG_LOADED_AMMO = "DndLoadedAmmo";
+    public static final int CROSSBOW_CHARGE_TICKS = 25;
     private static final UUID ATTACK_SPEED_MODIFIER = UUID.fromString("424e0a10-700f-48c2-8b4b-cd18e7175a57");
     private static final UUID ENTITY_REACH_MODIFIER = UUID.fromString("b0d0bebc-08f1-4b9f-85e0-566e36b9fb86");
 
@@ -37,7 +39,9 @@ public class DndWeaponItem extends Item {
     private final Multimap<Attribute, AttributeModifier> attributeModifiers;
 
     public DndWeaponItem(DndWeaponSpec spec, Properties properties) {
-        super(properties.stacksTo(1));
+        // NOTE: WeaponItems already passes .durability(...), which sets maxStackSize = 1 in 1.20.1.
+        // Calling .stacksTo(1) on a damageable item throws "Unable to have damage AND stack".
+        super(properties);
         this.spec = spec;
         ImmutableMultimap.Builder<Attribute, AttributeModifier> builder = ImmutableMultimap.builder();
         builder.put(Attributes.ATTACK_SPEED, new AttributeModifier(ATTACK_SPEED_MODIFIER, "DND weapon attack speed", -2.0D, AttributeModifier.Operation.ADDITION));
@@ -58,7 +62,68 @@ public class DndWeaponItem extends Item {
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        return InteractionResultHolder.pass(player.getItemInHand(hand));
+        ItemStack stack = player.getItemInHand(hand);
+        if (spec.isBow()) {
+            player.startUsingItem(hand);
+            return InteractionResultHolder.consume(stack);
+        }
+        return InteractionResultHolder.pass(stack);
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack) {
+        if (spec.isBow()) {
+            return 72000;
+        }
+        if (spec.isCrossbow()) {
+            return CROSSBOW_CHARGE_TICKS;
+        }
+        return 0;
+    }
+
+    @Override
+    public UseAnim getUseAnimation(ItemStack stack) {
+        if (spec.isBow()) {
+            return UseAnim.BOW;
+        }
+        if (spec.isCrossbow()) {
+            return UseAnim.CROSSBOW;
+        }
+        return super.getUseAnimation(stack);
+    }
+
+    @Override
+    public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int timeLeft) {
+        if (!(entity instanceof Player player)) {
+            return;
+        }
+        if (spec.isCrossbow()) {
+            if (player.level().isClientSide) {
+                return;
+            }
+            int used = getUseDuration(stack) - timeLeft;
+            if (used >= CROSSBOW_CHARGE_TICKS) {
+                DndCombat.completeLoading(player, player.getUsedItemHand());
+            }
+            return;
+        }
+        if (!spec.isBow()) {
+            return;
+        }
+        int drawTicks = getUseDuration(stack) - timeLeft;
+        if (drawTicks < 10) {
+            return;
+        }
+        float power = Math.min(1.0F, drawTicks / 20.0F);
+        DndCombat.shootRanged(player, player.getUsedItemHand(), 0.8F + 2.2F * power);
+    }
+
+    @Override
+    public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
+        if (spec.isCrossbow() && entity instanceof Player player && !level.isClientSide) {
+            DndCombat.completeLoading(player, player.getUsedItemHand());
+        }
+        return stack;
     }
 
     @Override
@@ -114,6 +179,9 @@ public class DndWeaponItem extends Item {
         }
         if (spec.isLoading()) {
             tooltip.add(Component.translatable("tooltip.dndclasses.loading").withStyle(ChatFormatting.YELLOW));
+        }
+        if (mdh.dndclasses.gear.DndDurability.isBroken(stack)) {
+            tooltip.add(Component.translatable("tooltip.dndclasses.broken").withStyle(ChatFormatting.RED));
         }
     }
 }

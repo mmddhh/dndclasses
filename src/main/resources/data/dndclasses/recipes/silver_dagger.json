@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "   ",
+    " 4 ",
+    " 1 "
+  ],
+  "key": {
+    "1": { "item": "minecraft:stick" },
+    "4": { "item": "dndclasses:silver_ingot" }
+  },
+  "result": {
+    "item": "dndclasses:silver_dagger"
+  }
+}

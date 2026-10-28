@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "###",
+    "# #",
+    "# M"
+  ],
+  "key": {
+    "#": { "item": "minecraft:leather" },
+    "M": { "item": "dndclasses:mithril_ingot" }
+  },
+  "result": {
+    "item": "dndclasses:mithril_leather_leggings"
+  }
+}

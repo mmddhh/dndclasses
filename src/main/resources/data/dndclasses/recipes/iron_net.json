@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "   ",
+    " 23",
+    " 23"
+  ],
+  "key": {
+    "2": { "item": "minecraft:leather" },
+    "3": { "item": "minecraft:string" }
+  },
+  "result": {
+    "item": "dndclasses:iron_net"
+  }
+}

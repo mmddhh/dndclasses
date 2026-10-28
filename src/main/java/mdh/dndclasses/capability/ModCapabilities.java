@@ -3,6 +3,7 @@ package mdh.dndclasses.capability;
 import mdh.dndclasses.Dndclasses;
 import mdh.dndclasses.ability.Iability;
 import mdh.dndclasses.conditions.IConditions;
+import mdh.dndclasses.gear.IStuckProjectiles;
 import mdh.dndclasses.level.Ilevel;
 import mdh.dndclasses.race.Irace;
 import mdh.dndclasses.spells.IDndSpell;
@@ -23,6 +24,8 @@ public class ModCapabilities {
     public static final Capability<Iskill> SKILL_CAPABILITY = CapabilityManager.get(new CapabilityToken<>() {});
     public static final Capability<Irace> RACE_CAPABILITY = CapabilityManager.get(new CapabilityToken<>() {});
     public static final Capability<IConditions> CONDITIONS_CAPABILITY = CapabilityManager.get(new CapabilityToken<>() {});
+    /** Projectiles (arrows / thrown weapons) stuck in a living entity, rendered client-side. */
+    public static final Capability<IStuckProjectiles> STUCK_PROJECTILES_CAPABILITY = CapabilityManager.get(new CapabilityToken<>() {});
 
     @SubscribeEvent
     public static void register(RegisterCapabilitiesEvent event) {
@@ -32,5 +35,6 @@ public class ModCapabilities {
         event.register(Iskill.class);
         event.register(Irace.class);
         event.register(IConditions.class);
+        event.register(IStuckProjectiles.class);
     }
 }

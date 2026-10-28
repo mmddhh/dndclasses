@@ -1,7 +1,8 @@
 package mdh.dndclasses.mixin;
 
 import mdh.dndclasses.weapon.DndCooldowns;
-import mdh.dndclasses.weapon.DndWeaponItem;
+import mdh.dndclasses.weapon.DndWeapon;
+import mdh.dndclasses.compat.BetterCombatCompat;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
@@ -20,7 +21,11 @@ public abstract class LivingEntitySwingMixin {
             return;
         }
         ItemStack stack = player.getItemInHand(hand);
-        if (stack.getItem() instanceof DndWeaponItem && !DndCooldowns.tryUse(player, hand)) {
+        if (BetterCombatCompat.isActive()) {
+            // Better Combat drives the swing animation and attack timing itself.
+            return;
+        }
+        if (stack.getItem() instanceof DndWeapon && !DndCooldowns.tryUse(player, hand)) {
             ci.cancel();
         }
     }

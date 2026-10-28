@@ -17,6 +17,16 @@
           "operation": "addition"
         }
       ]
+    },
+    {
+      "id": "dndclasses:barbarian_extra_attack",
+      "level": 5,
+      "kind": "passive",
+      "name_key": "feature.dndclasses.extra_attack",
+      "description_key": "feature.dndclasses.extra_attack.subtitle",
+      "effects": [
+        { "type": "dndclasses:extra_attack", "attacks": 1 }
+      ]
     }
   ]
 }

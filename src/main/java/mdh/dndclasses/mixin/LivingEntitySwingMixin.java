@@ -25,8 +25,13 @@ public abstract class LivingEntitySwingMixin {
             // Better Combat drives the swing animation and attack timing itself.
             return;
         }
-        if (stack.getItem() instanceof DndWeapon && !DndCooldowns.tryUse(player, hand)) {
-            ci.cancel();
+        if (stack.getItem() instanceof DndWeapon) {
+            // Swing only when the attack is actually allowed: uncharged swings are dropped so the
+            // rejected attack has no hand animation.
+            if (player.getAttackStrengthScale(0.5F) < 0.999F
+                    || !DndCooldowns.tryUse(player, hand)) {
+                ci.cancel();
+            }
         }
     }
 }

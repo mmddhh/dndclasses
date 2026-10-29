@@ -44,9 +44,7 @@ public final class BetterCombatDamageHandler {
         if (event.getSource().getDirectEntity() != player) {
             return;
         }
-        if (!(event.getEntity() instanceof LivingEntity target)) {
-            return;
-        }
+        LivingEntity target = event.getEntity();
 
         boolean offHand = BetterCombatCompat.isOffHandAttack(player);
         ItemStack stack = offHand ? player.getOffhandItem() : player.getMainHandItem();

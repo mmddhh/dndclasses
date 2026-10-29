@@ -51,6 +51,10 @@ public final class DndCombatEvents {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer serverPlayer) {
             DndCombat.tickReload(serverPlayer);
+            // Safety net: some player inventory paths never fire LivingEquipmentChangeEvent.
+            if (serverPlayer.tickCount % 10 == 0) {
+                DualWieldEvents.enforce(serverPlayer);
+            }
         }
     }
 
@@ -61,6 +65,10 @@ public final class DndCombatEvents {
         // our damage is applied in compat/BetterCombatDamageHandler instead.
         if (BetterCombatCompat.isActive()) {
             return;
+        }
+
+        if (player instanceof ServerPlayer serverPlayer) {
+            DualWieldEvents.enforce(serverPlayer);
         }
 
         InteractionHand hand = player instanceof ServerPlayer serverPlayer
@@ -141,6 +149,11 @@ public final class DndCombatEvents {
     }
 
     private static boolean handleRightClick(Player player, Entity target) {
+        // Use actions must run on the server: cancelling the client-side event would prevent the
+        // use packet from being sent at all (breaking throws and crossbow shots).
+        if (player.level().isClientSide) {
+            return false;
+        }
         // Right-click is reserved for throwing light weapons from the offhand; melee offhand
         // attacks are performed by the alternating left-click attack instead.
         ItemStack offhand = player.getOffhandItem();

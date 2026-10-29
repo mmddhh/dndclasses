@@ -34,11 +34,8 @@ public final class DualWieldRules {
         if (!(offStack.getItem() instanceof DndWeapon)) {
             return true;
         }
-        ItemStack main = player.getMainHandItem();
-        if (!(main.getItem() instanceof DndWeapon mainWeapon)) {
-            return true;
-        }
-        return mainWeapon.spec().has(WeaponProperty.LIGHT);
+        // D&D two-weapon fighting: both weapons must be light.
+        return isLightWeapon(offStack) && isLightWeapon(player.getMainHandItem());
     }
 
     /** Both hands hold a light D&amp;D weapon: attacks alternate between them. */

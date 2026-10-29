@@ -2,6 +2,7 @@ package mdh.dndclasses.weapon;
 
 import mdh.dndclasses.Dndclasses;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -12,9 +13,13 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * Enforces the offhand equipment rule: an offhand weapon requires a light main-hand weapon
- * (D&amp;D two-weapon fighting). Rejected items are stowed back into the inventory instead of being
- * deleted. Also resets the attack alternation when equipment changes.
+ * Enforces the offhand equipment rule: an offhand weapon is allowed only when both the main hand
+ * and the offhand hold <b>light</b> weapons (D&amp;D two-weapon fighting). Rejected items are
+ * stowed back into the inventory instead of being deleted.
+ * <p>
+ * The rule is enforced on equipment changes and, as a safety net, periodically from the player
+ * tick, because Forge's {@code LivingEquipmentChangeEvent} is not guaranteed to fire for every
+ * player inventory path.
  */
 @Mod.EventBusSubscriber(modid = Dndclasses.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class DualWieldEvents {
@@ -27,29 +32,25 @@ public final class DualWieldEvents {
 
     @SubscribeEvent
     public static void onEquipmentChange(LivingEquipmentChangeEvent event) {
-        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-        if (!player.isAlive() || player.isDeadOrDying() || STOWING.get()) {
+        if (player.level().isClientSide || !player.isAlive() || STOWING.get()) {
             return;
         }
-
-        if (event.getSlot() == EquipmentSlot.OFFHAND) {
-            ItemStack to = event.getTo();
-            if (to.getItem() instanceof DndWeapon && !DualWieldRules.canHoldInOffHand(player, to)) {
-                stow(player, EquipmentSlot.OFFHAND, to);
-            }
-        } else if (event.getSlot() == EquipmentSlot.MAINHAND) {
-            ItemStack main = event.getTo();
-            ItemStack off = player.getOffhandItem();
-            boolean mainAllowsOffhand = !(main.getItem() instanceof DndWeapon mainWeapon)
-                    || mainWeapon.spec().has(WeaponProperty.LIGHT);
-            if (!mainAllowsOffhand && off.getItem() instanceof DndWeapon) {
-                stow(player, EquipmentSlot.OFFHAND, off);
-            }
-        }
-
+        enforce(player);
         DualWieldRules.reset(player);
+    }
+
+    /** Stows an offhand weapon that violates the light-weapon rule (server side only). */
+    public static void enforce(ServerPlayer player) {
+        if (STOWING.get() || !player.isAlive() || player.level().isClientSide) {
+            return;
+        }
+        ItemStack off = player.getOffhandItem();
+        if (off.getItem() instanceof DndWeapon && !DualWieldRules.canHoldInOffHand(player, off)) {
+            stow(player, off);
+        }
     }
 
     @SubscribeEvent
@@ -65,14 +66,14 @@ public final class DualWieldEvents {
     }
 
     /** Moves a rejected offhand weapon back into the inventory (or drops it when full). */
-    private static void stow(Player player, EquipmentSlot slot, ItemStack stack) {
+    private static void stow(ServerPlayer player, ItemStack stack) {
         if (stack.isEmpty()) {
             return;
         }
         STOWING.set(true);
         try {
             ItemStack stowed = stack.copy();
-            player.setItemSlot(slot, ItemStack.EMPTY);
+            player.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
             if (!player.getInventory().add(stowed)) {
                 player.drop(stowed, false);
             }

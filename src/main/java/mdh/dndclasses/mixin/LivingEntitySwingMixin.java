@@ -1,5 +1,6 @@
 package mdh.dndclasses.mixin;
 
+import com.mojang.logging.LogUtils;
 import mdh.dndclasses.weapon.DndCooldowns;
 import mdh.dndclasses.weapon.DndWeapon;
 import mdh.dndclasses.compat.BetterCombatCompat;
@@ -7,6 +8,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -14,6 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntitySwingMixin {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     @Inject(method = "swing(Lnet/minecraft/world/InteractionHand;Z)V", at = @At("HEAD"), cancellable = true)
     private void dndclasses$cancelCoolingSwing(InteractionHand hand, boolean updateSelf, CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
@@ -26,10 +31,14 @@ public abstract class LivingEntitySwingMixin {
             return;
         }
         if (stack.getItem() instanceof DndWeapon) {
+            float charge = player.getAttackStrengthScale(0.5F);
+            boolean cooling = DndCooldowns.isCoolingDown(player, hand);
+            LOGGER.info("DND swing: hand={} charge={} cooling={} item={}",
+                    hand, charge, cooling, stack.getItem());
             // Swing only when the attack is actually allowed: uncharged swings are dropped so the
             // rejected attack has no hand animation.
-            if (player.getAttackStrengthScale(0.5F) < 0.999F
-                    || !DndCooldowns.tryUse(player, hand)) {
+            if (charge < 0.999F || !DndCooldowns.tryUse(player, hand)) {
+                LOGGER.info("DND swing cancelled: hand={}", hand);
                 ci.cancel();
             }
         }

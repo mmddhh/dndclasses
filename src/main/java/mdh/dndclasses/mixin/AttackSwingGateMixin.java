@@ -1,7 +1,9 @@
 package mdh.dndclasses.mixin;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.EntityHitResult;
+import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,14 +21,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Minecraft.class)
 public abstract class AttackSwingGateMixin {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void dndclasses$blockUnchargedAttack(CallbackInfoReturnable<Boolean> cir) {
         Minecraft self = (Minecraft) (Object) this;
         if (self.player == null) {
             return;
         }
-        if (self.hitResult instanceof EntityHitResult
-                && self.player.getAttackStrengthScale(0.5F) < 0.999F) {
+        float charge = self.player.getAttackStrengthScale(0.5F);
+        LOGGER.info("DND startAttack: hit={} charge={}",
+                self.hitResult == null ? "null" : self.hitResult.getType(), charge);
+        if (self.hitResult instanceof EntityHitResult && charge < 0.999F) {
+            LOGGER.info("DND startAttack blocked: charge={}", charge);
             cir.setReturnValue(false);
         }
     }

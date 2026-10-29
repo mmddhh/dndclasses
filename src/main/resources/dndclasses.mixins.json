@@ -7,7 +7,9 @@
   "mixins": [
     "ItemStackMixin",
     "LivingEntityArmorMixin",
-    "LivingEntityHurtTypeMixin"
+    "LivingEntityHurtTypeMixin",
+    "SlotOffhandRuleMixin",
+    "ServerPlaySwapMixin"
   ],
   "client": [
     "LivingEntitySwingMixin",

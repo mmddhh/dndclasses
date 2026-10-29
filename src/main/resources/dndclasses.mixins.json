@@ -15,7 +15,8 @@
     "LivingEntitySwingMixin",
     "ConditionMovementMixin",
     "ItemInHandRendererMixin",
-    "AttackChargeMixin"
+    "AttackChargeMixin",
+    "AttackSwingGateMixin"
   ],
   "injectors": {
     "defaultRequire": 1

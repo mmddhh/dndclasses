@@ -31,6 +31,8 @@ import java.util.UUID;
 public class DndWeaponItem extends Item implements DndWeapon {
     public static final String TAG_LOADED = "DndLoaded";
     public static final String TAG_LOADED_AMMO = "DndLoadedAmmo";
+    /** Marks the exact crossbow stack that is currently being reloaded (per-stack animation). */
+    public static final String TAG_RELOADING = "DndReloading";
     public static final int CROSSBOW_CHARGE_TICKS = 25;
     private static final UUID ATTACK_SPEED_MODIFIER = UUID.fromString("424e0a10-700f-48c2-8b4b-cd18e7175a57");
     private static final UUID ENTITY_REACH_MODIFIER = UUID.fromString("b0d0bebc-08f1-4b9f-85e0-566e36b9fb86");
@@ -167,21 +169,6 @@ public class DndWeaponItem extends Item implements DndWeapon {
 
     @Override
     public void appendHoverText(ItemStack stack, Level level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("tooltip.dndclasses.damage", spec.oneHandDamage(), spec.damageType().id()).withStyle(ChatFormatting.GRAY));
-        if (spec.isVersatile()) {
-            tooltip.add(Component.translatable("tooltip.dndclasses.versatile", spec.twoHandDamage()).withStyle(ChatFormatting.GRAY));
-        }
-        if (spec.magical()) {
-            tooltip.add(Component.translatable("tooltip.dndclasses.magical").withStyle(ChatFormatting.AQUA));
-        }
-        if (!spec.properties().isEmpty()) {
-            tooltip.add(Component.literal(spec.properties().toString()).withStyle(ChatFormatting.DARK_GRAY));
-        }
-        if (spec.isLoading()) {
-            tooltip.add(Component.translatable("tooltip.dndclasses.loading").withStyle(ChatFormatting.YELLOW));
-        }
-        if (mdh.dndclasses.gear.DndDurability.isBroken(stack)) {
-            tooltip.add(Component.translatable("tooltip.dndclasses.broken").withStyle(ChatFormatting.RED));
-        }
+        WeaponTooltips.append(stack, level, spec, tooltip, flag);
     }
 }

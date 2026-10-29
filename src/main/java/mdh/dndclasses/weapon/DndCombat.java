@@ -269,6 +269,9 @@ public final class DndCombat {
         // Vanilla picks the "crossbow held in front" arm pose from CrossbowItem#isCharged, so mark
         // the stack charged for the duration of the reload; DndLoaded still gates actual firing.
         CrossbowItem.setCharged(stack, true);
+        // Per-stack marker: only this crossbow shows the loading animation, not every crossbow in
+        // the hotbar.
+        stack.getOrCreateTag().putBoolean(DndWeaponItem.TAG_RELOADING, true);
         player.displayClientMessage(Component.translatable("message.dndclasses.reloading"), true);
         return true;
     }
@@ -321,6 +324,7 @@ public final class DndCombat {
         ItemStack stack = player.getItemInHand(hand);
         if (stack.getItem() instanceof DndWeapon weaponItem && weaponItem.spec().isCrossbow()) {
             CrossbowItem.setCharged(stack, false);
+            stack.getOrCreateTag().remove(DndWeaponItem.TAG_RELOADING);
         }
         clearReload(player);
     }
@@ -328,6 +332,9 @@ public final class DndCombat {
     public static boolean completeLoading(Player player, InteractionHand hand) {
         clearReload(player);
         ItemStack stack = player.getItemInHand(hand);
+        if (stack.hasTag()) {
+            stack.getTag().remove(DndWeaponItem.TAG_RELOADING);
+        }
         if (!(stack.getItem() instanceof DndWeapon weaponItem) || !weaponItem.spec().isLoading()) {
             return false;
         }

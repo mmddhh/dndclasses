@@ -10,6 +10,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
@@ -95,10 +96,11 @@ public final class ClientSetup {
                 if (spec.isCrossbow()) {
                     // Loading animation is driven by our own charge timer, not the use-item state
                     // (R does not hold the use key, so vanilla would release it on the next tick).
+                    // The per-stack tag keeps every other crossbow in the hotbar idle.
                     ItemProperties.register(item, new ResourceLocation("pull"), (stack, level, entity, seed) ->
-                            ClientReloadState.progress());
+                            isReloading(stack) ? ClientReloadState.progress() : 0.0F);
                     ItemProperties.register(item, new ResourceLocation("pulling"), (stack, level, entity, seed) ->
-                            ClientReloadState.isCharging() ? 1.0F : 0.0F);
+                            isReloading(stack) && ClientReloadState.isCharging() ? 1.0F : 0.0F);
                     ItemProperties.register(item, new ResourceLocation("charged"), (stack, level, entity, seed) ->
                             stack.getOrCreateTag().getBoolean(DndWeaponItem.TAG_LOADED) ? 1.0F : 0.0F);
                 } else if (spec.isBow()) {
@@ -113,5 +115,10 @@ public final class ClientSetup {
                 }
             }
         });
+    }
+
+    /** True only for the exact crossbow stack that is currently being reloaded. */
+    private static boolean isReloading(ItemStack stack) {
+        return stack.hasTag() && stack.getTag().getBoolean(DndWeaponItem.TAG_RELOADING);
     }
 }

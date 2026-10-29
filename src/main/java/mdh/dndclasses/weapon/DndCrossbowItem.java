@@ -131,15 +131,6 @@ public class DndCrossbowItem extends CrossbowItem implements DndWeapon {
 
     @Override
     public void appendHoverText(ItemStack stack, Level level, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("tooltip.dndclasses.damage", spec.oneHandDamage(), spec.damageType().id()).withStyle(ChatFormatting.GRAY));
-        if (spec.magical()) {
-            tooltip.add(Component.translatable("tooltip.dndclasses.magical").withStyle(ChatFormatting.AQUA));
-        }
-        if (spec.isLoading()) {
-            tooltip.add(Component.translatable("tooltip.dndclasses.loading").withStyle(ChatFormatting.YELLOW));
-        }
-        if (DndDurability.isBroken(stack)) {
-            tooltip.add(Component.translatable("tooltip.dndclasses.broken").withStyle(ChatFormatting.RED));
-        }
+        WeaponTooltips.append(stack, level, spec, tooltip, flag);
     }
 }

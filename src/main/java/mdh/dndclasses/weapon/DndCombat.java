@@ -8,6 +8,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -107,6 +109,19 @@ public final class DndCombat {
                     12, 0.3D, 0.3D, 0.3D, 0.1D);
         }
         player.swing(hand, true);
+        if (hand == InteractionHand.OFF_HAND) {
+            // Vanilla's first-person renderer only animates the main hand, so the offhand swing
+            // would be invisible for the attacker. Swing the main hand as well and add a distinct
+            // whoosh + sweep particle so the offhand (bonus-action) attack is visible and testable.
+            player.swing(InteractionHand.MAIN_HAND, true);
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.7F, 1.4F);
+            if (livingTarget.level() instanceof ServerLevel serverLevel) {
+                serverLevel.sendParticles(ParticleTypes.SWEEP_ATTACK,
+                        livingTarget.getX(), livingTarget.getY() + livingTarget.getBbHeight() * 0.5D,
+                        livingTarget.getZ(), 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            }
+        }
         player.resetAttackStrengthTicker();
         return true;
     }

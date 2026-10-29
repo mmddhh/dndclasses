@@ -74,9 +74,20 @@ public final class DualWieldEvents {
         try {
             ItemStack stowed = stack.copy();
             player.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
-            if (!player.getInventory().add(stowed)) {
+            if (!player.getOffhandItem().isEmpty()) {
+                // The caller re-applied the stack after the event; retry on the next tick instead
+                // of duplicating it now.
+                return;
+            }
+            if (player.getMainHandItem().isEmpty()) {
+                // Came from the main hand (offhand swap): put it straight back.
+                player.setItemSlot(EquipmentSlot.MAINHAND, stowed);
+            } else if (!player.getInventory().add(stowed)) {
                 player.drop(stowed, false);
             }
+            // Force the client to see the moved stack, otherwise the offhand keeps showing a ghost
+            // item until the next full inventory sync (relog).
+            player.inventoryMenu.broadcastChanges();
             player.displayClientMessage(
                     Component.translatable("message.dndclasses.offhand_light_only"), true);
         } finally {

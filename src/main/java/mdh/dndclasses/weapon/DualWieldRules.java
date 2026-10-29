@@ -29,8 +29,17 @@ public final class DualWieldRules {
         if (!(offStack.getItem() instanceof DndWeapon)) {
             return true;
         }
-        // D&D two-weapon fighting: both weapons must be light.
-        return isLightWeapon(offStack) && isLightWeapon(player.getMainHandItem());
+        // The offhand weapon itself must always be light.
+        if (!isLightWeapon(offStack)) {
+            return false;
+        }
+        ItemStack main = player.getMainHandItem();
+        if (!(main.getItem() instanceof DndWeapon mainWeapon)) {
+            // Empty or non-weapon main hand: holding the light weapon is fine, dual wielding simply
+            // does not engage until a light weapon is equipped in the main hand as well.
+            return true;
+        }
+        return mainWeapon.spec().has(WeaponProperty.LIGHT);
     }
 
     /** Both hands hold a light D&amp;D weapon: attacks alternate between them. */

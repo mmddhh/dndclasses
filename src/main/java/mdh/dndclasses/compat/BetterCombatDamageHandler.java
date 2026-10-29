@@ -9,6 +9,7 @@ import mdh.dndclasses.weapon.DndDamageType;
 import mdh.dndclasses.weapon.DndWeapon;
 import mdh.dndclasses.weapon.DndWeaponMaterial;
 import mdh.dndclasses.weapon.DndWeaponSpec;
+import mdh.dndclasses.weapon.DualWieldRules;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -46,7 +47,9 @@ public final class BetterCombatDamageHandler {
         }
         LivingEntity target = event.getEntity();
 
-        boolean offHand = BetterCombatCompat.isOffHandAttack(player);
+        // A swing Better Combat treats as offhand only counts as an offhand (bonus) attack when the
+        // pair actually satisfies the dual-wield rule; otherwise resolve it with main-hand numbers.
+        boolean offHand = BetterCombatCompat.isOffHandAttack(player) && DualWieldRules.canDualWield(player);
         ItemStack stack = offHand ? player.getOffhandItem() : player.getMainHandItem();
         if (!(stack.getItem() instanceof DndWeapon weapon)) {
             return;

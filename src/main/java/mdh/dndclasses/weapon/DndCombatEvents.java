@@ -51,10 +51,6 @@ public final class DndCombatEvents {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer serverPlayer) {
             DndCombat.tickReload(serverPlayer);
-            // Safety net: some player inventory paths never fire LivingEquipmentChangeEvent.
-            if (serverPlayer.tickCount % 10 == 0) {
-                DualWieldEvents.enforce(serverPlayer);
-            }
         }
     }
 
@@ -65,10 +61,6 @@ public final class DndCombatEvents {
         // our damage is applied in compat/BetterCombatDamageHandler instead.
         if (BetterCombatCompat.isActive()) {
             return;
-        }
-
-        if (player instanceof ServerPlayer serverPlayer) {
-            DualWieldEvents.enforce(serverPlayer);
         }
 
         InteractionHand hand = player instanceof ServerPlayer serverPlayer

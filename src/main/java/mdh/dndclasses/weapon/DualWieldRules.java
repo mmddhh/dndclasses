@@ -1,9 +1,15 @@
 package mdh.dndclasses.weapon;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.UUID;
 
 /**
  * D&amp;D two-weapon fighting rules.
@@ -11,11 +17,14 @@ import net.minecraft.world.item.ItemStack;
  *   <li>An offhand weapon may only be held when both hands hold <b>light</b> weapons.</li>
  *   <li>Dual wielding then alternates the attacking hand (the offhand swing is the bonus-action
  *       attack).</li>
+ *   <li>Dual wielding doubles the attack speed so the vanilla charge indicator and the attack
+ *       interval stay in sync at 5 ticks.</li>
  * </ul>
  */
 public final class DualWieldRules {
 
     private static final String TAG_NEXT_OFF = "DndDualWieldNextOff";
+    private static final UUID DUAL_WIELD_SPEED_ID = UUID.fromString("3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f");
 
     private DualWieldRules() {
     }
@@ -71,5 +80,25 @@ public final class DualWieldRules {
 
     public static void reset(Player player) {
         player.getPersistentData().remove(TAG_NEXT_OFF);
+    }
+
+    /**
+     * Keeps the player's attack speed in sync with the dual-wield state: {@code x2} while both
+     * hands hold light weapons, so the vanilla charge indicator reaches full at 5 ticks and the
+     * "attack only when fully charged" rule matches the 5 tick alternation.
+     */
+    public static void updateAttackSpeed(ServerPlayer player) {
+        AttributeInstance attribute = player.getAttribute(Attributes.ATTACK_SPEED);
+        if (attribute == null) {
+            return;
+        }
+        boolean dual = canDualWield(player);
+        boolean has = attribute.getModifier(DUAL_WIELD_SPEED_ID) != null;
+        if (dual && !has) {
+            attribute.addTransientModifier(new AttributeModifier(DUAL_WIELD_SPEED_ID,
+                    "DND dual wielding attack speed", 1.0D, AttributeModifier.Operation.MULTIPLY_BASE));
+        } else if (!dual && has) {
+            attribute.removeModifier(DUAL_WIELD_SPEED_ID);
+        }
     }
 }

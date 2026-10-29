@@ -12,7 +12,8 @@
   "client": [
     "LivingEntitySwingMixin",
     "ConditionMovementMixin",
-    "ItemInHandRendererMixin"
+    "ItemInHandRendererMixin",
+    "AttackChargeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

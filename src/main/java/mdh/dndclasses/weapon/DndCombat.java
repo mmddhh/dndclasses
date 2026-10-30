@@ -2,6 +2,8 @@ package mdh.dndclasses.weapon;
 
 import mdh.dndclasses.feature.FeatureEffects;
 import mdh.dndclasses.gear.DndDurability;
+import mdh.dndclasses.network.DndNetwork;
+import mdh.dndclasses.network.SwingHandPacket;
 import mdh.dndclasses.weapon.ModDamageTypes;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -109,6 +111,12 @@ public final class DndCombat {
                     12, 0.3D, 0.3D, 0.3D, 0.1D);
         }
         player.swing(hand, true);
+        if (hand == InteractionHand.OFF_HAND && player instanceof ServerPlayer serverPlayer) {
+            // The client predicts a main-hand swing on click and vanilla then drops the offhand swing
+            // sent by the server (it arrives inside the first half of the predicted swing). Replay it
+            // on the offhand. Main-hand attacks need no help: the prediction is already correct.
+            DndNetwork.sendToPlayer(serverPlayer, new SwingHandPacket(hand));
+        }
         if (hand == InteractionHand.OFF_HAND) {
             // Vanilla's first-person renderer does animate the offhand (renderHandsWithItems passes
             // the swing progress for the swinging arm), so no extra main-hand swing is needed; just

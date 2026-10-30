@@ -46,7 +46,7 @@ public class DndCrossbowItem extends CrossbowItem implements DndWeapon {
         this.spec = spec;
         ImmutableMultimap.Builder<Attribute, AttributeModifier> builder = ImmutableMultimap.builder();
         builder.put(Attributes.ATTACK_SPEED, new AttributeModifier(ATTACK_SPEED_MODIFIER,
-                "DND weapon attack speed", -2.0D, AttributeModifier.Operation.ADDITION));
+                "DND weapon attack speed", DndCooldowns.attackSpeedModifier(), AttributeModifier.Operation.ADDITION));
         if (spec.has(WeaponProperty.REACH)) {
             builder.put(ForgeMod.ENTITY_REACH.get(), new AttributeModifier(ENTITY_REACH_MODIFIER,
                     "DND reach weapon", 2.0D, AttributeModifier.Operation.ADDITION));

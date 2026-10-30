@@ -9,7 +9,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class DndNetwork {
 
-    private static final String PROTOCOL_VERSION = "9";
+    private static final String PROTOCOL_VERSION = "10";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(Dndclasses.MODID, "main"),
@@ -81,6 +81,12 @@ public final class DndNetwork {
                 .encoder(StuckProjectileSyncPacket::encode)
                 .decoder(StuckProjectileSyncPacket::decode)
                 .consumerMainThread(StuckProjectileSyncPacket::handle)
+                .add();
+
+        CHANNEL.messageBuilder(SwingHandPacket.class, id++)
+                .encoder(SwingHandPacket::encode)
+                .decoder(SwingHandPacket::decode)
+                .consumerMainThread(SwingHandPacket::handle)
                 .add();
     }
 

@@ -11,13 +11,21 @@ import net.minecraft.world.entity.player.Player;
  */
 public final class DndCooldowns {
 
-    public static final int ATTACK_COOLDOWN_TICKS = 10;
-    /** Dual wielding attacks twice as fast (one main-hand + one offhand attack per 10 ticks). */
-    public static final int DUAL_WIELD_COOLDOWN_TICKS = 5;
+    public static final int ATTACK_COOLDOWN_TICKS = 30;
+    /** Dual wielding attacks twice as fast (one main-hand + one offhand attack per 30 ticks). */
+    public static final int DUAL_WIELD_COOLDOWN_TICKS = 15;
 
     private static final String TAG_LAST_SWING = "DndWeaponSwingCooldown";
 
     private DndCooldowns() {
+    }
+
+    /**
+     * Attack-speed attribute addition that makes the vanilla charge indicator reach full exactly
+     * when the attack interval elapses (base player attack speed is {@code 4.0}).
+     */
+    public static double attackSpeedModifier() {
+        return 20.0D / ATTACK_COOLDOWN_TICKS - 4.0D;
     }
 
     public static boolean tryUse(Player player, InteractionHand hand) {

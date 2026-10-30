@@ -12,7 +12,6 @@
     "ServerPlaySwapMixin"
   ],
   "client": [
-    "LivingEntitySwingMixin",
     "ConditionMovementMixin",
     "ItemInHandRendererMixin",
     "AttackChargeMixin",

@@ -110,10 +110,9 @@ public final class DndCombat {
         }
         player.swing(hand, true);
         if (hand == InteractionHand.OFF_HAND) {
-            // Vanilla's first-person renderer only animates the main hand, so the offhand swing
-            // would be invisible for the attacker. Swing the main hand as well and add a distinct
-            // whoosh + sweep particle so the offhand (bonus-action) attack is visible and testable.
-            player.swing(InteractionHand.MAIN_HAND, true);
+            // Vanilla's first-person renderer does animate the offhand (renderHandsWithItems passes
+            // the swing progress for the swinging arm), so no extra main-hand swing is needed; just
+            // add a distinct whoosh + sweep particle so the bonus attack reads clearly.
             player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.7F, 1.4F);
             if (livingTarget.level() instanceof ServerLevel serverLevel) {

@@ -27,12 +27,10 @@ import net.minecraftforge.fml.common.Mod;
 import mdh.dndclasses.Dndclasses;
 import mdh.dndclasses.client.ClientReloadState;
 import mdh.dndclasses.compat.BetterCombatCompat;
-import com.mojang.logging.LogUtils;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.fml.DistExecutor;
-import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,8 +43,6 @@ import java.util.Map;
  */
 @Mod.EventBusSubscriber(modid = Dndclasses.MODID)
 public final class DndCombatEvents {
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     private DndCombatEvents() {
     }
@@ -69,10 +65,7 @@ public final class DndCombatEvents {
 
         if (player instanceof ServerPlayer serverPlayer) {
             // Authoritative charge gate: vanilla would scale the damage down, we refuse the attack.
-            float charge = serverPlayer.getAttackStrengthScale(0.5F);
-            if (charge < 0.999F) {
-                LOGGER.info("DND attack blocked: charge={} delay={}",
-                        charge, serverPlayer.getCurrentItemAttackStrengthDelay());
+            if (serverPlayer.getAttackStrengthScale(0.5F) < 0.999F) {
                 event.setCanceled(true);
                 return;
             }

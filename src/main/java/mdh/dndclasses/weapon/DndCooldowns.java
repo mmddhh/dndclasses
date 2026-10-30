@@ -11,9 +11,9 @@ import net.minecraft.world.entity.player.Player;
  */
 public final class DndCooldowns {
 
-    public static final int ATTACK_COOLDOWN_TICKS = 30;
-    /** Dual wielding attacks twice as fast (one main-hand + one offhand attack per 30 ticks). */
-    public static final int DUAL_WIELD_COOLDOWN_TICKS = 15;
+    public static final int ATTACK_COOLDOWN_TICKS = 20;
+    /** Dual wielding attacks twice as fast (one main-hand + one offhand attack per 20 ticks). */
+    public static final int DUAL_WIELD_COOLDOWN_TICKS = 10;
 
     private static final String TAG_LAST_SWING = "DndWeaponSwingCooldown";
 

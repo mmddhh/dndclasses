@@ -19,5 +19,6 @@ public final class SwingHandClientHandler {
         // the hand the server actually attacked with.
         player.swinging = false;
         player.swing(packet.hand(), false);
+        ClientDualWield.sync(player, packet.hand());
     }
 }

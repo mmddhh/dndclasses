@@ -17,8 +17,8 @@ import java.util.UUID;
  *   <li>An offhand weapon may only be held when both hands hold <b>light</b> weapons.</li>
  *   <li>Dual wielding then alternates the attacking hand (the offhand swing is the bonus-action
  *       attack).</li>
- *   <li>Dual wielding doubles the attack speed so the vanilla charge indicator and the attack
- *       interval stay in sync at 5 ticks.</li>
+ *   <li>Dual wielding halves the attack interval (see {@link DndCooldowns}) so the vanilla charge
+ *       indicator and the alternation stay in sync.</li>
  * </ul>
  */
 public final class DualWieldRules {

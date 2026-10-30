@@ -31,14 +31,14 @@ public abstract class LivingEntitySwingMixin {
             return;
         }
         if (stack.getItem() instanceof DndWeapon) {
-            float charge = player.getAttackStrengthScale(0.5F);
+            // NOTE: the charge scale is already ~0 here because vanilla calls
+            // resetAttackStrengthTicker() before swinging. The charge gate therefore lives in
+            // AttackSwingGateMixin (Minecraft#startAttack); this layer only enforces the interval.
             boolean cooling = DndCooldowns.isCoolingDown(player, hand);
             LOGGER.info("DND swing: hand={} charge={} cooling={} item={}",
-                    hand, charge, cooling, stack.getItem());
-            // Swing only when the attack is actually allowed: uncharged swings are dropped so the
-            // rejected attack has no hand animation.
-            if (charge < 0.999F || !DndCooldowns.tryUse(player, hand)) {
-                LOGGER.info("DND swing cancelled: hand={}", hand);
+                    hand, player.getAttackStrengthScale(0.5F), cooling, stack.getItem());
+            if (!DndCooldowns.tryUse(player, hand)) {
+                LOGGER.info("DND swing cancelled (cooldown): hand={}", hand);
                 ci.cancel();
             }
         }

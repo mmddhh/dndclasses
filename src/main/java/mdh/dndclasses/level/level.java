@@ -16,11 +16,12 @@ public class level implements Ilevel, INBTSerializable<CompoundTag> {
     String subclassKey = "";
     int dataVersion = 1;
     List<String> classFeatures = new ArrayList<>();
+    int pendingAsi = 0;
+    List<Integer> asiLevels = new ArrayList<>();
 
     @Override
     public void setlevel(int level) {
         this.level = DndLeveling.clampLevel(level);
-        this.Exp = DndLeveling.getMinimumExperienceForLevel(this.level);
         this.proficiencybonus = DndLeveling.getProficiencyBonus(this.level);
     }
 
@@ -31,9 +32,9 @@ public class level implements Ilevel, INBTSerializable<CompoundTag> {
 
     @Override
     public void setExp(int Exp) {
+        // Experience no longer levels the character immediately: level-ups are applied on a long
+        // rest (see LevelUpManager), so a player can bank XP and then rest.
         this.Exp = DndLeveling.clampExperience(Exp);
-        this.level = DndLeveling.getLevelForExperience(this.Exp);
-        this.proficiencybonus = DndLeveling.getProficiencyBonus(this.level);
     }
 
     @Override
@@ -102,6 +103,26 @@ public class level implements Ilevel, INBTSerializable<CompoundTag> {
     }
 
     @Override
+    public int getPendingAsi() {
+        return pendingAsi;
+    }
+
+    @Override
+    public void setPendingAsi(int pending) {
+        this.pendingAsi = Math.max(0, pending);
+    }
+
+    @Override
+    public List<Integer> getAsiLevels() {
+        return asiLevels;
+    }
+
+    @Override
+    public void setAsiLevels(List<Integer> levels) {
+        this.asiLevels = levels != null ? new ArrayList<>(levels) : new ArrayList<>();
+    }
+
+    @Override
     public CompoundTag serializeNBT() {
         CompoundTag nbt = new CompoundTag();
         nbt.putInt("level",getlevel());
@@ -111,6 +132,8 @@ public class level implements Ilevel, INBTSerializable<CompoundTag> {
         nbt.putString("className",className);
         nbt.putString("subclassKey",subclassKey);
         nbt.putInt("dataVersion",dataVersion);
+        nbt.putInt("pendingAsi", pendingAsi);
+        nbt.putIntArray("asiLevels", asiLevels.stream().mapToInt(Integer::intValue).toArray());
         ListTag list = new ListTag();
         for (String f : classFeatures) list.add(StringTag.valueOf(f));
         nbt.put("classFeatures", list);
@@ -119,16 +142,26 @@ public class level implements Ilevel, INBTSerializable<CompoundTag> {
 
     @Override
     public void deserializeNBT(CompoundTag nbt) {
-        boolean hasExperience = nbt.contains("Exp");
-
-        if (hasExperience) {
+        if (nbt.contains("Exp")) {
             setExp(nbt.getInt("Exp"));
-        } else if (nbt.contains("level")) {
+        }
+        if (nbt.contains("level")) {
             setlevel(nbt.getInt("level"));
+        } else if (nbt.contains("Exp")) {
+            setlevel(DndLeveling.getLevelForExperience(nbt.getInt("Exp")));
         }
 
-        if (!hasExperience && nbt.contains("proficiencybonus")) {
+        if (nbt.contains("proficiencybonus")) {
             setproficiencybonus(nbt.getInt("proficiencybonus"));
+        }
+        if (nbt.contains("pendingAsi")) {
+            pendingAsi = Math.max(0, nbt.getInt("pendingAsi"));
+        }
+        if (nbt.contains("asiLevels")) {
+            asiLevels = new ArrayList<>();
+            for (int value : nbt.getIntArray("asiLevels")) {
+                asiLevels.add(value);
+            }
         }
 
         if (nbt.contains("createdCharacter")) {

@@ -182,18 +182,10 @@ public class ModForgeEvents {
         }
 
         player.getCapability(ModCapabilities.LEVEL_CAPABILITY).ifPresent(levelData -> {
-            int oldLevel = levelData.getlevel();
             int newExperience = DndLeveling.addExperience(levelData.getExp(), gainedExperience);
             levelData.setExp(newExperience);
-            int newLevel = levelData.getlevel();
-
-            player.sendSystemMessage(Component.literal("DND XP +" + gainedExperience + " (" + newExperience + ")").withStyle(ChatFormatting.GRAY));
-
-            if (newLevel > oldLevel) {
-                MinecraftForge.EVENT_BUS.post(new LevelUp(player, oldLevel, newLevel));
-                player.sendSystemMessage(Component.literal("DND level up! Level " + oldLevel + " -> " + newLevel + ", proficiency +" + levelData.getproficiencybonus()).withStyle(ChatFormatting.GOLD));
-            }
-
+            player.sendSystemMessage(Component.literal("DND XP +" + gainedExperience + " (" + newExperience + ")")
+                    .withStyle(ChatFormatting.GRAY));
             ServerStateSync.send(player);
         });
     }
@@ -211,6 +203,7 @@ public class ModForgeEvents {
                 SaveQteManager.breakConcentration(serverPlayer, DndConcentrationBrokenEvent.Reason.OTHER);
                 ConditionManager.decreaseExhaustion(serverPlayer);
                 MinecraftForge.EVENT_BUS.post(new DndLongRestEvent(serverPlayer));
+                mdh.dndclasses.data.LevelUpManager.onLongRest(serverPlayer);
                 ServerStateSync.send(serverPlayer);
             }
         }

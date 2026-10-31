@@ -21,4 +21,12 @@ public interface Ilevel extends INBTSerializable<CompoundTag> {
     void setDataVersion(int version);
     List<String> getClassFeatures();
     void setClassFeatures(List<String> features);
+
+    /** Unspent Ability Score Improvements (one per ASI level reached after a long rest). */
+    int getPendingAsi();
+    void setPendingAsi(int pending);
+
+    /** Levels whose ASI has already been granted, so a level-up never grants it twice. */
+    List<Integer> getAsiLevels();
+    void setAsiLevels(List<Integer> levels);
 }

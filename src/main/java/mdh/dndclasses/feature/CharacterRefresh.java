@@ -21,6 +21,7 @@ public final class CharacterRefresh {
         SpellcastingManager.refresh(player);
         HealthManager.apply(player);
         ArmorManager.update(player);
+        mdh.dndclasses.data.RaceManager.applySpeed(player);
     }
 
     @SubscribeEvent

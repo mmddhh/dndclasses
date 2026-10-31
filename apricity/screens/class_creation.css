@@ -825,3 +825,107 @@
   .tome-body-scroll { max-height: none; }
   .class-list { max-height: 340px; }
 }
+
+/* ==== race selection overlay + pixel nebula ==== */
+.race-overlay {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: #05020f;
+  overflow: auto;
+}
+
+.race-overlay.hidden {
+  display: none;
+}
+
+.race-panel {
+  position: relative;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 34px 36px 48px 36px;
+}
+
+.race-columns {
+  display: flex;
+  gap: 16px;
+}
+
+.race-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 260px;
+}
+
+.race-item {
+  padding: 10px 12px;
+  border: 2px solid #6b4fd8;
+  background: rgba(20, 10, 50, 0.86);
+  color: #eae3ff;
+  text-align: left;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+
+.race-item.active {
+  border-color: #7fe8ff;
+  background: rgba(30, 60, 96, 0.8);
+}
+
+.race-detail {
+  flex: 1;
+  min-height: 320px;
+  padding: 16px;
+  border: 2px solid #6b4fd8;
+  background: rgba(12, 6, 32, 0.88);
+  box-shadow: 4px 4px 0 #160a38;
+}
+
+.subrace-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.subrace-btn, .asi-btn {
+  padding: 8px 12px;
+  border: 2px solid #4a3a9e;
+  background: rgba(30, 16, 64, 0.9);
+  color: #eae3ff;
+  cursor: pointer;
+}
+
+.subrace-btn.active, .asi-btn.active {
+  border-color: #7fe8ff;
+  background: rgba(20, 64, 96, 0.8);
+}
+
+.asi-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.trait-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.trait-chip {
+  padding: 4px 8px;
+  border: 1px solid #4a3a9e;
+  color: #b9a7ff;
+  font-size: 11px;
+}
+
+.race-footer {
+  margin-top: 18px;
+}

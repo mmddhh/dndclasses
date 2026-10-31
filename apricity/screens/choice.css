@@ -1,0 +1,145 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #05020f;
+  color: #eae3ff;
+  font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+
+.nebula {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    radial-gradient(60% 45% at 20% 30%, rgba(120, 60, 255, 0.38), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(50% 40% at 80% 20%, rgba(0, 180, 255, 0.28), rgba(0, 0, 0, 0) 60%),
+    radial-gradient(70% 60% at 55% 85%, rgba(255, 60, 180, 0.20), rgba(0, 0, 0, 0) 65%),
+    linear-gradient(#05020f, #0a0424);
+  image-rendering: pixelated;
+}
+
+.stars {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    radial-gradient(#ffffff 1px, rgba(0, 0, 0, 0) 1px),
+    radial-gradient(#b9a7ff 1px, rgba(0, 0, 0, 0) 1px),
+    radial-gradient(#7fe8ff 1px, rgba(0, 0, 0, 0) 1px);
+  background-size: 72px 72px, 113px 113px, 157px 157px;
+  background-position: 0 0, 31px 47px, 71px 13px;
+  opacity: 0.55;
+}
+
+.scan {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.38) 0px,
+    rgba(0, 0, 0, 0.38) 1px,
+    rgba(0, 0, 0, 0) 1px,
+    rgba(0, 0, 0, 0) 3px
+  );
+  opacity: 0.45;
+}
+
+.choice-shell {
+  position: relative;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 34px 36px 48px 36px;
+}
+
+.choice-title {
+  margin: 0 0 6px 0;
+  font-size: 26px;
+  letter-spacing: 4px;
+  color: #f2e9ff;
+  text-shadow: 2px 2px 0 #2a0b5e;
+}
+
+.choice-sub {
+  margin: 0 0 24px 0;
+  color: #a99bd6;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.choice-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.choice-card {
+  min-width: 230px;
+  padding: 14px 16px;
+  border: 2px solid #6b4fd8;
+  background: rgba(20, 10, 50, 0.86);
+  box-shadow: 4px 4px 0 #160a38;
+  cursor: pointer;
+  color: #eae3ff;
+  text-align: left;
+}
+
+.choice-card:hover {
+  border-color: #b9a7ff;
+  background: rgba(46, 22, 96, 0.9);
+}
+
+.choice-card.active {
+  border-color: #7fe8ff;
+  box-shadow: 0 0 0 2px #7fe8ff, 4px 4px 0 #160a38;
+}
+
+.card-title {
+  display: block;
+  font-size: 16px;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.card-sub {
+  display: block;
+  font-size: 11px;
+  color: #9c8ccc;
+}
+
+.mode-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.mode-btn, .confirm-btn {
+  padding: 10px 18px;
+  border: 2px solid #6b4fd8;
+  background: rgba(28, 14, 60, 0.9);
+  color: #eae3ff;
+  cursor: pointer;
+  letter-spacing: 2px;
+}
+
+.mode-btn.active, .confirm-btn {
+  border-color: #7fe8ff;
+  background: rgba(20, 64, 96, 0.8);
+}
+
+.confirm-btn[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.choice-msg {
+  margin-top: 14px;
+  color: #ff9ad5;
+  font-size: 12px;
+}

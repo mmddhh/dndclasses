@@ -14,6 +14,7 @@ public class ClassCreationScreen extends ApricityScreen {
     private static final String STATE_ELEMENT_ID = "page-state";
 
     private String lastMode = "";
+    private boolean raceInjected;
 
     public ClassCreationScreen() {
         super(PAGE);
@@ -26,6 +27,14 @@ public class ClassCreationScreen extends ApricityScreen {
         Document document = getLinkedDocument();
         if (document == null) {
             return;
+        }
+
+        if (!raceInjected) {
+            Element raceData = document.getElementById("race-data");
+            if (raceData != null) {
+                raceData.setValue(mdh.dndclasses.data.RaceData.toJson());
+                raceInjected = true;
+            }
         }
 
         if (!"create".equals(lastMode)) {

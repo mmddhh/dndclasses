@@ -70,14 +70,28 @@ public class ClassSelectionPacket {
                 return;
             }
 
+            String raceKey = root.has("race") ? root.get("race").getAsString() : "";
+            String subraceKey = root.has("subrace") ? root.get("subrace").getAsString() : "";
+            List<String> asiChoices = new java.util.ArrayList<>();
+            if (root.has("asi") && root.get("asi").isJsonArray()) {
+                for (com.google.gson.JsonElement element : root.getAsJsonArray("asi")) {
+                    asiChoices.add(element.getAsString());
+                }
+            }
+            if (!mdh.dndclasses.data.RaceManager.isValidSelection(raceKey, subraceKey, asiChoices)) {
+                player.sendSystemMessage(Component.literal("无效的种族选择。"));
+                return;
+            }
+            java.util.Map<String, Integer> racial = mdh.dndclasses.data.RaceManager
+                    .bonuses(raceKey, subraceKey, asiChoices);
+
             JsonObject abilities = root.getAsJsonObject("abilities");
             int str = abilities.get("str").getAsInt();
             int dex = abilities.get("dex").getAsInt();
             int con = abilities.get("con").getAsInt();
             int intel = abilities.get("int").getAsInt();
             int wis = abilities.get("wis").getAsInt();
-            int cha = abilities.get("cha").getAsInt();
-            for (int score : new int[]{str, dex, con, intel, wis, cha}) {
+            int cha = abilities.get("cha").getAsInt();            for (int score : new int[]{str, dex, con, intel, wis, cha}) {
                 if (score < PointBuyHelper.MIN_SCORE || score > 15) {
                     player.sendSystemMessage(Component.literal("属性值超出允许范围。"));
                     return;
@@ -105,13 +119,14 @@ public class ClassSelectionPacket {
                 level.setDataVersion(1);
             });
             player.getCapability(ModCapabilities.ABILITY_CAPABILITY).ifPresent(ability -> {
-                ability.setstr(str);
-                ability.setdex(dex);
-                ability.setcon(con);
-                ability.setint(intel);
-                ability.setwis(wis);
-                ability.setcha(cha);
+                ability.setstr(Math.min(20, str + racial.getOrDefault("str", 0)));
+                ability.setdex(Math.min(20, dex + racial.getOrDefault("dex", 0)));
+                ability.setcon(Math.min(20, con + racial.getOrDefault("con", 0)));
+                ability.setint(Math.min(20, intel + racial.getOrDefault("int", 0)));
+                ability.setwis(Math.min(20, wis + racial.getOrDefault("wis", 0)));
+                ability.setcha(Math.min(20, cha + racial.getOrDefault("cha", 0)));
             });
+            mdh.dndclasses.data.RaceManager.setRace(player, raceKey, subraceKey, asiChoices);
 
             List<StartingEquipment.EquipmentItem> items = StartingEquipment.getItems(classKey, equipmentChoice);
             for (StartingEquipment.EquipmentItem entry : items) {

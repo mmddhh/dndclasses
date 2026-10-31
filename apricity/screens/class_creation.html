@@ -7,6 +7,7 @@
   <meta name="aui-mouse-events" content="intercept">
   <title>Adventurer's Tome</title>
   <link rel="stylesheet" href="/apricityui/theme/ore/ore.css">
+  <link rel="stylesheet" href="choice.css">
   <link rel="stylesheet" href="class_creation.css">
 </head>
 <body class="ore-theme grimoire">
@@ -67,6 +68,25 @@
 
   <input id="class-payload" type="hidden" value="">
   <input id="page-state" type="hidden" value="">
+  <input id="race-data" type="hidden" value="">
+
+  <div id="race-overlay" class="race-overlay">
+    <div class="nebula"></div>
+    <div class="stars"></div>
+    <div class="scan"></div>
+    <div class="race-panel">
+      <h1 class="choice-title"><translation>screen.dndclasses.race.title</translation></h1>
+      <p class="choice-sub"><translation>screen.dndclasses.race.hint</translation></p>
+      <div class="race-columns">
+        <div id="race-list" class="race-list"></div>
+        <div id="race-detail" class="race-detail"></div>
+      </div>
+      <div class="race-footer">
+        <button id="race-confirm" class="confirm-btn" type="button" disabled><translation>screen.dndclasses.race.confirm</translation></button>
+        <div id="race-msg" class="choice-msg"></div>
+      </div>
+    </div>
+  </div>
 
   <div id="sheet-overlay" class="sheet-overlay">
     <div class="sheet-modal">
@@ -79,6 +99,7 @@
     </div>
   </div>
 
+<script src="race_step.js"></script>
 <script src="class_creation.js"></script>
 </body>
 </html>

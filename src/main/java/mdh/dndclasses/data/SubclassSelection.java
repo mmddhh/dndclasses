@@ -70,36 +70,14 @@ public final class SubclassSelection {
         if (result[0] == Result.SUCCESS) {
             CharacterRefresh.refresh(player);
             ServerStateSync.send(player);
+            ChoiceManager.openPending(player);
         }
         return result[0];
     }
 
-    /** Sends the subclass picker when the player is allowed to choose and has not chosen yet. */
+    /** Opens the subclass selection page (falls back to chat if the page cannot be shown). */
     public static void sendPrompt(ServerPlayer player) {
-        player.getCapability(ModCapabilities.LEVEL_CAPABILITY).ifPresent(level -> {
-            if (!level.hasCreatedCharacter()) {
-                return;
-            }
-            String current = level.getSubclassKey();
-            if (current != null && !current.isEmpty()) {
-                return;
-            }
-            SubclassRegistry.ClassSubclasses entry = SubclassRegistry.get(level.getclassName());
-            if (entry == null || level.getlevel() < entry.selectLevel()) {
-                return;
-            }
-            player.displayClientMessage(Component.translatable("message.dndclasses.subclass.available"), false);
-            for (String id : entry.ids()) {
-                String key = id.substring(id.indexOf(':') + 1);
-                Component option = Component.literal(" • " + displayName(id))
-                        .withStyle(style -> style
-                                .withColor(ChatFormatting.AQUA)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/dndsubclass " + key))
-                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                                        Component.translatable("message.dndclasses.subclass.click"))));
-                player.displayClientMessage(option, false);
-            }
-        });
+        ChoiceManager.openPending(player);
     }
 
     /** Human-readable name for a subclass id ("dndclasses:battle_master" -> "Battle Master"). */

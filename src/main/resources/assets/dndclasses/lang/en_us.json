@@ -1517,7 +1517,9 @@
   "race.dndclasses.dragonborn.silver": "Silver Dragonborn",
   "race.dndclasses.dragonborn.white": "White Dragonborn",
   "screen.dndclasses.race.free_points": "Racial ability points",
-  "screen.dndclasses.race.assign_hint": "assign them in the ability panel",
+  "screen.dndclasses.race.assign_hint": "Choose which abilities receive the bonuses:",
+  "screen.dndclasses.race.bonus_pattern": "Racial bonuses",
+  "screen.dndclasses.race.assign_incomplete": "Assign every racial bonus first.",
   "screen.dndclasses.race.points_label": "Racial points",
   "screen.dndclasses.race.points_unspent": "Spend all racial ability points first."
 }

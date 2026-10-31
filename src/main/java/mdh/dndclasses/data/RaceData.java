@@ -22,13 +22,21 @@ public final class RaceData {
 
     public record Subrace(String key, String displayName, Map<String, Integer> asiBoosts,
                           int asiChoiceCount, int speed, List<String> traits, String description) {
-        /** Total free racial ability points (sum of the PHB bonuses / flexible choices). */
-        public int asiPoints() {
-            int total = asiChoiceCount;
+        /**
+         * The multiset of racial bonuses, e.g. {@code [2, 1]} for "+2 and +1". The player assigns
+         * these values to abilities of their choice (distinct abilities), while the values and their
+         * count stay exactly as printed in the PHB.
+         */
+        public List<Integer> asiPattern() {
+            List<Integer> pattern = new ArrayList<>();
             for (int value : asiBoosts.values()) {
-                total += value;
+                pattern.add(value);
             }
-            return total;
+            for (int i = 0; i < asiChoiceCount; i++) {
+                pattern.add(1);
+            }
+            pattern.sort(java.util.Comparator.reverseOrder());
+            return pattern;
         }
     }
 
@@ -205,7 +213,11 @@ public final class RaceData {
                 JsonObject subraceJson = new JsonObject();
                 subraceJson.addProperty("key", subrace.key());
                 subraceJson.addProperty("asiChoice", subrace.asiChoiceCount());
-                subraceJson.addProperty("asiPoints", subrace.asiPoints());
+                JsonArray pattern = new JsonArray();
+                for (int value : subrace.asiPattern()) {
+                    pattern.add(value);
+                }
+                subraceJson.add("asiPattern", pattern);
                 subraceJson.addProperty("speed", subrace.speed() > 0 ? subrace.speed() : race.speed());
                 JsonObject asi = new JsonObject();
                 for (Map.Entry<String, Integer> boost : subrace.asiBoosts().entrySet()) {

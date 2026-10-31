@@ -23,27 +23,24 @@ public final class RaceManager {
     private RaceManager() {
     }
 
-    public static int points(String race, String subrace) {
-        RaceData.Subrace entry = RaceData.getSubrace(race, subrace);
-        return entry != null ? entry.asiPoints() : 0;
-    }
-
-    /** Validates that the player distributed exactly the racial pool, without negatives. */
+    /** Validates that the assigned values are exactly the race's bonus multiset, on distinct abilities. */
     public static boolean isValidSelection(String race, String subrace, Map<String, Integer> bonuses) {
         if (!RaceData.isValidRace(race) || !RaceData.isValidSubrace(race, subrace)) {
             return false;
         }
-        int total = 0;
+        List<Integer> actual = new ArrayList<>();
         if (bonuses != null) {
             for (Map.Entry<String, Integer> entry : bonuses.entrySet()) {
                 if (!RaceData.ABILITIES.contains(entry.getKey()) || entry.getValue() == null
-                        || entry.getValue() < 0) {
+                        || entry.getValue() <= 0) {
                     return false;
                 }
-                total += entry.getValue();
+                actual.add(entry.getValue());
             }
         }
-        return total == points(race, subrace);
+        actual.sort(java.util.Comparator.reverseOrder());
+        RaceData.Subrace entry = RaceData.getSubrace(race, subrace);
+        return entry != null && entry.asiPattern().equals(actual);
     }
 
     /** Stores race/subrace/traits on the capability and applies the speed modifier. */

@@ -25,15 +25,27 @@
     <main class="grimoire-main">
 
       <section id="col-left" class="card tome tome-left">
+        <div class="step-tabs">
+          <button id="step-race" class="step-tab active" type="button"><translation>screen.dndclasses.race.tab</translation></button>
+          <button id="step-class" class="step-tab" type="button"><translation>screen.dndclasses.creation.tab_class</translation></button>
+        </div>
         <div class="card-header"><translation>screen.dndclasses.creation.roster</translation></div>
         <div class="card-body tome-body tome-body-fixed">
-          <div id="class-list" class="class-list"></div>
+          <div id="race-list" class="race-list"></div>
+          <div id="class-list" class="class-list hidden"></div>
         </div>
       </section>
 
       <section id="col-mid" class="card tome tome-mid">
         <div class="card-header" id="detail-header"><translation>screen.dndclasses.creation.detail_title</translation></div>
-        <div class="card-body tome-body tome-body-scroll" id="detail-body"></div>
+        <div class="card-body tome-body tome-body-scroll">
+          <div id="race-detail" class="race-detail"></div>
+          <div id="detail-body" class="hidden"></div>
+        </div>
+        <div id="race-footer" class="card-footer">
+          <button id="race-confirm" class="button confirm-button" type="button" disabled><translation>screen.dndclasses.race.confirm</translation></button>
+          <div id="race-msg" class="confirm-msg"></div>
+        </div>
       </section>
 
       <section id="col-right" class="card tome tome-right">
@@ -69,24 +81,6 @@
   <input id="class-payload" type="hidden" value="">
   <input id="page-state" type="hidden" value="">
   <input id="race-data" type="hidden" value="">
-
-  <div id="race-overlay" class="race-overlay">
-    <div class="nebula"></div>
-    <div class="stars"></div>
-    <div class="scan"></div>
-    <div class="race-panel">
-      <h1 class="choice-title"><translation>screen.dndclasses.race.title</translation></h1>
-      <p class="choice-sub"><translation>screen.dndclasses.race.hint</translation></p>
-      <div class="race-columns">
-        <div id="race-list" class="race-list"></div>
-        <div id="race-detail" class="race-detail"></div>
-      </div>
-      <div class="race-footer">
-        <button id="race-confirm" class="confirm-btn" type="button" disabled><translation>screen.dndclasses.race.confirm</translation></button>
-        <div id="race-msg" class="choice-msg"></div>
-      </div>
-    </div>
-  </div>
 
   <div id="sheet-overlay" class="sheet-overlay">
     <div class="sheet-modal">

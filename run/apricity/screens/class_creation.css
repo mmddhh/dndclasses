@@ -935,3 +935,33 @@
 .race-footer {
   margin-top: 18px;
 }
+
+/* ==== race/class sub-page tabs ==== */
+.hidden {
+  display: none;
+}
+
+.step-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px 0 12px;
+}
+
+.step-tab {
+  padding: 8px 16px;
+  border: 2px solid #6e5531;
+  background: #271b10;
+  color: #c4ad7e;
+  cursor: pointer;
+  letter-spacing: 2px;
+}
+
+.step-tab.active {
+  border-color: #e6c05a;
+  color: #f6ead0;
+  background: #382a1b;
+}
+
+.race-list {
+  width: 100%;
+}

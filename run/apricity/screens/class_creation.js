@@ -1340,7 +1340,9 @@ function renderAbility() {
 
 function bindAbilityRow(body, a, remaining, primary) {
   var sc = state.abilities[a.key];
-  var mod = Math.floor((sc - 10) / 2);
+  var bonus = (typeof window !== "undefined" && window.dndRace) ? window.dndRace.bonusFor(a.key) : 0;
+  var finalScore = Math.min(20, sc + bonus);
+  var mod = Math.floor((finalScore - 10) / 2);
   var canPlus = sc < MAX_SCORE && remaining >= (scoreCost(sc + 1) - scoreCost(sc));
   var canMinus = sc > MIN_SCORE;
   var isPrimary = primary.indexOf(a.key) >= 0;
@@ -1349,7 +1351,9 @@ function bindAbilityRow(body, a, remaining, primary) {
   var minus = make("button", "pip-btn", "-");
   minus.setAttribute("type", "button");
   if (!canMinus) minus.setAttribute("disabled", "disabled");
-  var score = make("span", "ability-score", String(sc));
+  var score = make("span", "ability-score", bonus
+    ? String(finalScore) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
+    : String(finalScore));
   var plus = make("button", "pip-btn", "+");
   plus.setAttribute("type", "button");
   if (!canPlus) plus.setAttribute("disabled", "disabled");
@@ -1400,7 +1404,8 @@ function updateFooterSummary() {
 function refreshConfirmState() {
   var btn = byId("btn-confirm");
   if (!btn) return;
-  var ok = state.selected !== null && totalCost() === BUDGET;
+  var raceChosen = typeof window !== "undefined" && window.dndRace;
+  var ok = state.selected !== null && totalCost() === BUDGET && raceChosen;
   if (ok) btn.removeAttribute("disabled");
   else btn.setAttribute("disabled", "disabled");
 }
@@ -1416,6 +1421,10 @@ function setMsg(key, ok) {
 /* ---------------------------------------------------------------- modal */
 
 function onConfirm() {
+  if (typeof window === "undefined" || !window.dndRace) {
+    setMsg("screen.dndclasses.race.required", false);
+    return;
+  }
   if (!state.selected) { setMsg("screen.dndclasses.creation.msg_no_class", false); return; }
   if (totalCost() !== BUDGET) { setMsg("screen.dndclasses.creation.msg_budget", false); return; }
   setMsg("", false);
@@ -1489,7 +1498,11 @@ function closeSummary() {
 function commitCharacter() {
   var c = findClass(state.selected);
   var choice = c.equipment[state.equipment];
+  var race = (typeof window !== "undefined" && window.dndRace) ? window.dndRace : null;
   var payload = {
+    race: race ? race.race : "",
+    subrace: race ? race.subrace : "",
+    asi: race ? race.asi : [],
     class: state.selected,
     className: c.key,
     subclass: chosenSubclassId(c),
@@ -1790,6 +1803,12 @@ function init() {
 }
 
 var pageStarted = false;
+
+window.dndClassRefresh = function () {
+  renderAbility();
+  updateFooterSummary();
+  refreshConfirmState();
+};
 
 function boot() {
   if (pageStarted) return;

@@ -86,6 +86,7 @@ public final class ClientSetup {
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
+        DevAssets.syncApricity();
         event.enqueueWork(() -> {
             for (RegistryObject<? extends Item> registryObject : WeaponItems.WEAPONS.values()) {
                 Item item = registryObject.get();

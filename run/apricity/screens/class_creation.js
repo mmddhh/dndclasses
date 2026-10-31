@@ -1786,6 +1786,310 @@ function pollPageState() {
   }
 }
 
+/* ------------------------------------------------------------ race step */
+
+var RACE_DATA = [
+  { key: "dwarf", speed: 25, size: "medium", subraces: [
+    { key: "hill_dwarf", asi: { con: 2, wis: 1 }, asiChoice: 0, speed: 25,
+      traits: ["darkvision_60", "dwarf_resilience", "stonecunning", "dwarf_combat_training", "tool_proficiency"] },
+    { key: "mountain_dwarf", asi: { con: 2, str: 2 }, asiChoice: 0, speed: 25,
+      traits: ["darkvision_60", "dwarf_resilience", "stonecunning", "dwarf_combat_training", "dwarf_armor_training"] }
+  ]},
+  { key: "elf", speed: 30, size: "medium", subraces: [
+    { key: "high_elf", asi: { dex: 2, int: 1 }, asiChoice: 0, speed: 30,
+      traits: ["darkvision_60", "keen_senses", "fey_ancestry", "trance", "elf_weapon_training", "high_elf_cantrip"] },
+    { key: "wood_elf", asi: { dex: 2, wis: 1 }, asiChoice: 0, speed: 35,
+      traits: ["darkvision_60", "keen_senses", "fey_ancestry", "trance", "elf_weapon_training", "fleet_of_foot", "mask_of_the_wild"] },
+    { key: "dark_elf", asi: { dex: 2, cha: 1 }, asiChoice: 0, speed: 30,
+      traits: ["superior_darkvision_120", "sunlight_sensitivity", "drow_magic", "keen_senses", "fey_ancestry", "trance"] }
+  ]},
+  { key: "halfling", speed: 25, size: "small", subraces: [
+    { key: "lightfoot", asi: { dex: 2, cha: 1 }, asiChoice: 0, speed: 25,
+      traits: ["lucky", "brave", "halfling_nimbleness"] },
+    { key: "stout", asi: { dex: 2, con: 1 }, asiChoice: 0, speed: 25,
+      traits: ["lucky", "brave", "halfling_nimbleness", "stout_resilience"] }
+  ]},
+  { key: "human", speed: 30, size: "medium", subraces: [
+    { key: "standard_human", asi: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 }, asiChoice: 0, speed: 30, traits: [] },
+    { key: "variant_human", asi: {}, asiChoice: 2, speed: 30, traits: ["skill_versatility", "feat"] }
+  ]},
+  { key: "dragonborn", speed: 30, size: "medium", subraces: [
+    { key: "dragonborn", asi: { str: 2, cha: 1 }, asiChoice: 0, speed: 30,
+      traits: ["draconic_ancestry", "breath_weapon", "damage_resistance"] }
+  ]},
+  { key: "gnome", speed: 25, size: "small", subraces: [
+    { key: "forest_gnome", asi: { int: 2, dex: 1 }, asiChoice: 0, speed: 25,
+      traits: ["darkvision_60", "gnome_cunning", "natural_illusionist"] },
+    { key: "rock_gnome", asi: { int: 2, con: 1 }, asiChoice: 0, speed: 25,
+      traits: ["darkvision_60", "gnome_cunning", "artificers_lore", "tinker"] }
+  ]},
+  { key: "half_elf", speed: 30, size: "medium", subraces: [
+    { key: "half_elf", asi: { cha: 2 }, asiChoice: 2, speed: 30,
+      traits: ["darkvision_60", "fey_ancestry", "skill_versatility"] }
+  ]},
+  { key: "half_orc", speed: 30, size: "medium", subraces: [
+    { key: "half_orc", asi: { str: 2, con: 1 }, asiChoice: 0, speed: 30,
+      traits: ["darkvision_60", "menacing", "relentless_endurance", "savage_attacks"] }
+  ]},
+  { key: "tiefling", speed: 30, size: "medium", subraces: [
+    { key: "tiefling", asi: { cha: 2, int: 1 }, asiChoice: 0, speed: 30,
+      traits: ["darkvision_60", "hellish_resistance", "infernal_legacy"] }
+  ]}
+];
+(function () {
+  var colors = ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"];
+  for (var i = 0; i < colors.length; i++) {
+    RACE_DATA[4].subraces.push({
+      key: colors[i], asi: { str: 2, cha: 1 }, asiChoice: 0, speed: 30,
+      traits: ["draconic_ancestry", "breath_weapon", "damage_resistance", "draconic_" + colors[i]]
+    });
+  }
+})();
+
+var raceState = { race: null, subrace: null, picks: [] };
+var raceBound = false;
+
+function raceFind(key) {
+  for (var i = 0; i < RACE_DATA.length; i++) {
+    if (RACE_DATA[i].key === key) return RACE_DATA[i];
+  }
+  return null;
+}
+
+function raceFindSub(race, key) {
+  if (!race) return null;
+  for (var i = 0; i < race.subraces.length; i++) {
+    if (race.subraces[i].key === key) return race.subraces[i];
+  }
+  return null;
+}
+
+function racePattern(sub) {
+  var values = [];
+  if (!sub) return values;
+  var keys = Object.keys(sub.asi || {});
+  for (var i = 0; i < keys.length; i++) values.push(sub.asi[keys[i]]);
+  for (var j = 0; j < (sub.asiChoice || 0); j++) values.push(1);
+  values.sort(function (a, b) { return b - a; });
+  return values;
+}
+
+function raceResetPicks(sub) {
+  var values = racePattern(sub);
+  raceState.picks = [];
+  for (var i = 0; i < values.length; i++) raceState.picks.push(null);
+  if (values.length === 6) {
+    for (var k = 0; k < ABILITIES.length; k++) raceState.picks[k] = ABILITIES[k].key;
+  }
+}
+
+function raceShowStep(isRace) {
+  var raceList = byId("race-list");
+  var raceDetail = byId("race-detail");
+  var classList = byId("class-list");
+  var classDetail = byId("detail-body");
+  var footer = byId("race-footer");
+  var stepRace = byId("step-race");
+  var stepClass = byId("step-class");
+  if (!raceList || !raceDetail || !classList || !classDetail) return;
+  if (isRace) {
+    raceList.setAttribute("class", "race-list");
+    raceDetail.setAttribute("class", "race-detail");
+    classList.setAttribute("class", "class-list hidden");
+    classDetail.setAttribute("class", "hidden");
+    if (footer) footer.setAttribute("class", "card-footer");
+    if (stepRace) stepRace.setAttribute("class", "step-tab active");
+    if (stepClass) stepClass.setAttribute("class", "step-tab");
+    var header = byId("detail-header");
+    if (header) header.innerHTML = t("screen.dndclasses.race.title");
+  } else {
+    raceList.setAttribute("class", "race-list hidden");
+    raceDetail.setAttribute("class", "race-detail hidden");
+    classList.setAttribute("class", "class-list");
+    classDetail.setAttribute("class", "");
+    if (footer) footer.setAttribute("class", "card-footer hidden");
+    if (stepRace) stepRace.setAttribute("class", "step-tab");
+    if (stepClass) stepClass.setAttribute("class", "step-tab active");
+    var classHeader = byId("detail-header");
+    if (classHeader) classHeader.innerHTML = t("screen.dndclasses.creation.detail_title");
+  }
+}
+
+function raceRenderList() {
+  var list = byId("race-list");
+  if (!list) return;
+  clearNode(list);
+  for (var i = 0; i < RACE_DATA.length; i++) {
+    (function (race) {
+      var btn = make("button", "race-item", null);
+      btn.setAttribute("type", "button");
+      if (raceState.race === race.key) btn.setAttribute("class", "race-item active");
+      btn.innerHTML = t("race.dndclasses." + race.key);
+      btn.addEventListener("click", function () {
+        raceState.race = race.key;
+        raceState.subrace = race.subraces[0].key;
+        raceResetPicks(race.subraces[0]);
+        raceRenderList();
+        raceRenderDetail();
+        raceRefreshConfirm();
+      });
+      list.appendChild(btn);
+    })(RACE_DATA[i]);
+  }
+}
+
+function raceRenderDetail() {
+  var detail = byId("race-detail");
+  if (!detail) return;
+  clearNode(detail);
+  var race = raceFind(raceState.race);
+  if (!race) {
+    detail.appendChild(mk("p", "choice-sub", "screen.dndclasses.race.select_race"));
+    return;
+  }
+  detail.appendChild(mk("div", "card-title", "race.dndclasses." + race.key));
+  var infoLine = make("div", "card-sub", null);
+  infoLine.innerHTML = t("screen.dndclasses.race.speed") + " " + race.speed + " ft · "
+    + t("size.dndclasses." + race.size);
+  detail.appendChild(infoLine);
+
+  var subRow = make("div", "subrace-row");
+  for (var i = 0; i < race.subraces.length; i++) {
+    (function (sub) {
+      var btn = mk("button", "subrace-btn", "race.dndclasses." + race.key + "." + sub.key);
+      btn.setAttribute("type", "button");
+      if (raceState.subrace === sub.key) btn.setAttribute("class", "subrace-btn active");
+      btn.addEventListener("click", function () {
+        raceState.subrace = sub.key;
+        raceResetPicks(sub);
+        raceRenderDetail();
+        raceRefreshConfirm();
+      });
+      subRow.appendChild(btn);
+    })(race.subraces[i]);
+  }
+  detail.appendChild(subRow);
+
+  var sub = raceFindSub(race, raceState.subrace);
+  if (!sub) return;
+
+  var values = racePattern(sub);
+  var parts = [];
+  for (var v = 0; v < values.length; v++) parts.push("+" + values[v]);
+  var patternLine = make("div", "card-sub", null);
+  patternLine.innerHTML = t("screen.dndclasses.race.bonus_pattern") + " " + parts.join(" / ");
+  detail.appendChild(patternLine);
+
+  if (values.length < 6) {
+    detail.appendChild(mk("div", "card-sub", "screen.dndclasses.race.assign_hint"));
+    for (var slot = 0; slot < values.length; slot++) {
+      (function (slotIndex, bonusValue) {
+        var row = make("div", "asi-row");
+        row.appendChild(make("span", "rune", "+" + bonusValue + ":"));
+        for (var a = 0; a < ABILITIES.length; a++) {
+          (function (ability) {
+            var selected = raceState.picks[slotIndex] === ability.key;
+            var usedElsewhere = false;
+            for (var p = 0; p < raceState.picks.length; p++) {
+              if (p !== slotIndex && raceState.picks[p] === ability.key) usedElsewhere = true;
+            }
+            var btn = make("button", "asi-btn", null);
+            btn.innerHTML = abilName(ability.key);
+            btn.setAttribute("type", "button");
+            if (selected) btn.setAttribute("class", "asi-btn active");
+            if (usedElsewhere) btn.setAttribute("disabled", "disabled");
+            btn.addEventListener("click", function () {
+              raceState.picks[slotIndex] = ability.key;
+              raceRenderDetail();
+              raceRefreshConfirm();
+            });
+            row.appendChild(btn);
+          })(ABILITIES[a]);
+        }
+        detail.appendChild(row);
+      })(slot, values[slot]);
+    }
+  }
+
+  var traits = make("div", "trait-list");
+  for (var k = 0; k < sub.traits.length; k++) {
+    var chip = make("span", "trait-chip", null);
+    chip.innerHTML = t("trait.dndclasses." + sub.traits[k]);
+    traits.appendChild(chip);
+  }
+  detail.appendChild(traits);
+}
+
+function raceAllPicked() {
+  for (var i = 0; i < raceState.picks.length; i++) {
+    if (!raceState.picks[i]) return false;
+  }
+  return true;
+}
+
+function raceRefreshConfirm() {
+  var confirm = byId("race-confirm");
+  if (!confirm) return;
+  var sub = raceFindSub(raceFind(raceState.race), raceState.subrace);
+  if (sub) confirm.removeAttribute("disabled");
+  else confirm.setAttribute("disabled", "disabled");
+}
+
+function raceBonuses() {
+  var result = {};
+  var sub = raceFindSub(raceFind(raceState.race), raceState.subrace);
+  var values = racePattern(sub);
+  for (var i = 0; i < values.length; i++) {
+    if (raceState.picks[i]) result[raceState.picks[i]] = values[i];
+  }
+  return result;
+}
+
+function initRace() {
+  var raceConfirm = byId("race-confirm");
+  var raceList = byId("race-list");
+  if (!raceConfirm || !raceList) return;
+  if (!raceBound) {
+    raceBound = true;
+    raceConfirm.addEventListener("click", function () {
+      var race = raceFind(raceState.race);
+      var sub = raceFindSub(race, raceState.subrace);
+      if (!race || !sub) return;
+      if (!raceAllPicked()) {
+        var msg = byId("race-msg");
+        if (msg) msg.innerHTML = t("screen.dndclasses.race.assign_incomplete");
+        return;
+      }
+      window.dndRace = { race: race.key, subrace: sub.key, bonuses: raceBonuses() };
+      raceShowStep(false);
+      window.dndClassRefresh();
+    });
+    var stepRace = byId("step-race");
+    var stepClass = byId("step-class");
+    if (stepRace) {
+      stepRace.addEventListener("click", function () { raceShowStep(true); });
+    }
+    if (stepClass) {
+      stepClass.addEventListener("click", function () {
+        if (typeof window === "undefined" || !window.dndRace) {
+          var msg = byId("confirm-msg");
+          if (msg) msg.innerHTML = t("screen.dndclasses.race.required");
+          return;
+        }
+        raceShowStep(false);
+      });
+    }
+  }
+  window.dndRace = null;
+  raceState.race = null;
+  raceState.subrace = null;
+  raceState.picks = [];
+  raceRenderList();
+  raceRenderDetail();
+  raceRefreshConfirm();
+  raceShowStep(true);
+}
+
 /* ----------------------------------------------------------------- init */
 
 function init() {
@@ -1796,6 +2100,7 @@ function init() {
   var commit = byId("sheet-commit");
   if (commit) commit.addEventListener("click", commitCharacter);
 
+  initRace();
   renderClassList();
   renderDetail();
   renderAbility();

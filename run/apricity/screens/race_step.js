@@ -3,8 +3,8 @@
     return "<translation>" + key + "</translation>";
   }
 
-  // Mirrors RaceData (PHB). The class data in class_creation.js is embedded the same way; the
-  // server still validates the submitted race/subrace/ASI against its own copy.
+  // Mirrors RaceData: `asi`/`asiChoice` are the PHB bonuses; the player only chooses which
+  // abilities receive those values (the values themselves are fixed).
   var BUILTIN = [
     { key: "dwarf", speed: 25, size: "medium", subraces: [
       { key: "hill_dwarf", asi: { con: 2, wis: 1 }, asiChoice: 0, speed: 25,
@@ -53,14 +53,14 @@
         traits: ["darkvision_60", "hellish_resistance", "infernal_legacy"] }
     ]}
   ];
-  var dragonColors = ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"];
-  for (var d = 0; d < dragonColors.length; d++) {
+  var colors = ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"];
+  for (var c = 0; c < colors.length; c++) {
     BUILTIN[4].subraces.push({
-      key: dragonColors[d],
+      key: colors[c],
       asi: { str: 2, cha: 1 },
       asiChoice: 0,
       speed: 30,
-      traits: ["draconic_ancestry", "breath_weapon", "damage_resistance", "draconic_" + dragonColors[d]]
+      traits: ["draconic_ancestry", "breath_weapon", "damage_resistance", "draconic_" + colors[c]]
     });
   }
 
@@ -72,7 +72,8 @@
   if (!listEl || !detailEl || !confirmEl || !overlay) return;
 
   var races = BUILTIN;
-  var state = { race: null, subrace: null, asi: [] };
+  var abilities = ["str", "dex", "con", "int", "wis", "cha"];
+  var state = { race: null, subrace: null, picks: [] };
 
   function findRace(key) {
     for (var i = 0; i < races.length; i++) {
@@ -89,6 +90,34 @@
     return null;
   }
 
+  function pattern(subrace) {
+    var values = [];
+    if (!subrace) return values;
+    var keys = Object.keys(subrace.asi || {});
+    for (var i = 0; i < keys.length; i++) {
+      values.push(subrace.asi[keys[i]]);
+    }
+    for (var j = 0; j < (subrace.asiChoice || 0); j++) {
+      values.push(1);
+    }
+    values.sort(function (a, b) { return b - a; });
+    return values;
+  }
+
+  function resetPicks(subrace) {
+    var values = pattern(subrace);
+    state.picks = [];
+    for (var i = 0; i < values.length; i++) {
+      state.picks.push(null);
+    }
+    // All six abilities +1 (standard human): no choice to make.
+    if (values.length === 6 && values[0] === 1 && values[5] === 1) {
+      for (var k = 0; k < abilities.length; k++) {
+        state.picks[k] = abilities[k];
+      }
+    }
+  }
+
   function raceName(key) {
     return tr("race.dndclasses." + key);
   }
@@ -101,16 +130,13 @@
     return tr("trait.dndclasses." + key);
   }
 
-  function asiText(subrace) {
+  function patternText(subrace) {
+    var values = pattern(subrace);
     var parts = [];
-    var keys = Object.keys(subrace.asi || {});
-    for (var i = 0; i < keys.length; i++) {
-      parts.push(tr("ability.dndclasses." + keys[i]) + " +" + subrace.asi[keys[i]]);
+    for (var i = 0; i < values.length; i++) {
+      parts.push("+" + values[i]);
     }
-    if (subrace.asiChoice > 0) {
-      parts.push(tr("screen.dndclasses.race.choose_asi") + " x" + subrace.asiChoice);
-    }
-    return parts.join("，");
+    return parts.join(" / ");
   }
 
   function renderDetail() {
@@ -127,7 +153,8 @@
 
     var info = document.createElement("div");
     info.setAttribute("class", "card-sub");
-    info.innerHTML = tr("screen.dndclasses.race.speed") + " " + race.speed + " ft · " + tr("size.dndclasses." + race.size);
+    info.innerHTML = tr("screen.dndclasses.race.speed") + " " + race.speed + " ft · "
+      + tr("size.dndclasses." + race.size);
     detailEl.appendChild(info);
 
     var subRow = document.createElement("div");
@@ -140,7 +167,7 @@
         btn.innerHTML = subraceName(race.key, sub.key);
         btn.addEventListener("click", function () {
           state.subrace = sub.key;
-          state.asi = [];
+          resetPicks(sub);
           renderDetail();
           refreshConfirm();
         });
@@ -152,36 +179,50 @@
     var sub = findSubrace(race, state.subrace);
     if (!sub) return;
 
-    var asi = document.createElement("div");
-    asi.setAttribute("class", "card-sub");
-    asi.innerHTML = asiText(sub);
-    detailEl.appendChild(asi);
+    var bonusText = document.createElement("div");
+    bonusText.setAttribute("class", "card-sub");
+    bonusText.innerHTML = tr("screen.dndclasses.race.bonus_pattern") + " " + patternText(sub);
+    detailEl.appendChild(bonusText);
 
-    if (sub.asiChoice > 0) {
-      var asiRow = document.createElement("div");
-      asiRow.setAttribute("class", "asi-row");
-      var abilities = ["str", "dex", "con", "int", "wis", "cha"];
-      for (var j = 0; j < abilities.length; j++) {
-        (function (ability) {
-          var active = state.asi.indexOf(ability) >= 0;
-          var btn = document.createElement("button");
-          btn.setAttribute("type", "button");
-          btn.setAttribute("class", "asi-btn" + (active ? " active" : ""));
-          btn.innerHTML = tr("ability.dndclasses." + ability) + " +1";
-          btn.addEventListener("click", function () {
-            var index = state.asi.indexOf(ability);
-            if (index >= 0) {
-              state.asi.splice(index, 1);
-            } else if (state.asi.length < sub.asiChoice) {
-              state.asi.push(ability);
-            }
-            renderDetail();
-            refreshConfirm();
-          });
-          asiRow.appendChild(btn);
-        })(abilities[j]);
+    var needsChoice = pattern(sub).length < 6 || pattern(sub)[0] !== 1;
+    if (needsChoice) {
+      var hint = document.createElement("div");
+      hint.setAttribute("class", "card-sub");
+      hint.innerHTML = tr("screen.dndclasses.race.assign_hint");
+      detailEl.appendChild(hint);
+
+      var values = pattern(sub);
+      for (var slot = 0; slot < values.length; slot++) {
+        (function (slotIndex, bonusValue) {
+          var row = document.createElement("div");
+          row.setAttribute("class", "asi-row");
+          var label = document.createElement("span");
+          label.setAttribute("class", "rune");
+          label.innerHTML = "+" + bonusValue + ":";
+          row.appendChild(label);
+          for (var a = 0; a < abilities.length; a++) {
+            (function (ability) {
+              var selected = state.picks[slotIndex] === ability;
+              var usedElsewhere = false;
+              for (var p = 0; p < state.picks.length; p++) {
+                if (p !== slotIndex && state.picks[p] === ability) usedElsewhere = true;
+              }
+              var btn = document.createElement("button");
+              btn.setAttribute("type", "button");
+              btn.setAttribute("class", "asi-btn" + (selected ? " active" : ""));
+              if (usedElsewhere) btn.setAttribute("disabled", "disabled");
+              btn.innerHTML = tr("ability.dndclasses." + ability);
+              btn.addEventListener("click", function () {
+                state.picks[slotIndex] = ability;
+                renderDetail();
+                refreshConfirm();
+              });
+              row.appendChild(btn);
+            })(abilities[a]);
+          }
+          detailEl.appendChild(row);
+        })(slot, values[slot]);
       }
-      detailEl.appendChild(asiRow);
     }
 
     var traits = document.createElement("div");
@@ -205,8 +246,8 @@
         btn.innerHTML = raceName(race.key);
         btn.addEventListener("click", function () {
           state.race = race.key;
-          state.subrace = race.subraces.length === 1 ? race.subraces[0].key : null;
-          state.asi = [];
+          state.subrace = race.subraces[0].key;
+          resetPicks(race.subraces[0]);
           renderList();
           renderDetail();
           refreshConfirm();
@@ -216,44 +257,43 @@
     }
   }
 
-  function currentBonuses() {
-    var race = findRace(state.race);
-    var sub = findSubrace(race, state.subrace);
-    var result = {};
-    if (!sub) return result;
-    var keys = Object.keys(sub.asi || {});
-    for (var i = 0; i < keys.length; i++) {
-      result[keys[i]] = (result[keys[i]] || 0) + sub.asi[keys[i]];
+  function allPicked() {
+    for (var i = 0; i < state.picks.length; i++) {
+      if (!state.picks[i]) return false;
     }
-    for (var j = 0; j < state.asi.length; j++) {
-      result[state.asi[j]] = (result[state.asi[j]] || 0) + 1;
-    }
-    return result;
+    return true;
   }
 
   function refreshConfirm() {
     var race = findRace(state.race);
     var sub = findSubrace(race, state.subrace);
-    var ok = race && sub && state.asi.length === ((sub && sub.asiChoice) || 0);
-    if (ok) confirmEl.removeAttribute("disabled");
+    if (race && sub && allPicked()) confirmEl.removeAttribute("disabled");
     else confirmEl.setAttribute("disabled", "disabled");
+  }
+
+  function bonuses() {
+    var result = {};
+    var sub = findSubrace(findRace(state.race), state.subrace);
+    var values = pattern(sub);
+    for (var i = 0; i < values.length; i++) {
+      var ability = state.picks[i];
+      if (ability) result[ability] = values[i];
+    }
+    return result;
   }
 
   confirmEl.addEventListener("click", function () {
     var race = findRace(state.race);
     var sub = findSubrace(race, state.subrace);
     if (!race || !sub) return;
-    if (state.asi.length !== (sub.asiChoice || 0)) {
-      if (msgEl) msgEl.innerHTML = tr("screen.dndclasses.race.asi_incomplete");
+    if (!allPicked()) {
+      if (msgEl) msgEl.innerHTML = tr("screen.dndclasses.race.assign_incomplete");
       return;
     }
     window.dndRace = {
       race: race.key,
       subrace: sub.key,
-      asi: state.asi.slice(),
-      bonusFor: function (ability) {
-        return currentBonuses()[ability] || 0;
-      }
+      bonuses: bonuses()
     };
     overlay.setAttribute("class", "race-overlay hidden");
     if (typeof window.dndClassRefresh === "function") {

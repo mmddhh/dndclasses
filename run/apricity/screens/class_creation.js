@@ -927,8 +927,21 @@ var state = {
   tab: 0,
   subclass: 0,
   subclassChosen: null,
-  abilities: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 }
+  abilities: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 },
+  raceBonuses: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 }
 };
+
+function racePoints() {
+  return (typeof window !== "undefined" && window.dndRace) ? (window.dndRace.points || 0) : 0;
+}
+
+function raceSpent() {
+  var total = 0;
+  for (var key in state.raceBonuses) {
+    total += state.raceBonuses[key] || 0;
+  }
+  return total;
+}
 
 function byId(id) { return document.getElementById(id); }
 
@@ -1340,7 +1353,8 @@ function renderAbility() {
 
 function bindAbilityRow(body, a, remaining, primary) {
   var sc = state.abilities[a.key];
-  var bonus = (typeof window !== "undefined" && window.dndRace) ? window.dndRace.bonusFor(a.key) : 0;
+  var bonus = (typeof window !== "undefined" && window.dndRace && window.dndRace.bonuses)
+    ? (window.dndRace.bonuses[a.key] || 0) : 0;
   var finalScore = Math.min(20, sc + bonus);
   var mod = Math.floor((finalScore - 10) / 2);
   var canPlus = sc < MAX_SCORE && remaining >= (scoreCost(sc + 1) - scoreCost(sc));
@@ -1360,6 +1374,7 @@ function bindAbilityRow(body, a, remaining, primary) {
   row.appendChild(minus);
   row.appendChild(score);
   row.appendChild(plus);
+
   var abName = make("span", "ability-name", null);
   abName.innerHTML = abilName(a.key);
   row.appendChild(abName);
@@ -1502,7 +1517,7 @@ function commitCharacter() {
   var payload = {
     race: race ? race.race : "",
     subrace: race ? race.subrace : "",
-    asi: race ? race.asi : [],
+    raceBonuses: (race && race.bonuses) ? race.bonuses : {},
     class: state.selected,
     className: c.key,
     subclass: chosenSubclassId(c),
@@ -1805,6 +1820,7 @@ function init() {
 var pageStarted = false;
 
 window.dndClassRefresh = function () {
+  state.raceBonuses = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
   renderAbility();
   updateFooterSummary();
   refreshConfirmState();

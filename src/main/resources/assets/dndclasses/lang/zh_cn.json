@@ -1517,6 +1517,8 @@
   "race.dndclasses.dragonborn.silver": "银龙裔",
   "race.dndclasses.dragonborn.white": "白龙裔",
   "screen.dndclasses.race.free_points": "种族属性点",
+  "screen.dndclasses.race.tab": "种族",
+  "screen.dndclasses.creation.tab_class": "职业",
   "screen.dndclasses.race.assign_hint": "选择获得加成的属性：",
   "screen.dndclasses.race.bonus_pattern": "种族加成",
   "screen.dndclasses.race.assign_incomplete": "请先分配完所有种族加成。",

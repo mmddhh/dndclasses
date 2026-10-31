@@ -11,14 +11,9 @@
   var overlay = document.getElementById("race-overlay");
   if (!dataEl || !listEl || !detailEl || !confirmEl || !overlay) return;
 
-  var data = {};
-  try {
-    data = JSON.parse(dataEl.value || "{}");
-  } catch (err) {
-    data = {};
-  }
-  var races = data.races || [];
+  var races = [];
   var state = { race: null, subrace: null, asi: [] };
+  var started = false;
 
   function findRace(key) {
     for (var i = 0; i < races.length; i++) {
@@ -91,6 +86,7 @@
           state.subrace = sub.key;
           state.asi = [];
           renderDetail();
+          refreshConfirm();
         });
         subRow.appendChild(btn);
       })(race.subraces[i]);
@@ -124,6 +120,7 @@
               state.asi.push(ability);
             }
             renderDetail();
+            refreshConfirm();
           });
           asiRow.appendChild(btn);
         })(abilities[j]);
@@ -183,9 +180,23 @@
   function refreshConfirm() {
     var race = findRace(state.race);
     var sub = findSubrace(race, state.subrace);
-    var ok = race && sub && state.asi.length === (sub.asiChoice || 0);
+    var ok = race && sub && state.asi.length === ((sub && sub.asiChoice) || 0);
     if (ok) confirmEl.removeAttribute("disabled");
     else confirmEl.setAttribute("disabled", "disabled");
+  }
+
+  function start() {
+    started = true;
+    var data = {};
+    try {
+      data = JSON.parse(dataEl.value || "{}");
+    } catch (err) {
+      data = {};
+    }
+    races = data.races || [];
+    renderList();
+    renderDetail();
+    refreshConfirm();
   }
 
   confirmEl.addEventListener("click", function () {
@@ -210,9 +221,17 @@
     }
   });
 
-  renderList();
-  renderDetail();
-  refreshConfirm();
+  // The server injects the race JSON on the first screen tick, which can happen after this script
+  // runs; wait for it instead of rendering an empty list.
+  function waitForData() {
+    if (started) return;
+    if (dataEl.value && dataEl.value.length > 2) {
+      start();
+      return;
+    }
+    setTimeout(waitForData, 100);
+  }
+  waitForData();
 
   // Hide the race step when the same page is reused as the read-only character sheet.
   function syncMode() {

@@ -271,7 +271,9 @@
 
   function refreshConfirm() {
     var sub = findSubrace(findRace(state.race), state.subrace);
-    if (sub && allPicked()) confirmEl.removeAttribute("disabled");
+    // Keep the button clickable whenever a subrace is chosen: clicking with unfilled slots shows
+    // an explicit message instead of silently doing nothing.
+    if (sub) confirmEl.removeAttribute("disabled");
     else confirmEl.setAttribute("disabled", "disabled");
   }
 

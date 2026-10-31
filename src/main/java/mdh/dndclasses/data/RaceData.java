@@ -22,6 +22,14 @@ public final class RaceData {
 
     public record Subrace(String key, String displayName, Map<String, Integer> asiBoosts,
                           int asiChoiceCount, int speed, List<String> traits, String description) {
+        /** Total free racial ability points (sum of the PHB bonuses / flexible choices). */
+        public int asiPoints() {
+            int total = asiChoiceCount;
+            for (int value : asiBoosts.values()) {
+                total += value;
+            }
+            return total;
+        }
     }
 
     public record RaceEntry(String displayName, List<Subrace> subraces, int speed, String size,
@@ -197,6 +205,7 @@ public final class RaceData {
                 JsonObject subraceJson = new JsonObject();
                 subraceJson.addProperty("key", subrace.key());
                 subraceJson.addProperty("asiChoice", subrace.asiChoiceCount());
+                subraceJson.addProperty("asiPoints", subrace.asiPoints());
                 subraceJson.addProperty("speed", subrace.speed() > 0 ? subrace.speed() : race.speed());
                 JsonObject asi = new JsonObject();
                 for (Map.Entry<String, Integer> boost : subrace.asiBoosts().entrySet()) {

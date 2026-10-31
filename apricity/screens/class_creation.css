@@ -834,8 +834,14 @@
   right: 0;
   bottom: 0;
   z-index: 50;
-  background: #05020f;
+  background: #17100a;
   overflow: auto;
+}
+
+.race-overlay .nebula,
+.race-overlay .stars,
+.race-overlay .scan {
+  display: none;
 }
 
 .race-overlay.hidden {
@@ -863,26 +869,26 @@
 
 .race-item {
   padding: 10px 12px;
-  border: 2px solid #6b4fd8;
-  background: rgba(20, 10, 50, 0.86);
-  color: #eae3ff;
+  border: 2px solid #6e5531;
+  background: #382a1b;
+  color: #f6ead0;
   text-align: left;
   cursor: pointer;
   letter-spacing: 1px;
 }
 
 .race-item.active {
-  border-color: #7fe8ff;
-  background: rgba(30, 60, 96, 0.8);
+  border-color: #e6c05a;
+  background: #4a3824;
 }
 
 .race-detail {
   flex: 1;
   min-height: 320px;
   padding: 16px;
-  border: 2px solid #6b4fd8;
-  background: rgba(12, 6, 32, 0.88);
-  box-shadow: 4px 4px 0 #160a38;
+  border: 2px solid #6e5531;
+  background: #271b10;
+  box-shadow: 4px 4px 0 #0b0703;
 }
 
 .subrace-row {
@@ -894,15 +900,15 @@
 
 .subrace-btn, .asi-btn {
   padding: 8px 12px;
-  border: 2px solid #4a3a9e;
-  background: rgba(30, 16, 64, 0.9);
-  color: #eae3ff;
+  border: 2px solid #6e5531;
+  background: #382a1b;
+  color: #f6ead0;
   cursor: pointer;
 }
 
 .subrace-btn.active, .asi-btn.active {
-  border-color: #7fe8ff;
-  background: rgba(20, 64, 96, 0.8);
+  border-color: #e6c05a;
+  background: #4a3824;
 }
 
 .asi-row {
@@ -921,8 +927,8 @@
 
 .trait-chip {
   padding: 4px 8px;
-  border: 1px solid #4a3a9e;
-  color: #b9a7ff;
+  border: 1px solid #6e5531;
+  color: #d9c69b;
   font-size: 11px;
 }
 

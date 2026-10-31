@@ -1505,5 +1505,19 @@
   "screen.dndclasses.asi.mode_plus2": "+2 to one",
   "screen.dndclasses.asi.mode_plus1": "+1 to two",
   "screen.dndclasses.asi.confirm": "Confirm",
-  "screen.dndclasses.asi.pending": "Pending improvements:"
+  "screen.dndclasses.asi.pending": "Pending improvements:",
+  "race.dndclasses.dragonborn.black": "Black Dragonborn",
+  "race.dndclasses.dragonborn.blue": "Blue Dragonborn",
+  "race.dndclasses.dragonborn.brass": "Brass Dragonborn",
+  "race.dndclasses.dragonborn.bronze": "Bronze Dragonborn",
+  "race.dndclasses.dragonborn.copper": "Copper Dragonborn",
+  "race.dndclasses.dragonborn.gold": "Gold Dragonborn",
+  "race.dndclasses.dragonborn.green": "Green Dragonborn",
+  "race.dndclasses.dragonborn.red": "Red Dragonborn",
+  "race.dndclasses.dragonborn.silver": "Silver Dragonborn",
+  "race.dndclasses.dragonborn.white": "White Dragonborn",
+  "screen.dndclasses.race.free_points": "Racial ability points",
+  "screen.dndclasses.race.assign_hint": "assign them in the ability panel",
+  "screen.dndclasses.race.points_label": "Racial points",
+  "screen.dndclasses.race.points_unspent": "Spend all racial ability points first."
 }

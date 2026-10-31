@@ -1,54 +1,15 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: #05020f;
-  color: #eae3ff;
+  background: #17100a;
+  color: #f6ead0;
   font-family: "Microsoft YaHei", "Noto Sans SC", sans-serif;
 }
 
-.nebula {
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background-image:
-    radial-gradient(60% 45% at 20% 30%, rgba(120, 60, 255, 0.38), rgba(0, 0, 0, 0) 60%),
-    radial-gradient(50% 40% at 80% 20%, rgba(0, 180, 255, 0.28), rgba(0, 0, 0, 0) 60%),
-    radial-gradient(70% 60% at 55% 85%, rgba(255, 60, 180, 0.20), rgba(0, 0, 0, 0) 65%),
-    linear-gradient(#05020f, #0a0424);
-  image-rendering: pixelated;
-}
-
-.stars {
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background-image:
-    radial-gradient(#ffffff 1px, rgba(0, 0, 0, 0) 1px),
-    radial-gradient(#b9a7ff 1px, rgba(0, 0, 0, 0) 1px),
-    radial-gradient(#7fe8ff 1px, rgba(0, 0, 0, 0) 1px);
-  background-size: 72px 72px, 113px 113px, 157px 157px;
-  background-position: 0 0, 31px 47px, 71px 13px;
-  opacity: 0.55;
-}
-
-.scan {
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background-image: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.38) 0px,
-    rgba(0, 0, 0, 0.38) 1px,
-    rgba(0, 0, 0, 0) 1px,
-    rgba(0, 0, 0, 0) 3px
-  );
-  opacity: 0.45;
+/* The procedural nebula layers are kept in the markup but disabled: the creation flow now uses
+   the same parchment/grimoire palette as the class page. */
+.nebula, .stars, .scan {
+  display: none;
 }
 
 .choice-shell {
@@ -62,13 +23,13 @@ html, body {
   margin: 0 0 6px 0;
   font-size: 26px;
   letter-spacing: 4px;
-  color: #f2e9ff;
-  text-shadow: 2px 2px 0 #2a0b5e;
+  color: #e6c05a;
+  text-shadow: 2px 2px 0 #0b0703;
 }
 
 .choice-sub {
   margin: 0 0 24px 0;
-  color: #a99bd6;
+  color: #c4ad7e;
   font-size: 13px;
   letter-spacing: 1px;
 }
@@ -82,22 +43,22 @@ html, body {
 .choice-card {
   min-width: 230px;
   padding: 14px 16px;
-  border: 2px solid #6b4fd8;
-  background: rgba(20, 10, 50, 0.86);
-  box-shadow: 4px 4px 0 #160a38;
+  border: 2px solid #6e5531;
+  background: #382a1b;
+  box-shadow: 4px 4px 0 #0b0703;
   cursor: pointer;
-  color: #eae3ff;
+  color: #f6ead0;
   text-align: left;
 }
 
 .choice-card:hover {
-  border-color: #b9a7ff;
-  background: rgba(46, 22, 96, 0.9);
+  border-color: #d9c69b;
+  background: #4a3824;
 }
 
 .choice-card.active {
-  border-color: #7fe8ff;
-  box-shadow: 0 0 0 2px #7fe8ff, 4px 4px 0 #160a38;
+  border-color: #e6c05a;
+  box-shadow: 0 0 0 2px #e6c05a, 4px 4px 0 #0b0703;
 }
 
 .card-title {
@@ -105,12 +66,13 @@ html, body {
   font-size: 16px;
   letter-spacing: 2px;
   margin-bottom: 4px;
+  color: #f6ead0;
 }
 
 .card-sub {
   display: block;
   font-size: 11px;
-  color: #9c8ccc;
+  color: #c4ad7e;
 }
 
 .mode-row {
@@ -121,16 +83,16 @@ html, body {
 
 .mode-btn, .confirm-btn {
   padding: 10px 18px;
-  border: 2px solid #6b4fd8;
-  background: rgba(28, 14, 60, 0.9);
-  color: #eae3ff;
+  border: 2px solid #6e5531;
+  background: #382a1b;
+  color: #f6ead0;
   cursor: pointer;
   letter-spacing: 2px;
 }
 
 .mode-btn.active, .confirm-btn {
-  border-color: #7fe8ff;
-  background: rgba(20, 64, 96, 0.8);
+  border-color: #e6c05a;
+  background: #4a3824;
 }
 
 .confirm-btn[disabled] {
@@ -140,6 +102,6 @@ html, body {
 
 .choice-msg {
   margin-top: 14px;
-  color: #ff9ad5;
+  color: #d98c6a;
   font-size: 12px;
 }

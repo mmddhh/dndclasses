@@ -72,18 +72,17 @@ public class ClassSelectionPacket {
 
             String raceKey = root.has("race") ? root.get("race").getAsString() : "";
             String subraceKey = root.has("subrace") ? root.get("subrace").getAsString() : "";
-            List<String> asiChoices = new java.util.ArrayList<>();
-            if (root.has("asi") && root.get("asi").isJsonArray()) {
-                for (com.google.gson.JsonElement element : root.getAsJsonArray("asi")) {
-                    asiChoices.add(element.getAsString());
+            java.util.Map<String, Integer> racial = new java.util.LinkedHashMap<>();
+            if (root.has("raceBonuses") && root.get("raceBonuses").isJsonObject()) {
+                for (java.util.Map.Entry<String, com.google.gson.JsonElement> entry
+                        : root.getAsJsonObject("raceBonuses").entrySet()) {
+                    racial.put(entry.getKey(), entry.getValue().getAsInt());
                 }
             }
-            if (!mdh.dndclasses.data.RaceManager.isValidSelection(raceKey, subraceKey, asiChoices)) {
-                player.sendSystemMessage(Component.literal("无效的种族选择。"));
+            if (!mdh.dndclasses.data.RaceManager.isValidSelection(raceKey, subraceKey, racial)) {
+                player.sendSystemMessage(Component.literal("种族属性点分配不合法。"));
                 return;
             }
-            java.util.Map<String, Integer> racial = mdh.dndclasses.data.RaceManager
-                    .bonuses(raceKey, subraceKey, asiChoices);
 
             JsonObject abilities = root.getAsJsonObject("abilities");
             int str = abilities.get("str").getAsInt();
@@ -91,7 +90,8 @@ public class ClassSelectionPacket {
             int con = abilities.get("con").getAsInt();
             int intel = abilities.get("int").getAsInt();
             int wis = abilities.get("wis").getAsInt();
-            int cha = abilities.get("cha").getAsInt();            for (int score : new int[]{str, dex, con, intel, wis, cha}) {
+            int cha = abilities.get("cha").getAsInt();
+            for (int score : new int[]{str, dex, con, intel, wis, cha}) {
                 if (score < PointBuyHelper.MIN_SCORE || score > 15) {
                     player.sendSystemMessage(Component.literal("属性值超出允许范围。"));
                     return;
@@ -126,7 +126,7 @@ public class ClassSelectionPacket {
                 ability.setwis(Math.min(20, wis + racial.getOrDefault("wis", 0)));
                 ability.setcha(Math.min(20, cha + racial.getOrDefault("cha", 0)));
             });
-            mdh.dndclasses.data.RaceManager.setRace(player, raceKey, subraceKey, asiChoices);
+            mdh.dndclasses.data.RaceManager.setRace(player, raceKey, subraceKey);
 
             List<StartingEquipment.EquipmentItem> items = StartingEquipment.getItems(classKey, equipmentChoice);
             for (StartingEquipment.EquipmentItem entry : items) {

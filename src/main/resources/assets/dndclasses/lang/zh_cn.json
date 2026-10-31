@@ -1505,5 +1505,19 @@
   "screen.dndclasses.asi.mode_plus2": "单项 +2",
   "screen.dndclasses.asi.mode_plus1": "两项 +1",
   "screen.dndclasses.asi.confirm": "确认",
-  "screen.dndclasses.asi.pending": "待分配提升："
+  "screen.dndclasses.asi.pending": "待分配提升：",
+  "race.dndclasses.dragonborn.black": "黑龙裔",
+  "race.dndclasses.dragonborn.blue": "蓝龙裔",
+  "race.dndclasses.dragonborn.brass": "黄铜龙裔",
+  "race.dndclasses.dragonborn.bronze": "青铜龙裔",
+  "race.dndclasses.dragonborn.copper": "赤铜龙裔",
+  "race.dndclasses.dragonborn.gold": "金龙裔",
+  "race.dndclasses.dragonborn.green": "绿龙裔",
+  "race.dndclasses.dragonborn.red": "红龙裔",
+  "race.dndclasses.dragonborn.silver": "银龙裔",
+  "race.dndclasses.dragonborn.white": "白龙裔",
+  "screen.dndclasses.race.free_points": "种族属性点",
+  "screen.dndclasses.race.assign_hint": "在右侧属性面板分配",
+  "screen.dndclasses.race.points_label": "种族点数",
+  "screen.dndclasses.race.points_unspent": "请先把种族属性点分配完。"
 }

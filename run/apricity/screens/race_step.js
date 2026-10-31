@@ -3,17 +3,76 @@
     return "<translation>" + key + "</translation>";
   }
 
-  var dataEl = document.getElementById("race-data");
+  // Mirrors RaceData (PHB). The class data in class_creation.js is embedded the same way; the
+  // server still validates the submitted race/subrace/ASI against its own copy.
+  var BUILTIN = [
+    { key: "dwarf", speed: 25, size: "medium", subraces: [
+      { key: "hill_dwarf", asi: { con: 2, wis: 1 }, asiChoice: 0, speed: 25,
+        traits: ["darkvision_60", "dwarf_resilience", "stonecunning", "dwarf_combat_training", "tool_proficiency"] },
+      { key: "mountain_dwarf", asi: { con: 2, str: 2 }, asiChoice: 0, speed: 25,
+        traits: ["darkvision_60", "dwarf_resilience", "stonecunning", "dwarf_combat_training", "dwarf_armor_training"] }
+    ]},
+    { key: "elf", speed: 30, size: "medium", subraces: [
+      { key: "high_elf", asi: { dex: 2, int: 1 }, asiChoice: 0, speed: 30,
+        traits: ["darkvision_60", "keen_senses", "fey_ancestry", "trance", "elf_weapon_training", "high_elf_cantrip"] },
+      { key: "wood_elf", asi: { dex: 2, wis: 1 }, asiChoice: 0, speed: 35,
+        traits: ["darkvision_60", "keen_senses", "fey_ancestry", "trance", "elf_weapon_training", "fleet_of_foot", "mask_of_the_wild"] },
+      { key: "dark_elf", asi: { dex: 2, cha: 1 }, asiChoice: 0, speed: 30,
+        traits: ["superior_darkvision_120", "sunlight_sensitivity", "drow_magic", "keen_senses", "fey_ancestry", "trance"] }
+    ]},
+    { key: "halfling", speed: 25, size: "small", subraces: [
+      { key: "lightfoot", asi: { dex: 2, cha: 1 }, asiChoice: 0, speed: 25,
+        traits: ["lucky", "brave", "halfling_nimbleness"] },
+      { key: "stout", asi: { dex: 2, con: 1 }, asiChoice: 0, speed: 25,
+        traits: ["lucky", "brave", "halfling_nimbleness", "stout_resilience"] }
+    ]},
+    { key: "human", speed: 30, size: "medium", subraces: [
+      { key: "standard_human", asi: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 }, asiChoice: 0, speed: 30, traits: [] },
+      { key: "variant_human", asi: {}, asiChoice: 2, speed: 30, traits: ["skill_versatility", "feat"] }
+    ]},
+    { key: "dragonborn", speed: 30, size: "medium", subraces: [
+      { key: "dragonborn", asi: { str: 2, cha: 1 }, asiChoice: 0, speed: 30,
+        traits: ["draconic_ancestry", "breath_weapon", "damage_resistance"] }
+    ]},
+    { key: "gnome", speed: 25, size: "small", subraces: [
+      { key: "forest_gnome", asi: { int: 2, dex: 1 }, asiChoice: 0, speed: 25,
+        traits: ["darkvision_60", "gnome_cunning", "natural_illusionist"] },
+      { key: "rock_gnome", asi: { int: 2, con: 1 }, asiChoice: 0, speed: 25,
+        traits: ["darkvision_60", "gnome_cunning", "artificers_lore", "tinker"] }
+    ]},
+    { key: "half_elf", speed: 30, size: "medium", subraces: [
+      { key: "half_elf", asi: { cha: 2 }, asiChoice: 2, speed: 30,
+        traits: ["darkvision_60", "fey_ancestry", "skill_versatility"] }
+    ]},
+    { key: "half_orc", speed: 30, size: "medium", subraces: [
+      { key: "half_orc", asi: { str: 2, con: 1 }, asiChoice: 0, speed: 30,
+        traits: ["darkvision_60", "menacing", "relentless_endurance", "savage_attacks"] }
+    ]},
+    { key: "tiefling", speed: 30, size: "medium", subraces: [
+      { key: "tiefling", asi: { cha: 2, int: 1 }, asiChoice: 0, speed: 30,
+        traits: ["darkvision_60", "hellish_resistance", "infernal_legacy"] }
+    ]}
+  ];
+  var dragonColors = ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"];
+  for (var d = 0; d < dragonColors.length; d++) {
+    BUILTIN[4].subraces.push({
+      key: dragonColors[d],
+      asi: { str: 2, cha: 1 },
+      asiChoice: 0,
+      speed: 30,
+      traits: ["draconic_ancestry", "breath_weapon", "damage_resistance", "draconic_" + dragonColors[d]]
+    });
+  }
+
   var listEl = document.getElementById("race-list");
   var detailEl = document.getElementById("race-detail");
   var confirmEl = document.getElementById("race-confirm");
   var msgEl = document.getElementById("race-msg");
   var overlay = document.getElementById("race-overlay");
-  if (!dataEl || !listEl || !detailEl || !confirmEl || !overlay) return;
+  if (!listEl || !detailEl || !confirmEl || !overlay) return;
 
-  var races = [];
+  var races = BUILTIN;
   var state = { race: null, subrace: null, asi: [] };
-  var started = false;
 
   function findRace(key) {
     for (var i = 0; i < races.length; i++) {
@@ -44,11 +103,9 @@
 
   function asiText(subrace) {
     var parts = [];
-    if (subrace.asi) {
-      var keys = Object.keys(subrace.asi);
-      for (var i = 0; i < keys.length; i++) {
-        parts.push(tr("ability.dndclasses." + keys[i]) + " +" + subrace.asi[keys[i]]);
-      }
+    var keys = Object.keys(subrace.asi || {});
+    for (var i = 0; i < keys.length; i++) {
+      parts.push(tr("ability.dndclasses." + keys[i]) + " +" + subrace.asi[keys[i]]);
     }
     if (subrace.asiChoice > 0) {
       parts.push(tr("screen.dndclasses.race.choose_asi") + " x" + subrace.asiChoice);
@@ -70,8 +127,7 @@
 
     var info = document.createElement("div");
     info.setAttribute("class", "card-sub");
-    info.innerHTML = tr("screen.dndclasses.race.speed") + " " + race.speed
-      + " ft · " + tr("size.dndclasses." + race.size);
+    info.innerHTML = tr("screen.dndclasses.race.speed") + " " + race.speed + " ft · " + tr("size.dndclasses." + race.size);
     detailEl.appendChild(info);
 
     var subRow = document.createElement("div");
@@ -165,11 +221,9 @@
     var sub = findSubrace(race, state.subrace);
     var result = {};
     if (!sub) return result;
-    if (sub.asi) {
-      var keys = Object.keys(sub.asi);
-      for (var i = 0; i < keys.length; i++) {
-        result[keys[i]] = (result[keys[i]] || 0) + sub.asi[keys[i]];
-      }
+    var keys = Object.keys(sub.asi || {});
+    for (var i = 0; i < keys.length; i++) {
+      result[keys[i]] = (result[keys[i]] || 0) + sub.asi[keys[i]];
     }
     for (var j = 0; j < state.asi.length; j++) {
       result[state.asi[j]] = (result[state.asi[j]] || 0) + 1;
@@ -183,20 +237,6 @@
     var ok = race && sub && state.asi.length === ((sub && sub.asiChoice) || 0);
     if (ok) confirmEl.removeAttribute("disabled");
     else confirmEl.setAttribute("disabled", "disabled");
-  }
-
-  function start() {
-    started = true;
-    var data = {};
-    try {
-      data = JSON.parse(dataEl.value || "{}");
-    } catch (err) {
-      data = {};
-    }
-    races = data.races || [];
-    renderList();
-    renderDetail();
-    refreshConfirm();
   }
 
   confirmEl.addEventListener("click", function () {
@@ -221,19 +261,10 @@
     }
   });
 
-  // The server injects the race JSON on the first screen tick, which can happen after this script
-  // runs; wait for it instead of rendering an empty list.
-  function waitForData() {
-    if (started) return;
-    if (dataEl.value && dataEl.value.length > 2) {
-      start();
-      return;
-    }
-    setTimeout(waitForData, 100);
-  }
-  waitForData();
+  renderList();
+  renderDetail();
+  refreshConfirm();
 
-  // Hide the race step when the same page is reused as the read-only character sheet.
   function syncMode() {
     try {
       var stateEl = document.getElementById("page-state");

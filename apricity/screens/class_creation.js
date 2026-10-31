@@ -927,8 +927,21 @@ var state = {
   tab: 0,
   subclass: 0,
   subclassChosen: null,
-  abilities: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 }
+  abilities: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 },
+  raceBonuses: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 }
 };
+
+function racePoints() {
+  return (typeof window !== "undefined" && window.dndRace) ? (window.dndRace.points || 0) : 0;
+}
+
+function raceSpent() {
+  var total = 0;
+  for (var key in state.raceBonuses) {
+    total += state.raceBonuses[key] || 0;
+  }
+  return total;
+}
 
 function byId(id) { return document.getElementById(id); }
 
@@ -1331,6 +1344,13 @@ function renderAbility() {
   costRow.appendChild(mk("span", "rune", "screen.dndclasses.creation.points_range"));
   body.appendChild(costRow);
 
+  if (racePoints() > 0) {
+    var raceLine = make("div", "points-line");
+    raceLine.appendChild(mk("span", "points-label", "screen.dndclasses.race.points_label"));
+    raceLine.appendChild(make("span", "points-value", raceSpent() + " / " + racePoints()));
+    body.appendChild(raceLine);
+  }
+
   for (var i = 0; i < ABILITIES.length; i++) {
     bindAbilityRow(body, ABILITIES[i], remaining, primary);
   }
@@ -1340,11 +1360,13 @@ function renderAbility() {
 
 function bindAbilityRow(body, a, remaining, primary) {
   var sc = state.abilities[a.key];
-  var bonus = (typeof window !== "undefined" && window.dndRace) ? window.dndRace.bonusFor(a.key) : 0;
+  var bonus = state.raceBonuses[a.key] || 0;
   var finalScore = Math.min(20, sc + bonus);
   var mod = Math.floor((finalScore - 10) / 2);
   var canPlus = sc < MAX_SCORE && remaining >= (scoreCost(sc + 1) - scoreCost(sc));
   var canMinus = sc > MIN_SCORE;
+  var canRacePlus = finalScore < 20 && raceSpent() < racePoints();
+  var canRaceMinus = bonus > 0;
   var isPrimary = primary.indexOf(a.key) >= 0;
 
   var row = make("div", "ability-row" + (isPrimary ? " primary" : ""));
@@ -1360,6 +1382,16 @@ function bindAbilityRow(body, a, remaining, primary) {
   row.appendChild(minus);
   row.appendChild(score);
   row.appendChild(plus);
+
+  var raceMinus = make("button", "pip-btn race-pip", "−");
+  raceMinus.setAttribute("type", "button");
+  if (!canRaceMinus) raceMinus.setAttribute("disabled", "disabled");
+  var racePlus = make("button", "pip-btn race-pip", "+");
+  racePlus.setAttribute("type", "button");
+  if (!canRacePlus) racePlus.setAttribute("disabled", "disabled");
+  row.appendChild(raceMinus);
+  row.appendChild(racePlus);
+
   var abName = make("span", "ability-name", null);
   abName.innerHTML = abilName(a.key);
   row.appendChild(abName);
@@ -1367,7 +1399,24 @@ function bindAbilityRow(body, a, remaining, primary) {
 
   minus.addEventListener("click", function () { changeAbility(a.key, -1); });
   plus.addEventListener("click", function () { changeAbility(a.key, 1); });
+  raceMinus.addEventListener("click", function () { changeRaceBonus(a.key, -1); });
+  racePlus.addEventListener("click", function () { changeRaceBonus(a.key, 1); });
   body.appendChild(row);
+}
+
+function changeRaceBonus(key, delta) {
+  var current = state.raceBonuses[key] || 0;
+  if (delta > 0) {
+    if (raceSpent() >= racePoints()) return;
+    if (state.abilities[key] + current >= 20) return;
+    state.raceBonuses[key] = current + 1;
+  } else {
+    if (current <= 0) return;
+    state.raceBonuses[key] = current - 1;
+  }
+  renderAbility();
+  refreshConfirmState();
+  setMsg("", false);
 }
 
 function changeAbility(key, delta) {
@@ -1405,7 +1454,8 @@ function refreshConfirmState() {
   var btn = byId("btn-confirm");
   if (!btn) return;
   var raceChosen = typeof window !== "undefined" && window.dndRace;
-  var ok = state.selected !== null && totalCost() === BUDGET && raceChosen;
+  var ok = state.selected !== null && totalCost() === BUDGET && raceChosen
+    && raceSpent() === racePoints();
   if (ok) btn.removeAttribute("disabled");
   else btn.setAttribute("disabled", "disabled");
 }
@@ -1427,6 +1477,7 @@ function onConfirm() {
   }
   if (!state.selected) { setMsg("screen.dndclasses.creation.msg_no_class", false); return; }
   if (totalCost() !== BUDGET) { setMsg("screen.dndclasses.creation.msg_budget", false); return; }
+  if (raceSpent() !== racePoints()) { setMsg("screen.dndclasses.race.points_unspent", false); return; }
   setMsg("", false);
   openSummary();
 }
@@ -1502,7 +1553,7 @@ function commitCharacter() {
   var payload = {
     race: race ? race.race : "",
     subrace: race ? race.subrace : "",
-    asi: race ? race.asi : [],
+    raceBonuses: state.raceBonuses,
     class: state.selected,
     className: c.key,
     subclass: chosenSubclassId(c),
@@ -1805,6 +1856,7 @@ function init() {
 var pageStarted = false;
 
 window.dndClassRefresh = function () {
+  state.raceBonuses = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
   renderAbility();
   updateFooterSummary();
   refreshConfirmState();

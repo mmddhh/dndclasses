@@ -3,8 +3,8 @@
     return "<translation>" + key + "</translation>";
   }
 
-  // Mirrors RaceData (PHB). The class data in class_creation.js is embedded the same way; the
-  // server still validates the submitted race/subrace/ASI against its own copy.
+  // Mirrors RaceData (PHB bonuses become a free point pool; the player assigns them in the
+  // ability panel). The server validates the total against its own copy.
   var BUILTIN = [
     { key: "dwarf", speed: 25, size: "medium", subraces: [
       { key: "hill_dwarf", asi: { con: 2, wis: 1 }, asiChoice: 0, speed: 25,
@@ -53,14 +53,14 @@
         traits: ["darkvision_60", "hellish_resistance", "infernal_legacy"] }
     ]}
   ];
-  var dragonColors = ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"];
-  for (var d = 0; d < dragonColors.length; d++) {
+  var colors = ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"];
+  for (var c = 0; c < colors.length; c++) {
     BUILTIN[4].subraces.push({
-      key: dragonColors[d],
+      key: colors[c],
       asi: { str: 2, cha: 1 },
       asiChoice: 0,
       speed: 30,
-      traits: ["draconic_ancestry", "breath_weapon", "damage_resistance", "draconic_" + dragonColors[d]]
+      traits: ["draconic_ancestry", "breath_weapon", "damage_resistance", "draconic_" + colors[c]]
     });
   }
 
@@ -72,7 +72,7 @@
   if (!listEl || !detailEl || !confirmEl || !overlay) return;
 
   var races = BUILTIN;
-  var state = { race: null, subrace: null, asi: [] };
+  var state = { race: null, subrace: null };
 
   function findRace(key) {
     for (var i = 0; i < races.length; i++) {
@@ -89,6 +89,16 @@
     return null;
   }
 
+  function points(subrace) {
+    if (!subrace) return 0;
+    var total = subrace.asiChoice || 0;
+    var keys = Object.keys(subrace.asi || {});
+    for (var i = 0; i < keys.length; i++) {
+      total += subrace.asi[keys[i]];
+    }
+    return total;
+  }
+
   function raceName(key) {
     return tr("race.dndclasses." + key);
   }
@@ -99,18 +109,6 @@
 
   function traitName(key) {
     return tr("trait.dndclasses." + key);
-  }
-
-  function asiText(subrace) {
-    var parts = [];
-    var keys = Object.keys(subrace.asi || {});
-    for (var i = 0; i < keys.length; i++) {
-      parts.push(tr("ability.dndclasses." + keys[i]) + " +" + subrace.asi[keys[i]]);
-    }
-    if (subrace.asiChoice > 0) {
-      parts.push(tr("screen.dndclasses.race.choose_asi") + " x" + subrace.asiChoice);
-    }
-    return parts.join("，");
   }
 
   function renderDetail() {
@@ -127,7 +125,8 @@
 
     var info = document.createElement("div");
     info.setAttribute("class", "card-sub");
-    info.innerHTML = tr("screen.dndclasses.race.speed") + " " + race.speed + " ft · " + tr("size.dndclasses." + race.size);
+    info.innerHTML = tr("screen.dndclasses.race.speed") + " " + race.speed + " ft · "
+      + tr("size.dndclasses." + race.size);
     detailEl.appendChild(info);
 
     var subRow = document.createElement("div");
@@ -140,7 +139,6 @@
         btn.innerHTML = subraceName(race.key, sub.key);
         btn.addEventListener("click", function () {
           state.subrace = sub.key;
-          state.asi = [];
           renderDetail();
           refreshConfirm();
         });
@@ -154,35 +152,9 @@
 
     var asi = document.createElement("div");
     asi.setAttribute("class", "card-sub");
-    asi.innerHTML = asiText(sub);
+    asi.innerHTML = tr("screen.dndclasses.race.free_points") + " +" + points(sub)
+      + "（" + tr("screen.dndclasses.race.assign_hint") + "）";
     detailEl.appendChild(asi);
-
-    if (sub.asiChoice > 0) {
-      var asiRow = document.createElement("div");
-      asiRow.setAttribute("class", "asi-row");
-      var abilities = ["str", "dex", "con", "int", "wis", "cha"];
-      for (var j = 0; j < abilities.length; j++) {
-        (function (ability) {
-          var active = state.asi.indexOf(ability) >= 0;
-          var btn = document.createElement("button");
-          btn.setAttribute("type", "button");
-          btn.setAttribute("class", "asi-btn" + (active ? " active" : ""));
-          btn.innerHTML = tr("ability.dndclasses." + ability) + " +1";
-          btn.addEventListener("click", function () {
-            var index = state.asi.indexOf(ability);
-            if (index >= 0) {
-              state.asi.splice(index, 1);
-            } else if (state.asi.length < sub.asiChoice) {
-              state.asi.push(ability);
-            }
-            renderDetail();
-            refreshConfirm();
-          });
-          asiRow.appendChild(btn);
-        })(abilities[j]);
-      }
-      detailEl.appendChild(asiRow);
-    }
 
     var traits = document.createElement("div");
     traits.setAttribute("class", "trait-list");
@@ -205,8 +177,7 @@
         btn.innerHTML = raceName(race.key);
         btn.addEventListener("click", function () {
           state.race = race.key;
-          state.subrace = race.subraces.length === 1 ? race.subraces[0].key : null;
-          state.asi = [];
+          state.subrace = race.subraces[0].key;
           renderList();
           renderDetail();
           refreshConfirm();
@@ -216,25 +187,10 @@
     }
   }
 
-  function currentBonuses() {
-    var race = findRace(state.race);
-    var sub = findSubrace(race, state.subrace);
-    var result = {};
-    if (!sub) return result;
-    var keys = Object.keys(sub.asi || {});
-    for (var i = 0; i < keys.length; i++) {
-      result[keys[i]] = (result[keys[i]] || 0) + sub.asi[keys[i]];
-    }
-    for (var j = 0; j < state.asi.length; j++) {
-      result[state.asi[j]] = (result[state.asi[j]] || 0) + 1;
-    }
-    return result;
-  }
-
   function refreshConfirm() {
     var race = findRace(state.race);
     var sub = findSubrace(race, state.subrace);
-    var ok = race && sub && state.asi.length === ((sub && sub.asiChoice) || 0);
+    var ok = race && sub;
     if (ok) confirmEl.removeAttribute("disabled");
     else confirmEl.setAttribute("disabled", "disabled");
   }
@@ -243,17 +199,10 @@
     var race = findRace(state.race);
     var sub = findSubrace(race, state.subrace);
     if (!race || !sub) return;
-    if (state.asi.length !== (sub.asiChoice || 0)) {
-      if (msgEl) msgEl.innerHTML = tr("screen.dndclasses.race.asi_incomplete");
-      return;
-    }
     window.dndRace = {
       race: race.key,
       subrace: sub.key,
-      asi: state.asi.slice(),
-      bonusFor: function (ability) {
-        return currentBonuses()[ability] || 0;
-      }
+      points: points(sub)
     };
     overlay.setAttribute("class", "race-overlay hidden");
     if (typeof window.dndClassRefresh === "function") {

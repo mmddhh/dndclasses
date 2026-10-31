@@ -12,7 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Applies the mechanical parts of a race that are implemented so far: ASI (at creation) and speed. */
+/**
+ * Race mechanics implemented so far: a pool of free ability points (distributed by the player in
+ * the creation UI) and the racial speed modifier. Traits are stored as ids for later implementation.
+ */
 public final class RaceManager {
 
     private static final UUID SPEED_MODIFIER_ID = UUID.fromString("7d2f6a5e-3c1b-4e8a-9f60-2b9d4c7e1a53");
@@ -20,35 +23,32 @@ public final class RaceManager {
     private RaceManager() {
     }
 
-    public static boolean isValidSelection(String race, String subrace, List<String> asiChoices) {
+    public static int points(String race, String subrace) {
+        RaceData.Subrace entry = RaceData.getSubrace(race, subrace);
+        return entry != null ? entry.asiPoints() : 0;
+    }
+
+    /** Validates that the player distributed exactly the racial pool, without negatives. */
+    public static boolean isValidSelection(String race, String subrace, Map<String, Integer> bonuses) {
         if (!RaceData.isValidRace(race) || !RaceData.isValidSubrace(race, subrace)) {
             return false;
         }
-        int required = RaceData.asiChoiceCount(race, subrace);
-        if (required == 0) {
-            return asiChoices == null || asiChoices.isEmpty();
-        }
-        if (asiChoices == null || asiChoices.size() != required) {
-            return false;
-        }
-        List<String> seen = new ArrayList<>();
-        for (String ability : asiChoices) {
-            if (!RaceData.ABILITIES.contains(ability) || seen.contains(ability)) {
-                return false;
+        int total = 0;
+        if (bonuses != null) {
+            for (Map.Entry<String, Integer> entry : bonuses.entrySet()) {
+                if (!RaceData.ABILITIES.contains(entry.getKey()) || entry.getValue() == null
+                        || entry.getValue() < 0) {
+                    return false;
+                }
+                total += entry.getValue();
             }
-            seen.add(ability);
         }
-        return true;
+        return total == points(race, subrace);
     }
 
-    /** Stores race/subrace/features on the capability and applies the speed modifier. */
-    public static void setRace(ServerPlayer player, String race, String subrace, List<String> asiChoices) {
+    /** Stores race/subrace/traits on the capability and applies the speed modifier. */
+    public static void setRace(ServerPlayer player, String race, String subrace) {
         List<String> traits = new ArrayList<>(RaceData.traits(race, subrace));
-        if (asiChoices != null && !asiChoices.isEmpty()) {
-            for (String ability : asiChoices) {
-                traits.add("asi_choice_" + ability);
-            }
-        }
         player.getCapability(ModCapabilities.RACE_CAPABILITY).ifPresent(data -> {
             data.setRaceName(race);
             data.setSubraceName(subrace);
@@ -81,10 +81,5 @@ public final class RaceManager {
         double amount = 0.1D * (feet / 30.0D - 1.0D);
         attribute.addTransientModifier(new AttributeModifier(SPEED_MODIFIER_ID,
                 "DND racial speed", amount, AttributeModifier.Operation.ADDITION));
-    }
-
-    /** Fixed + flexible racial bonuses for the given selection. */
-    public static Map<String, Integer> bonuses(String race, String subrace, List<String> asiChoices) {
-        return RaceData.totalBonuses(race, subrace, asiChoices);
     }
 }

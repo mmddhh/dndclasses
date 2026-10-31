@@ -42,6 +42,13 @@ public final class StaminaHudOverlay {
             mode = null;
             return;
         }
+        // AUI overlays are not Screen children, so hide the bar explicitly while any GUI is open
+        // (character creation, subclass/ASI pages, inventory, ...).
+        if (Minecraft.getInstance().screen != null) {
+            closeAui();
+            mode = null;
+            return;
+        }
         ensureMode();
         if (document != null) {
             pushData();

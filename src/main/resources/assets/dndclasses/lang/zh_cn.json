@@ -1493,6 +1493,7 @@
   "screen.dndclasses.race.title": "选择你的血脉",
   "screen.dndclasses.race.hint": "先选择种族与子种族，然后选择职业。",
   "screen.dndclasses.race.confirm": "确认种族",
+  "screen.dndclasses.race.duplicate": "该属性已经被另一个加成占用。",
   "screen.dndclasses.race.required": "创建角色前请先选择种族。",
   "screen.dndclasses.race.select_race": "请在左侧选择种族。",
   "screen.dndclasses.race.speed": "速度",

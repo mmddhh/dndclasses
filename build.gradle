@@ -135,6 +135,10 @@ repositories {
     maven {
         url "https://www.cursemaven.com"
     }
+    // Keep the pinned ApricityUI version in sync with dndspells.
+    maven {
+        url "https://api.modrinth.com/maven"
+    }
     flatDir {
         dir 'libs'
     }
@@ -144,7 +148,8 @@ dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
     // ApricityUI - required UI library (https://www.curseforge.com/minecraft/mc-mods/apricityui)
-    implementation fg.deobf("curse.maven:apricityui-1470115:9066024")
+    // Pinned to 1.2.9 (Modrinth version 9EEmLQY4); keep in sync with dndspells.
+    implementation fg.deobf("maven.modrinth:apricityui:9EEmLQY4")
 
     // KubeJS - required scripting dependency (https://www.curseforge.com/minecraft/mc-mods/kubejs)
     implementation fg.deobf("curse.maven:kubejs-238086:8020595")

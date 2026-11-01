@@ -931,8 +931,12 @@ var state = {
   raceBonuses: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 }
 };
 
+// AUI's `window` is a Java object and cannot hold JS properties, so shared state lives in plain
+// script globals instead.
+var DND_RACE = null;
+
 function racePoints() {
-  return (typeof window !== "undefined" && window.dndRace) ? (window.dndRace.points || 0) : 0;
+  return DND_RACE ? (DND_RACE.points || 0) : 0;
 }
 
 function raceSpent() {
@@ -1353,8 +1357,7 @@ function renderAbility() {
 
 function bindAbilityRow(body, a, remaining, primary) {
   var sc = state.abilities[a.key];
-  var bonus = (typeof window !== "undefined" && window.dndRace && window.dndRace.bonuses)
-    ? (window.dndRace.bonuses[a.key] || 0) : 0;
+  var bonus = (DND_RACE && DND_RACE.bonuses) ? (DND_RACE.bonuses[a.key] || 0) : 0;
   var finalScore = Math.min(20, sc + bonus);
   var mod = Math.floor((finalScore - 10) / 2);
   var canPlus = sc < MAX_SCORE && remaining >= (scoreCost(sc + 1) - scoreCost(sc));
@@ -1419,7 +1422,7 @@ function updateFooterSummary() {
 function refreshConfirmState() {
   var btn = byId("btn-confirm");
   if (!btn) return;
-  var raceChosen = typeof window !== "undefined" && window.dndRace;
+  var raceChosen = DND_RACE;
   var ok = state.selected !== null && totalCost() === BUDGET && raceChosen;
   if (ok) btn.removeAttribute("disabled");
   else btn.setAttribute("disabled", "disabled");
@@ -1436,7 +1439,7 @@ function setMsg(key, ok) {
 /* ---------------------------------------------------------------- modal */
 
 function onConfirm() {
-  if (typeof window === "undefined" || !window.dndRace) {
+  if (!DND_RACE) {
     setMsg("screen.dndclasses.race.required", false);
     return;
   }
@@ -1513,7 +1516,7 @@ function closeSummary() {
 function commitCharacter() {
   var c = findClass(state.selected);
   var choice = c.equipment[state.equipment];
-  var race = (typeof window !== "undefined" && window.dndRace) ? window.dndRace : null;
+  var race = DND_RACE;
   var payload = {
     race: race ? race.race : "",
     subrace: race ? race.subrace : "",
@@ -1530,13 +1533,6 @@ function commitCharacter() {
 
   var payloadInput = byId("class-payload");
   if (payloadInput) payloadInput.value = JSON.stringify(payload);
-
-  try {
-    if (typeof window !== "undefined" && window && typeof window.auiClassChosen === "function") {
-      window.auiClassChosen(payload);
-    }
-  } catch (err) {
-  }
 
   console.log("[dndClasses] character payload " + JSON.stringify(payload));
   closeSummary();
@@ -2060,9 +2056,9 @@ function initRace() {
         if (msg) msg.innerHTML = t("screen.dndclasses.race.assign_incomplete");
         return;
       }
-      window.dndRace = { race: race.key, subrace: sub.key, bonuses: raceBonuses() };
+      DND_RACE = { race: race.key, subrace: sub.key, bonuses: raceBonuses() };
       raceShowStep(false);
-      window.dndClassRefresh();
+      dndClassRefresh();
     });
     var stepRace = byId("step-race");
     var stepClass = byId("step-class");
@@ -2071,7 +2067,7 @@ function initRace() {
     }
     if (stepClass) {
       stepClass.addEventListener("click", function () {
-        if (typeof window === "undefined" || !window.dndRace) {
+        if (!DND_RACE) {
           var msg = byId("confirm-msg");
           if (msg) msg.innerHTML = t("screen.dndclasses.race.required");
           return;
@@ -2080,7 +2076,7 @@ function initRace() {
       });
     }
   }
-  window.dndRace = null;
+  DND_RACE = null;
   raceState.race = null;
   raceState.subrace = null;
   raceState.picks = [];
@@ -2124,12 +2120,11 @@ function init() {
 
 var pageStarted = false;
 
-window.dndClassRefresh = function () {
-  state.raceBonuses = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+function dndClassRefresh() {
   renderAbility();
   updateFooterSummary();
   refreshConfirmState();
-};
+}
 
 function boot() {
   if (pageStarted) return;

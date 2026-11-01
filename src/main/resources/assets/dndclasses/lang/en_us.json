@@ -1493,6 +1493,7 @@
   "screen.dndclasses.race.title": "CHOOSE YOUR BLOODLINE",
   "screen.dndclasses.race.hint": "Pick a race and subrace first; the class selection follows.",
   "screen.dndclasses.race.confirm": "Confirm Race",
+  "screen.dndclasses.race.duplicate": "That ability is already used by another bonus.",
   "screen.dndclasses.race.required": "Choose a race before creating the character.",
   "screen.dndclasses.race.select_race": "Select a race on the left.",
   "screen.dndclasses.race.speed": "Speed",

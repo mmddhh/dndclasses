@@ -49,6 +49,8 @@ import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
 import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.slf4j.Logger;
+import com.mojang.logging.LogUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -59,6 +61,8 @@ import java.util.UUID;
 
 @Mod.EventBusSubscriber(modid = Dndclasses.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ModForgeEvents {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     @SubscribeEvent
     public static void onAttachCapabilities(AttachCapabilitiesEvent<Entity> event) {
@@ -156,6 +160,7 @@ public class ModForgeEvents {
             // Keep a serialized snapshot so a respawn can restore the data even if the clone-time
             // capability copy is skipped for any reason.
             DEATH_BACKUP.put(current.getUUID(), snapshot(original));
+            LOGGER.info("DND death snapshot stored for {}", current.getGameProfile().getName());
         }
         copyCapability(original, current, ModCapabilities.SKILL_CAPABILITY);
         copyCapability(original, current, ModCapabilities.ABILITY_CAPABILITY);
@@ -174,10 +179,30 @@ public class ModForgeEvents {
         CapSnapshot backup = DEATH_BACKUP.remove(player.getUUID());
         if (backup != null) {
             restore(player, backup);
+            LOGGER.info("DND death snapshot restored on respawn for {}",
+                    player.getGameProfile().getName());
         }
         // The client gets a fresh LocalPlayer on respawn; push the full state again so its
         // capabilities are re-hydrated immediately instead of appearing "empty" until relog.
         ServerStateSync.send(player);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerTick(net.minecraftforge.event.TickEvent.PlayerTickEvent event) {
+        if (event.phase != net.minecraftforge.event.TickEvent.Phase.END
+                || !(event.player instanceof ServerPlayer player)) {
+            return;
+        }
+        // Fallback for environments where PlayerRespawnEvent is not delivered: a dead player's
+        // snapshot is restored as soon as the new player is alive again.
+        CapSnapshot backup = DEATH_BACKUP.get(player.getUUID());
+        if (backup != null && player.isAlive() && player.tickCount > 20) {
+            DEATH_BACKUP.remove(player.getUUID());
+            restore(player, backup);
+            LOGGER.info("DND death snapshot restored on tick for {}",
+                    player.getGameProfile().getName());
+            ServerStateSync.send(player);
+        }
     }
 
     @SubscribeEvent
@@ -309,6 +334,12 @@ public class ModForgeEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             SaveQteManager.breakConcentration(player, DndConcentrationBrokenEvent.Reason.DEATH);
             ConditionManager.clearOnDeath(player);
+            // Snapshot after the death cleanup (conditions/concentration should not come back), but
+            // before the death screen replaces the player; this does not depend on
+            // PlayerEvent.Clone being delivered.
+            DEATH_BACKUP.put(player.getUUID(), snapshot(player));
+            LOGGER.info("DND death snapshot (death event) for {}",
+                    player.getGameProfile().getName());
         }
     }
 

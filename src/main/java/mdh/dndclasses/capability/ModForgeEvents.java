@@ -51,7 +51,10 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 
 @Mod.EventBusSubscriber(modid = Dndclasses.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -149,6 +152,11 @@ public class ModForgeEvents {
         Player current = event.getEntity();
 
         original.reviveCaps();
+        if (event.isWasDeath()) {
+            // Keep a serialized snapshot so a respawn can restore the data even if the clone-time
+            // capability copy is skipped for any reason.
+            DEATH_BACKUP.put(current.getUUID(), snapshot(original));
+        }
         copyCapability(original, current, ModCapabilities.SKILL_CAPABILITY);
         copyCapability(original, current, ModCapabilities.ABILITY_CAPABILITY);
         copyCapability(original, current, ModCapabilities.LEVEL_CAPABILITY);
@@ -156,6 +164,63 @@ public class ModForgeEvents {
         copyCapability(original, current, ModCapabilities.RACE_CAPABILITY);
         copyCapability(original, current, ModCapabilities.CONDITIONS_CAPABILITY);
         original.invalidateCaps();
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        CapSnapshot backup = DEATH_BACKUP.remove(player.getUUID());
+        if (backup != null) {
+            restore(player, backup);
+        }
+        // The client gets a fresh LocalPlayer on respawn; push the full state again so its
+        // capabilities are re-hydrated immediately instead of appearing "empty" until relog.
+        ServerStateSync.send(player);
+    }
+
+    @SubscribeEvent
+    public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            ServerStateSync.send(player);
+        }
+    }
+
+    private record CapSnapshot(CompoundTag skill, CompoundTag ability, CompoundTag level,
+                               CompoundTag spell, CompoundTag race, CompoundTag conditions) {
+    }
+
+    private static final Map<UUID, CapSnapshot> DEATH_BACKUP = new HashMap<>();
+
+    private static CapSnapshot snapshot(Player player) {
+        return new CapSnapshot(nbt(player, ModCapabilities.SKILL_CAPABILITY),
+                nbt(player, ModCapabilities.ABILITY_CAPABILITY),
+                nbt(player, ModCapabilities.LEVEL_CAPABILITY),
+                nbt(player, ModCapabilities.DND_SPELL_CAPABILITY),
+                nbt(player, ModCapabilities.RACE_CAPABILITY),
+                nbt(player, ModCapabilities.CONDITIONS_CAPABILITY));
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static CompoundTag nbt(Player player, Capability<?> capability) {
+        Object data = player.getCapability((Capability) capability).orElse(null);
+        if (data instanceof INBTSerializable serializable) {
+            Object tag = serializable.serializeNBT();
+            if (tag instanceof CompoundTag compoundTag) {
+                return compoundTag;
+            }
+        }
+        return new CompoundTag();
+    }
+
+    private static void restore(Player player, CapSnapshot snapshot) {
+        player.getCapability(ModCapabilities.SKILL_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.skill()));
+        player.getCapability(ModCapabilities.ABILITY_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.ability()));
+        player.getCapability(ModCapabilities.LEVEL_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.level()));
+        player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.spell()));
+        player.getCapability(ModCapabilities.RACE_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.race()));
+        player.getCapability(ModCapabilities.CONDITIONS_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.conditions()));
     }
 
     @SubscribeEvent

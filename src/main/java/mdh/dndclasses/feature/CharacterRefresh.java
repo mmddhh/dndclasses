@@ -31,7 +31,7 @@ public final class CharacterRefresh {
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
     public static void onClone(PlayerEvent.Clone event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             FeatureManager.clearApplied(player.getUUID());

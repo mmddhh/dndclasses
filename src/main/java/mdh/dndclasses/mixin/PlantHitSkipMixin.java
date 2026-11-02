@@ -2,14 +2,13 @@ package mdh.dndclasses.mixin;
 
 import mdh.dndclasses.weapon.DndWeapon;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.BushBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -20,15 +19,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * from breaking grass instead of attacking, which also consumed the swing and skipped the offhand
  * turn of the dual-wield alternation.
  */
-@Mixin(Minecraft.class)
+@Mixin(GameRenderer.class)
 public abstract class PlantHitSkipMixin {
 
-    @Shadow
-    public Entity crosshairPickEntity;
-
     @Inject(method = "pick", at = @At("TAIL"))
-    private void dndclasses$skipPlants(CallbackInfo ci) {
-        Minecraft self = (Minecraft) (Object) this;
+    private void dndclasses$skipPlants(float partialTicks, CallbackInfo ci) {
+        Minecraft self = Minecraft.getInstance();
         if (self.player == null || self.level == null || self.hitResult == null) {
             return;
         }

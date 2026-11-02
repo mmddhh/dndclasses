@@ -1993,8 +1993,13 @@ function raceRenderDetail() {
             btn.innerHTML = abilName(ability.key);
             btn.setAttribute("type", "button");
             if (selected) btn.setAttribute("class", "asi-btn active");
-            if (usedElsewhere) btn.setAttribute("disabled", "disabled");
+            if (usedElsewhere) btn.setAttribute("class", "asi-btn used");
             btn.addEventListener("click", function () {
+              if (usedElsewhere) {
+                var duplicateMsg = byId("race-msg");
+                if (duplicateMsg) duplicateMsg.innerHTML = t("screen.dndclasses.race.duplicate");
+                return;
+              }
               raceState.picks[slotIndex] = ability.key;
               raceRenderDetail();
               raceRefreshConfirm();

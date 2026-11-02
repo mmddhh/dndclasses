@@ -156,12 +156,15 @@ public class ModForgeEvents {
         Player current = event.getEntity();
 
         original.reviveCaps();
-        if (event.isWasDeath()) {
+        if (event.isWasDeath() && !DEATH_BACKUP.containsKey(current.getUUID())) {
             // Keep a serialized snapshot so a respawn can restore the data even if the clone-time
             // capability copy is skipped for any reason.
             DEATH_BACKUP.put(current.getUUID(), snapshot(original));
             LOGGER.info("DND death snapshot stored for {}", current.getGameProfile().getName());
         }
+        // Player persistent data (ForgeData) is not copied automatically for mods; carry it over so
+        // the persistent death backup survives.
+        current.getPersistentData().merge(original.getPersistentData().copy());
         copyCapability(original, current, ModCapabilities.SKILL_CAPABILITY);
         copyCapability(original, current, ModCapabilities.ABILITY_CAPABILITY);
         copyCapability(original, current, ModCapabilities.LEVEL_CAPABILITY);
@@ -177,10 +180,14 @@ public class ModForgeEvents {
             return;
         }
         CapSnapshot backup = DEATH_BACKUP.remove(player.getUUID());
+        if (backup == null) {
+            backup = readPersistentBackup(player);
+        }
         if (backup != null) {
             restore(player, backup);
-            LOGGER.info("DND death snapshot restored on respawn for {}",
-                    player.getGameProfile().getName());
+            player.getPersistentData().remove(TAG_DEATH_BACKUP);
+            LOGGER.info("DND death snapshot restored on respawn for {} class={}",
+                    player.getGameProfile().getName(), currentClass(player));
         }
         // The client gets a fresh LocalPlayer on respawn; push the full state again so its
         // capabilities are re-hydrated immediately instead of appearing "empty" until relog.
@@ -195,13 +202,18 @@ public class ModForgeEvents {
         }
         // Fallback for environments where PlayerRespawnEvent is not delivered: a dead player's
         // snapshot is restored as soon as the new player is alive again.
-        CapSnapshot backup = DEATH_BACKUP.get(player.getUUID());
+        CapSnapshot backup = DEATH_BACKUP.remove(player.getUUID());
+        if (backup == null) {
+            backup = readPersistentBackup(player);
+        }
         if (backup != null && player.isAlive() && player.tickCount > 20) {
-            DEATH_BACKUP.remove(player.getUUID());
             restore(player, backup);
-            LOGGER.info("DND death snapshot restored on tick for {}",
-                    player.getGameProfile().getName());
+            player.getPersistentData().remove(TAG_DEATH_BACKUP);
+            LOGGER.info("DND death snapshot restored on tick for {} class={}",
+                    player.getGameProfile().getName(), currentClass(player));
             ServerStateSync.send(player);
+        } else if (backup != null) {
+            DEATH_BACKUP.put(player.getUUID(), backup);
         }
     }
 
@@ -246,6 +258,34 @@ public class ModForgeEvents {
         player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.spell()));
         player.getCapability(ModCapabilities.RACE_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.race()));
         player.getCapability(ModCapabilities.CONDITIONS_CAPABILITY).ifPresent(data -> data.deserializeNBT(snapshot.conditions()));
+    }
+
+    private static final String TAG_DEATH_BACKUP = "DndDeathBackup";
+
+    private static void writePersistentBackup(ServerPlayer player, CapSnapshot snapshot) {
+        CompoundTag tag = new CompoundTag();
+        tag.put("skill", snapshot.skill());
+        tag.put("ability", snapshot.ability());
+        tag.put("level", snapshot.level());
+        tag.put("spell", snapshot.spell());
+        tag.put("race", snapshot.race());
+        tag.put("conditions", snapshot.conditions());
+        player.getPersistentData().put(TAG_DEATH_BACKUP, tag);
+    }
+
+    private static CapSnapshot readPersistentBackup(ServerPlayer player) {
+        CompoundTag tag = player.getPersistentData().getCompound(TAG_DEATH_BACKUP);
+        if (tag.isEmpty()) {
+            return null;
+        }
+        return new CapSnapshot(tag.getCompound("skill"), tag.getCompound("ability"),
+                tag.getCompound("level"), tag.getCompound("spell"),
+                tag.getCompound("race"), tag.getCompound("conditions"));
+    }
+
+    private static String currentClass(ServerPlayer player) {
+        return player.getCapability(ModCapabilities.LEVEL_CAPABILITY)
+                .map(Ilevel::getclassName).orElse("");
     }
 
     @SubscribeEvent
@@ -338,8 +378,9 @@ public class ModForgeEvents {
             // before the death screen replaces the player; this does not depend on
             // PlayerEvent.Clone being delivered.
             DEATH_BACKUP.put(player.getUUID(), snapshot(player));
-            LOGGER.info("DND death snapshot (death event) for {}",
-                    player.getGameProfile().getName());
+            writePersistentBackup(player, DEATH_BACKUP.get(player.getUUID()));
+            LOGGER.info("DND death snapshot (death event) for {} class={}",
+                    player.getGameProfile().getName(), currentClass(player));
         }
     }
 

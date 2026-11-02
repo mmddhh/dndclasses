@@ -1493,7 +1493,7 @@ function openSummary() {
   body.appendChild(summaryLine("screen.dndclasses.creation.summary_class",
     t("class.dndclasses." + c.key) + t("class.dndclasses." + c.key + ".subtitle_inline")));
   body.appendChild(summaryLine("screen.dndclasses.creation.hit_die", c.hitDie));
-  body.appendChild(summaryLine("screen.dndclasses.creation.primary", c.primaryKey));
+  body.appendChild(summaryLine("screen.dndclasses.creation.primary", t(c.primaryKey)));
   body.appendChild(summaryLine("screen.dndclasses.creation.saves",
     prefixKeys("ability.dndclasses.", c.saves).map(function (k) { return t(k); }).join(" / ")));
   var subId = chosenSubclassId(c);

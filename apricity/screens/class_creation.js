@@ -1472,7 +1472,8 @@ function summaryAbilities() {
     var row = make("div", "summary-ability-row");
     for (var i = 0; i < order[r].length; i++) {
       var ab = findAbility(order[r][i]);
-      var sc = state.abilities[ab.key];
+      var raceBonus = (DND_RACE && DND_RACE.bonuses) ? (DND_RACE.bonuses[ab.key] || 0) : 0;
+      var sc = Math.min(20, state.abilities[ab.key] + raceBonus);
       var mod = Math.floor((sc - 10) / 2);
       var cell = make("div", "summary-ability");
       cell.appendChild(mk("div", "summary-ability-name", "ability.dndclasses." + ab.key));

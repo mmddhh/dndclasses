@@ -15,7 +15,8 @@
     "ConditionMovementMixin",
     "ItemInHandRendererMixin",
     "AttackChargeMixin",
-    "AttackSwingGateMixin"
+    "AttackSwingGateMixin",
+    "PlantHitSkipMixin"
   ],
   "injectors": {
     "defaultRequire": 1

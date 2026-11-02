@@ -90,6 +90,19 @@ public final class DndCombatEvents {
     }
 
     @SubscribeEvent
+    public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (!(event.getEntity().getItemInHand(event.getHand()).getItem() instanceof DndWeapon)) {
+            return;
+        }
+        BlockState state = event.getLevel().getBlockState(event.getPos());
+        // D&D weapons should attack through grass/flowers instead of cutting them down.
+        if (state.getBlock() instanceof net.minecraft.world.level.block.BushBlock
+                || (state.canBeReplaced() && state.getFluidState().isEmpty())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
     public static void onRightClickEntity(PlayerInteractEvent.EntityInteract event) {
         Player player = event.getEntity();
         if (handleRightClick(player, event.getTarget())) {

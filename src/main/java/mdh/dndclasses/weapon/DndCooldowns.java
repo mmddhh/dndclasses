@@ -16,6 +16,7 @@ public final class DndCooldowns {
     public static final int DUAL_WIELD_COOLDOWN_TICKS = 10;
 
     private static final String TAG_LAST_SWING = "DndWeaponSwingCooldown";
+    private static final String TAG_RECENT_ATTACK = "DndRecentAttackTick";
 
     private DndCooldowns() {
     }
@@ -42,6 +43,17 @@ public final class DndCooldowns {
     public static boolean isCoolingDown(Player player, InteractionHand hand) {
         long now = player.level().getGameTime();
         return now - player.getPersistentData().getLong(TAG_LAST_SWING) < interval(player);
+    }
+
+    /** Records that a melee attack input happened on this tick (client and server). */
+    public static void markAttack(Player player) {
+        player.getPersistentData().putLong(TAG_RECENT_ATTACK, player.level().getGameTime());
+    }
+
+    /** True when a melee attack input happened within {@code ticks} ticks. */
+    public static boolean isRecentAttack(Player player, int ticks) {
+        long now = player.level().getGameTime();
+        return now - player.getPersistentData().getLong(TAG_RECENT_ATTACK) < ticks;
     }
 
     private static int interval(Player player) {

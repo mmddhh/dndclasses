@@ -57,6 +57,9 @@ public final class DndCombatEvents {
     @SubscribeEvent
     public static void onAttackEntity(AttackEntityEvent event) {
         Player player = event.getEntity();
+        // Remember the attack input on both sides: the client uses it to suppress an immediate
+        // right-click throw (and its predicted main-hand swing), the server as an extra guard.
+        DndCooldowns.markAttack(player);
         // Better Combat owns the attack pipeline when it is installed: do not cancel its event,
         // our damage is applied in compat/BetterCombatDamageHandler instead.
         if (BetterCombatCompat.isActive()) {

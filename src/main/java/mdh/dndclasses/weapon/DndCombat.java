@@ -145,6 +145,11 @@ public final class DndCombat {
             player.displayClientMessage(Component.translatable("message.dndclasses.broken"), true);
             return true;
         }
+        // A throw immediately after a melee attack input is refused: otherwise a fast right click
+        // could sneak a throw into the same window as the left-click attack.
+        if (DndCooldowns.isRecentAttack(player, 5)) {
+            return true;
+        }
         if (!DndCooldowns.tryUse(player, hand) || !canUseWeapon(player, hand, weaponItem.spec(), false)) {
             return true;
         }

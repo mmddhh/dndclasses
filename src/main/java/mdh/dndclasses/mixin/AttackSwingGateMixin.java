@@ -31,6 +31,11 @@ public abstract class AttackSwingGateMixin {
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void dndclasses$blockUnchargedAttack(CallbackInfoReturnable<Boolean> cir) {
         Minecraft self = (Minecraft) (Object) this;
+        if (self.player != null) {
+            // Left-click input marker: lets the client-side useItem guard drop a right-click throw
+            // that arrives in the same tick (before AttackEntityEvent has a chance to run).
+            mdh.dndclasses.weapon.DndCooldowns.markAttack(self.player);
+        }
         if (self.player == null || self.hitResult == null) {
             return;
         }

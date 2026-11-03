@@ -44,7 +44,9 @@ public abstract class OffhandThrowUseMixin {
         boolean recent = DndCooldowns.isRecentAttack(player, 5);
         LOGGER.info("DND useItem HEAD offhandThrow=true recent={}", recent);
         if (recent) {
-            cir.setReturnValue(InteractionResult.FAIL);
+            // CONSUME stops Minecraft.startUseItem from falling through to the offhand and from
+            // swinging the main hand; no use packet is sent, so the throw is fully blocked.
+            cir.setReturnValue(InteractionResult.CONSUME);
         }
     }
 
@@ -57,9 +59,10 @@ public abstract class OffhandThrowUseMixin {
         ItemStack offhand = player.getOffhandItem();
         if (offhand.getItem() instanceof DndWeapon weapon
                 && weapon.spec().isThrown() && weapon.spec().has(WeaponProperty.LIGHT)) {
-            // The use packet has already been sent; only hide the main-hand animation.
+            // The use packet has already been sent; CONSUME keeps startUseItem from iterating the
+            // offhand (second use packet) and from playing the main-hand swing animation.
             LOGGER.info("DND useItem RETURN suppress main swing");
-            cir.setReturnValue(InteractionResult.FAIL);
+            cir.setReturnValue(InteractionResult.CONSUME);
         }
     }
 }

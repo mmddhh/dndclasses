@@ -150,6 +150,11 @@ public final class DndCombat {
         if (DndCooldowns.isRecentAttack(player, 5)) {
             return true;
         }
+        // Throwing follows the same attack indicator as melee: it stays locked until the charge is
+        // full, so a throw cannot be squeezed in before the indicator recovers.
+        if (player.getAttackStrengthScale(0.5F) < 0.999F) {
+            return true;
+        }
         if (!DndCooldowns.tryUse(player, hand) || !canUseWeapon(player, hand, weaponItem.spec(), false)) {
             return true;
         }
@@ -162,6 +167,7 @@ public final class DndCombat {
         ThrownWeaponEntity entity = new ThrownWeaponEntity(player.level(), player, thrown);
         entity.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 1.7F, 1.0F);
         player.level().addFreshEntity(entity);
+        player.resetAttackStrengthTicker();
         player.swing(hand, true);
         return true;
     }

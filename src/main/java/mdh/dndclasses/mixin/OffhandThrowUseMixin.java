@@ -42,10 +42,13 @@ public abstract class OffhandThrowUseMixin {
             return;
         }
         boolean recent = DndCooldowns.isRecentAttack(player, 5);
-        LOGGER.info("DND useItem HEAD offhandThrow=true recent={}", recent);
-        if (recent) {
+        boolean charged = player.getAttackStrengthScale(0.5F) >= 0.999F;
+        LOGGER.info("DND useItem HEAD offhandThrow=true recent={} charged={}", recent, charged);
+        if (recent || !charged) {
             // CONSUME stops Minecraft.startUseItem from falling through to the offhand and from
             // swinging the main hand; no use packet is sent, so the throw is fully blocked.
+            // The attack-strength check ties throwing to the attack indicator: after a melee
+            // attack the throw stays locked until the indicator is full again.
             cir.setReturnValue(InteractionResult.CONSUME);
         }
     }
@@ -61,7 +64,14 @@ public abstract class OffhandThrowUseMixin {
                 && weapon.spec().isThrown() && weapon.spec().has(WeaponProperty.LIGHT)) {
             // The use packet has already been sent; CONSUME keeps startUseItem from iterating the
             // offhand (second use packet) and from playing the main-hand swing animation.
-            LOGGER.info("DND useItem RETURN suppress main swing");
+            // Force the local swing to the offhand as well: if the main hand was still mid-swing
+            // the server's swing packet alone could leave the main animation running.
+            if (player instanceof net.minecraft.client.player.LocalPlayer localPlayer) {
+                localPlayer.swingingArm = InteractionHand.OFF_HAND;
+                localPlayer.swinging = true;
+                localPlayer.swingTime = -1;
+            }
+            LOGGER.info("DND useItem RETURN suppress main swing, forced offhand swing");
             cir.setReturnValue(InteractionResult.CONSUME);
         }
     }

@@ -20,7 +20,8 @@
     "PlantHitSkipMixin",
     "OffhandThrowUseMixin",
     "OffhandThrowStartUseMixin",
-    "OffhandThrowItemUsedMixin"
+    "OffhandThrowItemUsedMixin",
+    "OffhandThrowRenderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

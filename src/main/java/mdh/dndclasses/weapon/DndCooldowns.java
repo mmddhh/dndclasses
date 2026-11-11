@@ -17,6 +17,7 @@ public final class DndCooldowns {
 
     private static final String TAG_LAST_SWING = "DndWeaponSwingCooldown";
     private static final String TAG_RECENT_ATTACK = "DndRecentAttackTick";
+    private static final String TAG_THROW_WINDOW = "DndThrowWindowTick";
 
     private DndCooldowns() {
     }
@@ -54,6 +55,17 @@ public final class DndCooldowns {
     public static boolean isRecentAttack(Player player, int ticks) {
         long now = player.level().getGameTime();
         return now - player.getPersistentData().getLong(TAG_RECENT_ATTACK) < ticks;
+    }
+
+    /** Marks that a right click is being handled as an offhand throw right now. */
+    public static void markThrowWindow(Player player) {
+        player.getPersistentData().putLong(TAG_THROW_WINDOW, player.level().getGameTime());
+    }
+
+    /** True while an offhand throw was just handled; used to hide stray main-hand swings. */
+    public static boolean isThrowWindow(Player player, int ticks) {
+        long now = player.level().getGameTime();
+        return now - player.getPersistentData().getLong(TAG_THROW_WINDOW) < ticks;
     }
 
     private static int interval(Player player) {

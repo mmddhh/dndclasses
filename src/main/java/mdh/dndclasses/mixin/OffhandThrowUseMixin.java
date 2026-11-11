@@ -43,6 +43,7 @@ public abstract class OffhandThrowUseMixin {
         }
         boolean recent = DndCooldowns.isRecentAttack(player, 5);
         boolean charged = player.getAttackStrengthScale(0.5F) >= 0.999F;
+        DndCooldowns.markThrowWindow(player);
         LOGGER.info("DND useItem HEAD offhandThrow=true recent={} charged={}", recent, charged);
         if (recent || !charged) {
             // CONSUME stops Minecraft.startUseItem from falling through to the offhand and from

@@ -32,6 +32,7 @@ public abstract class OffhandThrowStartUseMixin {
                 || !weapon.spec().isThrown() || !weapon.spec().has(WeaponProperty.LIGHT)) {
             return;
         }
+        DndCooldowns.markThrowWindow(player);
         if (player.getAttackStrengthScale(0.5F) < 0.999F
                 || DndCooldowns.isRecentAttack(player, 5)) {
             ci.cancel();

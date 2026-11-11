@@ -166,6 +166,7 @@ public final class DndCombat {
         entity.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 1.7F, 1.0F);
         player.level().addFreshEntity(entity);
         player.resetAttackStrengthTicker();
+        DndCooldowns.markThrowWindow(player);
         player.swing(hand, true);
         return true;
     }

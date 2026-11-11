@@ -42,6 +42,11 @@ public abstract class OffhandThrowRenderMixin {
         if (!DndCooldowns.isThrowWindow(player, 2)) {
             return;
         }
+        if (player.swinging && player.swingingArm == InteractionHand.MAIN_HAND) {
+            // Kill any main-hand swing that was already running when the throw started.
+            player.swinging = false;
+            player.swingTime = 0;
+        }
         player.swingingArm = InteractionHand.OFF_HAND;
         this.mainHandHeight = 1.0F;
         this.oMainHandHeight = 1.0F;

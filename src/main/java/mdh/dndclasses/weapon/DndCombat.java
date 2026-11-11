@@ -150,11 +150,9 @@ public final class DndCombat {
         if (DndCooldowns.isRecentAttack(player, 5)) {
             return true;
         }
-        // Throwing follows the same attack indicator as melee: it stays locked until the charge is
-        // full, so a throw cannot be squeezed in before the indicator recovers.
-        if (player.getAttackStrengthScale(0.5F) < 0.999F) {
-            return true;
-        }
+        // NOTE: no attack-strength check here. The use packet itself resets the server-side attack
+        // strength ticker before this runs, so it would always read 0; the client gates the throw
+        // on the indicator and the shared cooldown below enforces the interval.
         if (!DndCooldowns.tryUse(player, hand) || !canUseWeapon(player, hand, weaponItem.spec(), false)) {
             return true;
         }

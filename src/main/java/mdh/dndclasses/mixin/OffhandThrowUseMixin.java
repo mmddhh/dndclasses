@@ -67,6 +67,10 @@ public abstract class OffhandThrowUseMixin {
             // Force the local swing to the offhand as well: if the main hand was still mid-swing
             // the server's swing packet alone could leave the main animation running.
             if (player instanceof net.minecraft.client.player.LocalPlayer localPlayer) {
+                // The throw consumes the attack window on the server; mirror that locally so the
+                // indicator has to refill before the next throw (otherwise holding right click
+                // keeps replaying the swing while the server rejects the extra throws).
+                localPlayer.resetAttackStrengthTicker();
                 localPlayer.swingingArm = InteractionHand.OFF_HAND;
                 localPlayer.swinging = true;
                 localPlayer.swingTime = -1;

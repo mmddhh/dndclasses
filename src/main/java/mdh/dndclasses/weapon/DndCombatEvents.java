@@ -204,7 +204,10 @@ public final class DndCombatEvents {
                 return DndCombat.shootRanged(player, InteractionHand.MAIN_HAND);
             }
             if (spec.isThrown()) {
-                return DndCombat.throwWeapon(player, InteractionHand.MAIN_HAND);
+                // Right-click is the offhand throw. Never fall through to the main hand: after the
+                // offhand is empty the next right click used to throw the main weapon and play its
+                // swing animation, which made the hand "move by itself".
+                return false;
             }
         }
         return false;

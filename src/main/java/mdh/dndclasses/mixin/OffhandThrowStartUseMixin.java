@@ -45,21 +45,21 @@ public abstract class OffhandThrowStartUseMixin {
         ItemStack offhand = player.getOffhandItem();
         boolean offhandThrow = offhand.getItem() instanceof DndWeapon offHandWeapon
                 && offHandWeapon.spec().isThrown() && offHandWeapon.spec().has(WeaponProperty.LIGHT);
-        if (!offhandThrow) {
-            // Right-click never throws the main hand. When the offhand is empty (or not a light
-            // thrown weapon) vanilla would still run the use path for the main-hand weapon and
-            // play its swing animation, even though the server does nothing. Skip the whole use
-            // path so the main hand stays still during the attack cooldown.
-            ItemStack main = player.getMainHandItem();
-            if (main.getItem() instanceof DndWeapon mainWeapon && mainWeapon.spec().isThrown()) {
-                ci.cancel();
-            }
+        ItemStack main = player.getMainHandItem();
+        boolean mainThrow = main.getItem() instanceof DndWeapon mainWeapon && mainWeapon.spec().isThrown();
+        if (!offhandThrow && !mainThrow) {
             return;
         }
-        DndCooldowns.markThrowWindow(player);
+        // Cooldown window: do nothing at all (no packet, no main-hand swing animation).
         if (player.getAttackStrengthScale(0.5F) < 0.999F
                 || DndCooldowns.isRecentAttack(player, 5)) {
             ci.cancel();
+            return;
         }
+        if (offhandThrow) {
+            DndCooldowns.markThrowWindow(player);
+        }
+        // One press = one throw; tick() clears this once the use key is released.
+        mdh.dndclasses.client.OffhandThrowState.markConsumed();
     }
 }

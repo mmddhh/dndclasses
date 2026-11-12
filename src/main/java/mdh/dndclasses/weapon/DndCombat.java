@@ -172,8 +172,15 @@ public final class DndCombat {
         entity.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 1.7F, 1.0F);
         player.level().addFreshEntity(entity);
         player.resetAttackStrengthTicker();
-        DndCooldowns.markThrowWindow(player);
+        if (hand == InteractionHand.OFF_HAND) {
+            DndCooldowns.markThrowWindow(player);
+        }
         player.swing(hand, true);
+        // The throw is the alternating action: the next throw/attack uses the other hand.
+        DualWieldRules.recordAttack(player, hand);
+        if (player instanceof ServerPlayer serverPlayer) {
+            DndNetwork.sendToPlayer(serverPlayer, new SwingHandPacket(hand));
+        }
         return true;
     }
 

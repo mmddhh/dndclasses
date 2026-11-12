@@ -57,7 +57,7 @@ public abstract class OffhandThrowStartUseMixin {
             return;
         }
         if (offhandThrow) {
-            DndCooldowns.markThrowWindow(player);
+            // The server marks the throw window only when it actually throws the offhand.
         }
         // One press = one throw; tick() clears this once the use key is released.
         mdh.dndclasses.client.OffhandThrowState.markConsumed();

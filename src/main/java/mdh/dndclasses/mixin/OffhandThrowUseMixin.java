@@ -43,7 +43,6 @@ public abstract class OffhandThrowUseMixin {
         }
         boolean recent = DndCooldowns.isRecentAttack(player, 5);
         boolean charged = player.getAttackStrengthScale(0.5F) >= 0.999F;
-        DndCooldowns.markThrowWindow(player);
         LOGGER.info("DND useItem HEAD offhandThrow=true recent={} charged={}", recent, charged);
         if (recent || !charged) {
             // CONSUME stops Minecraft.startUseItem from falling through to the offhand and from
@@ -61,24 +60,21 @@ public abstract class OffhandThrowUseMixin {
             return;
         }
         ItemStack offhand = player.getOffhandItem();
-        if (offhand.getItem() instanceof DndWeapon weapon
-                && weapon.spec().isThrown() && weapon.spec().has(WeaponProperty.LIGHT)) {
-            // The use packet has already been sent; CONSUME keeps startUseItem from iterating the
-            // offhand (second use packet) and from playing the main-hand swing animation.
-            // Force the local swing to the offhand as well: if the main hand was still mid-swing
-            // the server's swing packet alone could leave the main animation running.
-            if (player instanceof net.minecraft.client.player.LocalPlayer localPlayer) {
-                // The throw consumes the attack window on the server; mirror that locally so the
-                // indicator has to refill before the next throw (otherwise holding right click
-                // keeps replaying the swing while the server rejects the extra throws).
-                localPlayer.resetAttackStrengthTicker();
-                localPlayer.swingingArm = InteractionHand.OFF_HAND;
-                localPlayer.swinging = true;
-                localPlayer.swingTime = -1;
-                mdh.dndclasses.client.OffhandThrowState.markConsumed();
-            }
-            LOGGER.info("DND useItem RETURN suppress main swing, forced offhand swing");
-            cir.setReturnValue(InteractionResult.CONSUME);
+        ItemStack main = player.getMainHandItem();
+        boolean offhandThrow = offhand.getItem() instanceof DndWeapon offWeapon
+                && offWeapon.spec().isThrown() && offWeapon.spec().has(WeaponProperty.LIGHT);
+        boolean mainThrow = main.getItem() instanceof DndWeapon mainWeapon && mainWeapon.spec().isThrown();
+        if (!offhandThrow && !mainThrow) {
+            return;
         }
+        // The use packet has already been sent; the server decides which hand is thrown and sends
+        // the matching swing. CONSUME stops startUseItem from iterating the offhand again or
+        // playing vanilla's predicted main-hand swing.
+        if (player instanceof net.minecraft.client.player.LocalPlayer localPlayer) {
+            localPlayer.resetAttackStrengthTicker();
+            mdh.dndclasses.client.OffhandThrowState.markConsumed();
+        }
+        LOGGER.info("DND useItem RETURN suppress predicted swing");
+        cir.setReturnValue(InteractionResult.CONSUME);
     }
 }

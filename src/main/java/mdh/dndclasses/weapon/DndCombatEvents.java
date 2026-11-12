@@ -170,17 +170,32 @@ public final class DndCombatEvents {
         if (player.level().isClientSide) {
             return false;
         }
-        // Right-click is reserved for throwing light weapons from the offhand; melee offhand
-        // attacks are performed by the alternating left-click attack instead.
+        // Right-click throws the hand that would make the next melee attack: after a main-hand
+        // attack the bonus-action throw is the offhand, after an offhand attack it is the main hand.
+        // Outside dual wielding the offhand is still preferred, then the main hand.
         ItemStack offhand = player.getOffhandItem();
-        if (offhand.getItem() instanceof DndWeapon offhandWeapon) {
-            DndWeaponSpec offhandSpec = offhandWeapon.spec();
-            if (offhandSpec.isThrown() && offhandSpec.has(WeaponProperty.LIGHT)) {
-                return DndCombat.throwWeapon(player, InteractionHand.OFF_HAND);
+        ItemStack main = player.getMainHandItem();
+        InteractionHand throwHand = null;
+        if (DualWieldRules.canDualWield(player)) {
+            InteractionHand next = DualWieldRules.nextHand(player);
+            if (isThrowable(player.getItemInHand(next))) {
+                throwHand = next;
+            } else {
+                InteractionHand other = next == InteractionHand.MAIN_HAND
+                        ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+                if (isThrowable(player.getItemInHand(other))) {
+                    throwHand = other;
+                }
             }
+        } else if (isThrowable(offhand)) {
+            throwHand = InteractionHand.OFF_HAND;
+        } else if (isThrowable(main)) {
+            throwHand = InteractionHand.MAIN_HAND;
+        }
+        if (throwHand != null) {
+            return DndCombat.throwWeapon(player, throwHand);
         }
 
-        ItemStack main = player.getMainHandItem();
         if (main.getItem() instanceof DndWeapon mainWeapon) {
             DndWeaponSpec spec = mainWeapon.spec();
             if (spec.isRanged()) {
@@ -204,11 +219,14 @@ public final class DndCombatEvents {
                 return DndCombat.shootRanged(player, InteractionHand.MAIN_HAND);
             }
             if (spec.isThrown()) {
-                // Offhand first; if the offhand is empty this is the normal main-hand throw.
                 return DndCombat.throwWeapon(player, InteractionHand.MAIN_HAND);
             }
         }
         return false;
+    }
+
+    private static boolean isThrowable(ItemStack stack) {
+        return stack.getItem() instanceof DndWeapon weapon && weapon.spec().isThrown();
     }
 
     private static void filterTradeList(List<VillagerTrades.ItemListing> trades) {

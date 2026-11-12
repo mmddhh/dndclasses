@@ -23,8 +23,17 @@ public abstract class OffhandThrowStartUseMixin {
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void dndclasses$cancelUnreadyThrow(CallbackInfo ci) {
         Minecraft self = (Minecraft) (Object) this;
+        if (!self.options.keyUse.isDown()) {
+            mdh.dndclasses.client.OffhandThrowState.reset();
+        }
         Player player = self.player;
         if (player == null) {
+            return;
+        }
+        // One press = one throw. While the key stays held after a throw, skip the entire use path
+        // so the main hand is not thrown/animated when the offhand has become empty.
+        if (mdh.dndclasses.client.OffhandThrowState.isConsumed() && self.options.keyUse.isDown()) {
+            ci.cancel();
             return;
         }
         ItemStack offhand = player.getOffhandItem();

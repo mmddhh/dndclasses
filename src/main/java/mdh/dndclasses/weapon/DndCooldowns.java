@@ -18,6 +18,7 @@ public final class DndCooldowns {
     private static final String TAG_LAST_SWING = "DndWeaponSwingCooldown";
     private static final String TAG_RECENT_ATTACK = "DndRecentAttackTick";
     private static final String TAG_THROW_WINDOW = "DndThrowWindowTick";
+    private static final String TAG_OFFHAND_THROW = "DndOffhandThrowTick";
 
     private DndCooldowns() {
     }
@@ -66,6 +67,16 @@ public final class DndCooldowns {
     public static boolean isThrowWindow(Player player, int ticks) {
         long now = player.level().getGameTime();
         return now - player.getPersistentData().getLong(TAG_THROW_WINDOW) < ticks;
+    }
+
+    public static void markOffhandThrow(Player player) {
+        player.getPersistentData().putLong(TAG_OFFHAND_THROW, player.level().getGameTime());
+    }
+
+    /** Prevents the main hand from being thrown right after an offhand throw emptied the offhand. */
+    public static boolean isRecentOffhandThrow(Player player, int ticks) {
+        long now = player.level().getGameTime();
+        return now - player.getPersistentData().getLong(TAG_OFFHAND_THROW) < ticks;
     }
 
     private static int interval(Player player) {

@@ -154,6 +154,11 @@ public final class DndCombat {
         if (DndCooldowns.isRecentAttack(player, 5)) {
             return true;
         }
+        // Do not fall through to the main hand right after the offhand throw emptied the offhand:
+        // holding right click used to throw the main-hand weapon about one indicator cycle later.
+        if (hand == InteractionHand.MAIN_HAND && DndCooldowns.isRecentOffhandThrow(player, 20)) {
+            return true;
+        }
         // NOTE: no attack-strength check here. The use packet itself resets the server-side attack
         // strength ticker before this runs, so it would always read 0; the client gates the throw
         // on the indicator and the shared cooldown below enforces the interval.
@@ -171,6 +176,9 @@ public final class DndCombat {
         ThrownWeaponEntity entity = new ThrownWeaponEntity(player.level(), player, thrown);
         entity.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 1.7F, 1.0F);
         player.level().addFreshEntity(entity);
+        if (hand == InteractionHand.OFF_HAND) {
+            DndCooldowns.markOffhandThrow(player);
+        }
         player.resetAttackStrengthTicker();
         DndCooldowns.markThrowWindow(player);
         player.swing(hand, true);

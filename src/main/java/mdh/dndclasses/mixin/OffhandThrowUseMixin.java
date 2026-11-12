@@ -75,6 +75,7 @@ public abstract class OffhandThrowUseMixin {
                 localPlayer.swingingArm = InteractionHand.OFF_HAND;
                 localPlayer.swinging = true;
                 localPlayer.swingTime = -1;
+                mdh.dndclasses.client.OffhandThrowState.markConsumed();
             }
             LOGGER.info("DND useItem RETURN suppress main swing, forced offhand swing");
             cir.setReturnValue(InteractionResult.CONSUME);

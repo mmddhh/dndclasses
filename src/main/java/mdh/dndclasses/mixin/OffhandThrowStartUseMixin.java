@@ -20,18 +20,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Minecraft.class)
 public abstract class OffhandThrowStartUseMixin {
 
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void dndclasses$resetThrowOnRelease(CallbackInfo ci) {
+        Minecraft self = (Minecraft) (Object) this;
+        if (self.options != null && !self.options.keyUse.isDown()) {
+            mdh.dndclasses.client.OffhandThrowState.reset();
+        }
+    }
+
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void dndclasses$cancelUnreadyThrow(CallbackInfo ci) {
         Minecraft self = (Minecraft) (Object) this;
-        if (!self.options.keyUse.isDown()) {
-            mdh.dndclasses.client.OffhandThrowState.reset();
-        }
         Player player = self.player;
         if (player == null) {
             return;
         }
         // One press = one throw. While the key stays held after a throw, skip the entire use path
-        // so the main hand is not thrown/animated when the offhand has become empty.
+        // so the main hand is not thrown/animated when the offhand has become empty. The flag is
+        // cleared in tick() once the key is actually released.
         if (mdh.dndclasses.client.OffhandThrowState.isConsumed() && self.options.keyUse.isDown()) {
             ci.cancel();
             return;

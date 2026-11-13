@@ -24,6 +24,7 @@ import java.util.UUID;
 public final class DualWieldRules {
 
     private static final String TAG_NEXT_OFF = "DndDualWieldNextOff";
+    private static final String TAG_LAST_ATTACK = "DndLastAttackHand";
     private static final UUID DUAL_WIELD_SPEED_ID = UUID.fromString("3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f");
 
     private DualWieldRules() {
@@ -75,7 +76,20 @@ public final class DualWieldRules {
 
     /** Records a performed attack and flips the alternation to the other hand. */
     public static void recordAttack(Player player, InteractionHand hand) {
-        player.getPersistentData().putBoolean(TAG_NEXT_OFF, hand == InteractionHand.MAIN_HAND);
+        CompoundTag tag = player.getPersistentData();
+        tag.putBoolean(TAG_NEXT_OFF, hand == InteractionHand.MAIN_HAND);
+        tag.putString(TAG_LAST_ATTACK, hand == InteractionHand.MAIN_HAND ? "main" : "off");
+    }
+
+    /**
+     * The hand of the last attack/throw. The bonus-action throw uses the opposite hand; with no
+     * previous action it defaults to the offhand.
+     */
+    public static InteractionHand lastAttackHand(Player player) {
+        // Default to the main hand, so a throw with no previous action is the offhand bonus throw.
+        return "off".equals(player.getPersistentData().getString(TAG_LAST_ATTACK))
+                ? InteractionHand.OFF_HAND
+                : InteractionHand.MAIN_HAND;
     }
 
     public static void reset(Player player) {

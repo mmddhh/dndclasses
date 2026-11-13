@@ -177,7 +177,9 @@ public final class DndCombatEvents {
         ItemStack main = player.getMainHandItem();
         InteractionHand throwHand = null;
         if (DualWieldRules.canDualWield(player)) {
-            InteractionHand next = DualWieldRules.nextHand(player);
+            // The throw is the bonus action: use the hand opposite to the last attack/throw.
+            InteractionHand next = DualWieldRules.lastAttackHand(player) == InteractionHand.MAIN_HAND
+                    ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
             if (isThrowable(player.getItemInHand(next))) {
                 throwHand = next;
             } else {

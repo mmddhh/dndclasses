@@ -35,6 +35,12 @@ public abstract class OffhandThrowStartUseMixin {
         if (player == null) {
             return;
         }
+        if (mdh.dndclasses.client.OffhandThrowState.isCoolingDown(player.level().getGameTime())) {
+            // A throw is still cooling down: cancel the use path completely, even when both hands
+            // are empty, so no predicted hand swing is played.
+            ci.cancel();
+            return;
+        }
         // One press = one throw. While the key stays held after a throw, skip the entire use path
         // so the main hand is not thrown/animated when the offhand has become empty. The flag is
         // cleared in tick() once the key is actually released.
@@ -56,10 +62,13 @@ public abstract class OffhandThrowStartUseMixin {
             ci.cancel();
             return;
         }
-        if (offhandThrow) {
-            // The server marks the throw window only when it actually throws the offhand.
-        }
+        // Consume the charge locally too, even when the empty main hand means the use packet is
+        // sent for the offhand: otherwise the client would keep the indicator full and let the
+        // next right click run the use path (offhand swing) although the server is on cooldown.
+        player.resetAttackStrengthTicker();
         // One press = one throw; tick() clears this once the use key is released.
         mdh.dndclasses.client.OffhandThrowState.markConsumed();
+        mdh.dndclasses.client.OffhandThrowState.markThrown(player.level().getGameTime(),
+                mdh.dndclasses.weapon.DualWieldRules.canDualWield(player) ? 10 : 20);
     }
 }

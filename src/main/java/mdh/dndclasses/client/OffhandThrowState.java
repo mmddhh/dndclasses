@@ -8,6 +8,7 @@ package mdh.dndclasses.client;
 public final class OffhandThrowState {
 
     private static boolean consumed;
+    private static long cooldownEnd;
 
     private OffhandThrowState() {
     }
@@ -18,6 +19,14 @@ public final class OffhandThrowState {
 
     public static void markConsumed() {
         consumed = true;
+    }
+
+    public static void markThrown(long gameTime, int ticks) {
+        cooldownEnd = gameTime + ticks;
+    }
+
+    public static boolean isCoolingDown(long gameTime) {
+        return gameTime < cooldownEnd;
     }
 
     public static void reset() {

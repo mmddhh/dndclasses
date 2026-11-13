@@ -65,7 +65,6 @@ public abstract class OffhandThrowStartUseMixin {
         // Consume the charge locally too, even when the empty main hand means the use packet is
         // sent for the offhand: otherwise the client would keep the indicator full and let the
         // next right click run the use path (offhand swing) although the server is on cooldown.
-        player.resetAttackStrengthTicker();
         // One press = one throw; tick() clears this once the use key is released.
         mdh.dndclasses.client.OffhandThrowState.markConsumed();
         mdh.dndclasses.client.OffhandThrowState.markThrown(player.level().getGameTime(),

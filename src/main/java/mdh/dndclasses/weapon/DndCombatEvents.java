@@ -176,23 +176,19 @@ public final class DndCombatEvents {
         ItemStack offhand = player.getOffhandItem();
         ItemStack main = player.getMainHandItem();
         InteractionHand throwHand = null;
-        if (DualWieldRules.canDualWield(player)) {
-            // The throw is the bonus action: use the hand opposite to the last attack/throw.
-            InteractionHand next = DualWieldRules.lastAttackHand(player) == InteractionHand.MAIN_HAND
+        // The throw is the bonus action: always use the hand opposite to the last attack/throw.
+        // This is independent of whether both hands still hold a weapon, so throwing the offhand
+        // empty still makes the next throw the main hand (and vice versa).
+        InteractionHand next = DualWieldRules.lastAttackHand(player) == InteractionHand.MAIN_HAND
+                ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+        if (isThrowable(player.getItemInHand(next))) {
+            throwHand = next;
+        } else {
+            InteractionHand other = next == InteractionHand.MAIN_HAND
                     ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
-            if (isThrowable(player.getItemInHand(next))) {
-                throwHand = next;
-            } else {
-                InteractionHand other = next == InteractionHand.MAIN_HAND
-                        ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
-                if (isThrowable(player.getItemInHand(other))) {
-                    throwHand = other;
-                }
+            if (isThrowable(player.getItemInHand(other))) {
+                throwHand = other;
             }
-        } else if (isThrowable(offhand)) {
-            throwHand = InteractionHand.OFF_HAND;
-        } else if (isThrowable(main)) {
-            throwHand = InteractionHand.MAIN_HAND;
         }
         if (throwHand != null) {
             return DndCombat.throwWeapon(player, throwHand);

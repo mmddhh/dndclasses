@@ -232,3 +232,11 @@ html, body {
   opacity: 0.4;
   cursor: default;
 }
+
+.summary-row {
+  padding: 8px 0;
+  border-bottom: 1px dashed #3a2c1c;
+  color: #f6ead0;
+  font-size: 13px;
+  letter-spacing: 1px;
+}

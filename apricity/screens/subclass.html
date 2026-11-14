@@ -5,31 +5,63 @@
   <meta name="aui-font-mode" content="web">
   <meta name="aui-viewport" content="mode=browser">
   <meta name="aui-mouse-events" content="intercept">
-  <title>Subclass</title>
+  <title>Choose Subclass</title>
   <link rel="stylesheet" href="/apricityui/theme/ore/ore.css">
   <link rel="stylesheet" href="choice.css">
+  <link rel="stylesheet" href="class_creation.css">
 </head>
-<body class="choice-page">
-  <div class="nebula"></div>
-  <div class="stars"></div>
-  <div class="scan"></div>
-  <div class="choice-shell subclass-shell">
-    <h1 class="choice-title"><translation>screen.dndclasses.subclass.title</translation></h1>
-    <p class="choice-sub"><translation>screen.dndclasses.subclass.hint</translation></p>
+<body class="ore-theme grimoire">
+  <div class="grimoire-shell">
 
-    <div class="subclass-columns">
-      <div id="subclass-list" class="subclass-list"></div>
-      <div id="subclass-detail" class="subclass-detail">
-        <div class="empty-state"><translation>screen.dndclasses.subclass.select</translation></div>
+    <header class="grimoire-header">
+      <div class="emblem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,4 12,6 19,4 19,19 12,21 5,19"/><line x1="12" y1="6" x2="12" y2="21"/></svg></div>
+      <div class="grimoire-headings">
+        <h1 class="grimoire-title"><translation>screen.dndclasses.subclass.title</translation></h1>
+        <p class="grimoire-sub">THE ADVENTURER'S TOME · <translation>screen.dndclasses.subclass.hint</translation></p>
       </div>
-    </div>
+      <div class="grimoire-badge"><translation>screen.dndclasses.subclass.badge</translation></div>
+    </header>
 
-    <div class="subclass-footer">
-      <button id="subclass-confirm" type="button" class="choice-confirm" disabled="disabled">
-        <translation>screen.dndclasses.subclass.confirm</translation>
-      </button>
-    </div>
+    <main class="grimoire-main">
+      <section id="col-left" class="card tome tome-left">
+        <div class="card-header"><translation>screen.dndclasses.subclass.roster</translation></div>
+        <div class="card-body tome-body tome-body-fixed">
+          <div id="subclass-list" class="race-list"></div>
+        </div>
+      </section>
+
+      <section id="col-mid" class="card tome tome-mid">
+        <div class="card-header"><translation>screen.dndclasses.subclass.detail</translation></div>
+        <div class="card-body tome-body tome-body-scroll">
+          <div id="subclass-detail">
+            <div class="empty-state"><translation>screen.dndclasses.subclass.select</translation></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="col-right" class="card tome tome-right">
+        <div class="card-header"><translation>screen.dndclasses.subclass.selection</translation></div>
+        <div class="card-body tome-body tome-body-scroll" id="subclass-summary"></div>
+        <div class="card-footer">
+          <button id="subclass-confirm" class="button confirm-button" type="button" disabled="disabled">
+            <translation>screen.dndclasses.subclass.confirm</translation>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="grimoire-footer">
+      <div id="footer-summary" class="footer-summary"><translation>screen.dndclasses.subclass.select</translation></div>
+      <div class="rune-row">
+        <span class="rune">LV 3</span>
+        <span class="rune">LV 6</span>
+        <span class="rune">LV 10</span>
+        <span class="rune">LV 14</span>
+      </div>
+    </footer>
+
   </div>
+
   <input id="choice-data" type="hidden" value="">
   <input id="choice-payload" type="hidden" value="">
   <script src="class_features.js"></script>

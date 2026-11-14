@@ -50,6 +50,8 @@ public class CharacterSheetScreen extends ApricityScreen {
         root.addProperty("mode", "sheet");
         root.addProperty("class", ClientCharacterState.classKey);
         root.addProperty("subclass", ClientCharacterState.subclassKey);
+        root.addProperty("race", ClientCharacterState.raceKey);
+        root.addProperty("subrace", ClientCharacterState.subraceKey);
         root.addProperty("level", ClientCharacterState.level);
         root.addProperty("exp", ClientCharacterState.exp);
         root.addProperty("expLevelStart", ClientCharacterState.expLevelStart);

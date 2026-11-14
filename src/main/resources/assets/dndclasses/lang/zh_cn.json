@@ -357,6 +357,7 @@
     "screen.dndclasses.creation.back": "返回修改",
     "screen.dndclasses.creation.commit": "最终确认",
     "screen.dndclasses.sheet.character": "角色信息",
+    "screen.dndclasses.sheet.race": "种族",
     "screen.dndclasses.sheet.level": "等级",
     "screen.dndclasses.sheet.proficiency": "熟练加值",
     "screen.dndclasses.sheet.experience": "经验",

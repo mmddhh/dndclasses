@@ -965,3 +965,19 @@
 .race-list {
   width: 100%;
 }
+
+.race-sheet {
+  border: 1px solid #6e5531;
+  background: #17100a;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.race-sheet .detail-name {
+  color: #e6c05a;
+  font-size: 18px;
+}
+
+.race-sheet .trait-list {
+  margin-top: 8px;
+}

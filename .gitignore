@@ -13,9 +13,8 @@ crash-reports/
 # Local jars (pulled through Gradle / CurseMaven)
 libs/
 
-# Forge run directory: ignore everything except the AUI pages and the AUI debug config.
+# Forge run directory: generated at launch and synced from apricity/ by DevAssets.
 run/*
-!run/apricity/
 !run/config/
 run/config/*
 !run/config/apricityui-client.toml

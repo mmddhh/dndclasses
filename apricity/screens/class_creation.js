@@ -1689,6 +1689,26 @@ function renderSheet(data) {
   var c = findClass(data["class"]);
   if (header) header.innerHTML = t("screen.dndclasses.sheet.character");
 
+  var race = raceFind(data.race);
+  if (race) {
+    body.appendChild(sectionLabel("screen.dndclasses.sheet.race"));
+    var raceBox = make("div", "race-sheet");
+    var sub = raceFindSub(race, data.subrace);
+    raceBox.appendChild(mk("div", "detail-name", "race.dndclasses." + race.key));
+    if (sub) {
+      raceBox.appendChild(mk("div", "detail-en", "race.dndclasses." + race.key + "." + sub.key));
+    }
+    var raceTraits = (sub && sub.traits) ? sub.traits : (race.traits || []);
+    if (raceTraits.length) {
+      var chips = make("div", "trait-list");
+      for (var rt = 0; rt < raceTraits.length; rt++) {
+        chips.appendChild(mk("span", "trait-chip", "trait.dndclasses." + raceTraits[rt]));
+      }
+      raceBox.appendChild(chips);
+    }
+    body.appendChild(raceBox);
+  }
+
   if (!c) {
     body.appendChild(mk("div", "empty-state", "screen.dndclasses.sheet.unknown_class"));
   } else {

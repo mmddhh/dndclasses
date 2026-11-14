@@ -5,8 +5,6 @@ import mdh.dndclasses.gear.DndDurability;
 import mdh.dndclasses.network.DndNetwork;
 import mdh.dndclasses.network.SwingHandPacket;
 import mdh.dndclasses.weapon.ModDamageTypes;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -29,8 +27,6 @@ import net.minecraft.world.item.CrossbowItem;
 import java.util.Optional;
 
 public final class DndCombat {
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     private static final String TAG_RELOAD_END = "DndReloadEnd";
     private static final String TAG_RELOAD_HAND = "DndReloadHand";
@@ -165,8 +161,6 @@ public final class DndCombat {
         thrown.setCount(1);
         stack.shrink(1);
         player.setItemInHand(hand, stack);
-        LOGGER.info("DND throw hand={} item={} offhand={}", hand, thrown.getItem(),
-                player.getOffhandItem().getItem());
 
         ThrownWeaponEntity entity = new ThrownWeaponEntity(player.level(), player, thrown);
         entity.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 1.7F, 1.0F);

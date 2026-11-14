@@ -28,19 +28,22 @@ public class ClientboundCharacterStatePacket {
     public final CompoundTag levelData;
     public final CompoundTag abilityData;
     public final CompoundTag spellData;
+    public final CompoundTag raceData;
     public final CompoundTag conditionsData;
     public final int expLevelStart;
     public final int expToNext;
     public final List<FeatureEntry> features;
 
     public ClientboundCharacterStatePacket(boolean created, boolean promptOpen, CompoundTag levelData,
-                                           CompoundTag abilityData, CompoundTag spellData, CompoundTag conditionsData,
+                                           CompoundTag abilityData, CompoundTag spellData, CompoundTag raceData,
+                                           CompoundTag conditionsData,
                                            int expLevelStart, int expToNext, List<FeatureEntry> features) {
         this.created = created;
         this.promptOpen = promptOpen;
         this.levelData = levelData == null ? new CompoundTag() : levelData;
         this.abilityData = abilityData == null ? new CompoundTag() : abilityData;
         this.spellData = spellData == null ? new CompoundTag() : spellData;
+        this.raceData = raceData == null ? new CompoundTag() : raceData;
         this.conditionsData = conditionsData == null ? new CompoundTag() : conditionsData;
         this.expLevelStart = expLevelStart;
         this.expToNext = expToNext;
@@ -53,6 +56,7 @@ public class ClientboundCharacterStatePacket {
         buf.writeNbt(packet.levelData);
         buf.writeNbt(packet.abilityData);
         buf.writeNbt(packet.spellData);
+        buf.writeNbt(packet.raceData);
         buf.writeNbt(packet.conditionsData);
         buf.writeVarInt(packet.expLevelStart);
         buf.writeVarInt(packet.expToNext);
@@ -72,6 +76,7 @@ public class ClientboundCharacterStatePacket {
         CompoundTag levelData = buf.readNbt();
         CompoundTag abilityData = buf.readNbt();
         CompoundTag spellData = buf.readNbt();
+        CompoundTag raceData = buf.readNbt();
         CompoundTag conditionsData = buf.readNbt();
         int expLevelStart = buf.readVarInt();
         int expToNext = buf.readVarInt();
@@ -85,7 +90,7 @@ public class ClientboundCharacterStatePacket {
             String rest = buf.readUtf(16);
             features.add(new FeatureEntry(id, nameKey, remaining, max, rest));
         }
-        return new ClientboundCharacterStatePacket(created, promptOpen, levelData, abilityData, spellData,
+        return new ClientboundCharacterStatePacket(created, promptOpen, levelData, abilityData, spellData, raceData,
                 conditionsData, expLevelStart, expToNext, features);
     }
 

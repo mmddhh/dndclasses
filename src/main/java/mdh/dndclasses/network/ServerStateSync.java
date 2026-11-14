@@ -7,9 +7,8 @@ import mdh.dndclasses.feature.FeatureDefinition;
 import mdh.dndclasses.feature.FeatureManager;
 import mdh.dndclasses.level.DndLeveling;
 import mdh.dndclasses.network.ClientboundCharacterStatePacket.FeatureEntry;
-import com.mojang.logging.LogUtils;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
-import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,8 +16,6 @@ import java.util.Locale;
 
 /** Builds and pushes the character-state snapshot (capability NBT + active features) to a player's client. */
 public final class ServerStateSync {
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     private ServerStateSync() {
     }
@@ -42,12 +39,13 @@ public final class ServerStateSync {
                                     ? level.getExp()
                                     : DndLeveling.getMinimumExperienceForLevel(currentLevel + 1);
                             List<FeatureEntry> features = created ? buildFeatures(player, currentLevel) : List.of();
+                            CompoundTag raceData = player.getCapability(ModCapabilities.RACE_CAPABILITY)
+                                    .map(data -> data.serializeNBT()).orElseGet(CompoundTag::new);
 
-                            LOGGER.info("DND state sync created={} level={} class={}",
-                                    created, level.getlevel(), level.getclassName());
                             DndNetwork.sendToPlayer(player, new ClientboundCharacterStatePacket(
                                     created, promptOpen,
                                     level.serializeNBT(), ability.serializeNBT(), spell.serializeNBT(),
+                                    raceData,
                                     ConditionManager.buildClientTag(player),
                                     levelStart, expToNext, features));
                         })));

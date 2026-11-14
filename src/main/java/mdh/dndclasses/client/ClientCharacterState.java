@@ -21,6 +21,8 @@ public final class ClientCharacterState {
     public static boolean created = false;
     public static String classKey = "";
     public static String subclassKey = "";
+    public static String raceKey = "";
+    public static String subraceKey = "";
     public static int level = 1;
     public static int exp = 0;
     public static int proficiency = 2;
@@ -60,6 +62,12 @@ public final class ClientCharacterState {
 
             minecraft.player.getCapability(ModCapabilities.DND_SPELL_CAPABILITY)
                     .ifPresent(spellCap -> spellCap.deserializeNBT(packet.spellData));
+
+            minecraft.player.getCapability(ModCapabilities.RACE_CAPABILITY).ifPresent(raceCap -> {
+                raceCap.deserializeNBT(packet.raceData);
+                raceKey = raceCap.getRaceName();
+                subraceKey = raceCap.getSubraceName();
+            });
         }
 
         if (packet.promptOpen && !packet.created) {

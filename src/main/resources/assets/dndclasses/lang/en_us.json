@@ -357,6 +357,7 @@
     "screen.dndclasses.creation.back": "Go Back",
     "screen.dndclasses.creation.commit": "Finalize",
     "screen.dndclasses.sheet.character": "Character",
+    "screen.dndclasses.sheet.race": "Race",
     "screen.dndclasses.sheet.level": "Level",
     "screen.dndclasses.sheet.proficiency": "Proficiency",
     "screen.dndclasses.sheet.experience": "Experience",

@@ -6,8 +6,6 @@ import mdh.dndclasses.weapon.WeaponProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import com.mojang.logging.LogUtils;
-import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,8 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Minecraft.class)
 public abstract class OffhandThrowStartUseMixin {
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void dndclasses$resetThrowOnRelease(CallbackInfo ci) {
@@ -39,11 +35,6 @@ public abstract class OffhandThrowStartUseMixin {
         if (player == null) {
             return;
         }
-        LOGGER.info("DND startUse consumed={} cool={} charge={} down={} main={} off={}",
-                mdh.dndclasses.client.OffhandThrowState.isConsumed(),
-                mdh.dndclasses.client.OffhandThrowState.isCoolingDown(player.level().getGameTime()),
-                player.getAttackStrengthScale(0.5F), self.options.keyUse.isDown(),
-                player.getMainHandItem().getItem(), player.getOffhandItem().getItem());
         if (mdh.dndclasses.client.OffhandThrowState.isCoolingDown(player.level().getGameTime())) {
             // A throw is still cooling down: cancel the use path completely, even when both hands
             // are empty, so no predicted hand swing is played.

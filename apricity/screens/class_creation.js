@@ -1,4 +1,4 @@
-﻿
+
 /* ------------------------------------------------------------------ page logic */
 
 var BUDGET = 27;
@@ -19,7 +19,9 @@ var TABS = [
   "screen.dndclasses.creation.tab.equipment"
 ];
 
-/* 瀛愯亴鍏冩暟鎹細璇ヨ亴涓?瀛愯亴閫夋嫨绛夌骇 + 瀛愯亴 ID 鏈夊簭琛ㄣ€? * 鏄剧ず鍚嶇敱 id 鐨?path 鐢熸垚閿?subclass.dndclasses.<path>.name銆? * 鍙湁閫夋嫨绛夌骇 <= 1 鐨勮亴涓氬彲鍦ㄥ垱寤虹晫闈㈤€夋嫨锛屽叾浣欎粎浣滈瑙堛€?*/
+/* 子职元数据：该职业 子职选择等级 + 子职 ID 有序表。
+ * 显示名由 id 的 path 生成键 subclass.dndclasses.<path>.name。
+ * 只有选择等级 <= 1 的职业可在创建界面选择，其余仅作预览。 */
 var SUBCLASS_META = {
   barbarian: { level: 3, ids: ["dndclasses:berserker", "dndclasses:totem_warrior"] },
   bard: { level: 3, ids: ["dndclasses:lore", "dndclasses:valor"] },
@@ -188,7 +190,8 @@ var CLASSES = [
   }
 ];
 
-/* 璇█涓珛鐨勮亴涓氬浘鏍囷細鍐呰仈 SVG锛岄鑹茬户鎵?.seal 鐨?color锛堥噾鑹诧級銆? * 绔?妯瑪鐢荤敤 rect 鑰岄潪 line锛欰UI 鐨?Svg 娓叉煋浼氳烦杩囬浂闈㈢Н鐨勯€€鍖栫瑪鐢汇€?*/
+/* 语言中立的职业图标：内联 SVG，颜色继承 .seal 的 color（金色）。
+ * 竖/横笔画用 rect 而非 line：AUI 的 Svg 渲染会跳过零面积的退化笔画。 */
 function svg(inner) {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
     + 'stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
@@ -488,7 +491,7 @@ function levelRow(level, items) {
   row.appendChild(head);
   var list = make("div", "level-items");
   if (!items.length) {
-    list.appendChild(make("div", "level-none", "鈥?));
+    list.appendChild(make("div", "level-none", "—"));
   } else {
     for (var i = 0; i < items.length; i++) {
       list.appendChild(featureBlock(items[i]));
@@ -974,7 +977,7 @@ function sheetSlots(slots) {
       row.appendChild(span);
     }
   }
-  if (!any) row.appendChild(make("span", "rune", "鈥?));
+  if (!any) row.appendChild(make("span", "rune", "—"));
   return row;
 }
 
@@ -1017,7 +1020,7 @@ function renderSheet(data) {
     ht.appendChild(mk("div", "detail-name", "class.dndclasses." + c.key));
     var subName = subclassNameByKey(c, data.subclass);
     var enLine = make("div", "detail-en", null);
-    enLine.innerHTML = t("class.dndclasses." + c.key + ".subtitle") + (subName ? (" 路 " + t(subName)) : "");
+    enLine.innerHTML = t("class.dndclasses." + c.key + ".subtitle") + (subName ? (" · " + t(subName)) : "");
     ht.appendChild(enLine);
     hero.appendChild(ht);
     body.appendChild(hero);
@@ -1263,7 +1266,7 @@ function raceRenderDetail() {
   }
   detail.appendChild(mk("div", "card-title", "race.dndclasses." + race.key));
   var infoLine = make("div", "card-sub", null);
-  infoLine.innerHTML = t("screen.dndclasses.race.speed") + " " + race.speed + " ft 路 "
+  infoLine.innerHTML = t("screen.dndclasses.race.speed") + " " + race.speed + " ft · "
     + t("size.dndclasses." + race.size);
   detail.appendChild(infoLine);
 

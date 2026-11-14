@@ -72,10 +72,12 @@ public final class ChoiceManager {
         JsonArray options = new JsonArray();
         SubclassRegistry.ClassSubclasses entry = SubclassRegistry.get(level.getclassName());
         if (entry != null) {
+            int index = 0;
             for (String id : entry.ids()) {
                 JsonObject option = new JsonObject();
                 option.addProperty("id", id);
                 option.addProperty("name", SubclassSelection.displayName(id));
+                option.addProperty("index", index++);
                 options.add(option);
             }
         }

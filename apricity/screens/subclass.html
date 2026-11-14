@@ -13,13 +13,26 @@
   <div class="nebula"></div>
   <div class="stars"></div>
   <div class="scan"></div>
-  <div class="choice-shell">
+  <div class="choice-shell subclass-shell">
     <h1 class="choice-title"><translation>screen.dndclasses.subclass.title</translation></h1>
     <p class="choice-sub"><translation>screen.dndclasses.subclass.hint</translation></p>
-    <div id="subclass-list" class="choice-grid"></div>
+
+    <div class="subclass-columns">
+      <div id="subclass-list" class="subclass-list"></div>
+      <div id="subclass-detail" class="subclass-detail">
+        <div class="empty-state"><translation>screen.dndclasses.subclass.select</translation></div>
+      </div>
+    </div>
+
+    <div class="subclass-footer">
+      <button id="subclass-confirm" type="button" class="choice-confirm" disabled="disabled">
+        <translation>screen.dndclasses.subclass.confirm</translation>
+      </button>
+    </div>
   </div>
   <input id="choice-data" type="hidden" value="">
   <input id="choice-payload" type="hidden" value="">
+  <script src="class_features.js"></script>
   <script src="subclass.js"></script>
 </body>
 </html>

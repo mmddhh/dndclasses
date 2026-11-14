@@ -105,3 +105,130 @@ html, body {
   color: #d98c6a;
   font-size: 12px;
 }
+
+/* Subclass selection: left list + right detail, matching the creation grimoire. */
+.subclass-shell {
+  max-width: 1180px;
+}
+
+.subclass-columns {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.subclass-list {
+  width: 320px;
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subclass-card {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #6e5531;
+  background: #1e150d;
+  box-shadow: 3px 3px 0 #0b0703;
+  color: #f6ead0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.subclass-card:hover {
+  border-color: #d9c69b;
+  background: #382a1b;
+}
+
+.subclass-card.active {
+  border-color: #e6c05a;
+  background: #382a1b;
+  box-shadow: 0 0 0 2px #e6c05a, 3px 3px 0 #0b0703;
+}
+
+.subclass-detail {
+  flex: 1 1 auto;
+  min-height: 320px;
+  padding: 16px 18px;
+  border: 2px solid #6e5531;
+  background: #120c07;
+  box-shadow: 4px 4px 0 #0b0703;
+}
+
+.subclass-head {
+  border-bottom: 1px solid #6e5531;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.subclass-title {
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: #e6c05a;
+}
+
+.subclass-en {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #c4ad7e;
+}
+
+.subclass-feature-row {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed #3a2c1c;
+}
+
+.subclass-feature-level {
+  width: 54px;
+  flex: 0 0 54px;
+  color: #e6c05a;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.subclass-feature-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.subclass-feature {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  border: 1px solid #6e5531;
+  background: #1e150d;
+}
+
+.feature-cn {
+  color: #f6ead0;
+  font-size: 13px;
+}
+
+.feature-en {
+  color: #c4ad7e;
+  font-size: 10px;
+}
+
+.subclass-footer {
+  margin-top: 18px;
+  text-align: right;
+}
+
+.choice-confirm {
+  padding: 10px 22px;
+  border: 2px solid #e6c05a;
+  background: #382a1b;
+  color: #f6ead0;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+
+.choice-confirm[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}

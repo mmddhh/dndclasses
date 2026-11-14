@@ -31,6 +31,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.fml.DistExecutor;
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +45,8 @@ import java.util.Map;
  */
 @Mod.EventBusSubscriber(modid = Dndclasses.MODID)
 public final class DndCombatEvents {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private DndCombatEvents() {
     }
@@ -86,8 +90,13 @@ public final class DndCombatEvents {
         boolean rangedAsMelee = stack.getItem() instanceof DndWeapon item && item.spec().isRanged();
         if (DndCombat.attack(player, event.getTarget(), hand, rangedAsMelee)) {
             event.setCanceled(true);
-            if (player instanceof ServerPlayer serverPlayer && DualWieldRules.canDualWield(player)) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                // Record every attack, even if the dual-wield check momentarily disagrees, so the
+                // throw alternation always follows the hand that actually attacked.
                 DualWieldRules.recordAttack(serverPlayer, hand);
+                LOGGER.info("DND attack hand={} target={} dual={} last={}",
+                        hand, event.getTarget().getType(), DualWieldRules.canDualWield(player),
+                        DualWieldRules.lastAttackHand(player));
             }
         }
     }
@@ -175,6 +184,9 @@ public final class DndCombatEvents {
         // Outside dual wielding the offhand is still preferred, then the main hand.
         ItemStack offhand = player.getOffhandItem();
         ItemStack main = player.getMainHandItem();
+        LOGGER.info("DND rightclick dual={} last={} main={} off={}",
+                DualWieldRules.canDualWield(player), DualWieldRules.lastAttackHand(player),
+                main.getItem(), offhand.getItem());
         InteractionHand throwHand = null;
         // The throw is the bonus action: always use the hand opposite to the last attack/throw.
         // This is independent of whether both hands still hold a weapon, so throwing the offhand
@@ -191,6 +203,7 @@ public final class DndCombatEvents {
             }
         }
         if (throwHand != null) {
+            LOGGER.info("DND rightclick chosen hand={}", throwHand);
             return DndCombat.throwWeapon(player, throwHand);
         }
 

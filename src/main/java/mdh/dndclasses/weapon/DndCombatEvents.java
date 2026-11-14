@@ -31,6 +31,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.fml.DistExecutor;
+import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +45,8 @@ import java.util.Map;
  */
 @Mod.EventBusSubscriber(modid = Dndclasses.MODID)
 public final class DndCombatEvents {
+
+    private static final Logger LOGGER = LogUtils.getLogger();
 
     private DndCombatEvents() {
     }
@@ -77,6 +81,11 @@ public final class DndCombatEvents {
         InteractionHand hand = player instanceof ServerPlayer serverPlayer
                 ? DualWieldRules.nextHand(serverPlayer)
                 : InteractionHand.MAIN_HAND;
+        if (player instanceof ServerPlayer serverPlayer) {
+            LOGGER.info("DND attack hand={} dual={} next={} main={} off={}", hand,
+                    DualWieldRules.canDualWield(player), DualWieldRules.lastAttackHand(player),
+                    player.getMainHandItem().getItem(), player.getOffhandItem().getItem());
+        }
         if (DndCooldowns.isCoolingDown(player, hand)) {
             event.setCanceled(true);
             return;
@@ -87,9 +96,9 @@ public final class DndCombatEvents {
         if (DndCombat.attack(player, event.getTarget(), hand, rangedAsMelee)) {
             event.setCanceled(true);
             if (player instanceof ServerPlayer serverPlayer) {
-                // Record every attack, even if the dual-wield check momentarily disagrees, so the
-                // throw alternation always follows the hand that actually attacked.
                 DualWieldRules.recordAttack(serverPlayer, hand);
+                LOGGER.info("DND attack done hand={} next={}", hand,
+                        DualWieldRules.nextHand(serverPlayer));
             }
         }
     }

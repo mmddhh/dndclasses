@@ -1502,6 +1502,7 @@
   "screen.dndclasses.race.asi_incomplete": "请选满所需的属性加成。",
   "screen.dndclasses.subclass.title": "选择你的子职",
   "screen.dndclasses.subclass.hint": "该选择不可更改。",
+  "screen.dndclasses.subclass.none": "该职业没有可用的子职数据。",
   "screen.dndclasses.asi.title": "属性值提升",
   "screen.dndclasses.asi.hint": "单项 +2，或两项各 +1。",
   "screen.dndclasses.asi.mode_plus2": "单项 +2",

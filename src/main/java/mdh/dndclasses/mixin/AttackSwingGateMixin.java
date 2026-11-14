@@ -63,11 +63,16 @@ public abstract class AttackSwingGateMixin {
         if (!DualWieldRules.canDualWield(player)) {
             return;
         }
-        if (ClientDualWield.nextHand(player) == InteractionHand.OFF_HAND) {
+        InteractionHand swung = ClientDualWield.nextHand(player);
+        if (swung == InteractionHand.OFF_HAND) {
             // Clear the swing that vanilla just started so the offhand replay is not ignored.
             player.swinging = false;
             player.swing(InteractionHand.OFF_HAND, false);
         }
+        // Air swings never reach the server through AttackEntityEvent; report the hand so the
+        // server-side throw alternation follows it.
+        mdh.dndclasses.network.DndNetwork.CHANNEL.sendToServer(
+                new mdh.dndclasses.network.AirSwingPacket(swung));
         ClientDualWield.flip(player);
     }
 }

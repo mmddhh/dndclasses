@@ -76,7 +76,10 @@ public abstract class OffhandThrowStartUseMixin {
         // next right click run the use path (offhand swing) although the server is on cooldown.
         // One press = one throw; tick() clears this once the use key is released.
         mdh.dndclasses.client.OffhandThrowState.markConsumed();
+        boolean remainsDual = mdh.dndclasses.weapon.DualWieldRules.canDualWield(player)
+                && player.getMainHandItem().getCount() > 1
+                && player.getOffhandItem().getCount() > 1;
         mdh.dndclasses.client.OffhandThrowState.markThrown(player.level().getGameTime(),
-                mdh.dndclasses.weapon.DualWieldRules.canDualWield(player) ? 10 : 20);
+                remainsDual ? 10 : 20);
     }
 }

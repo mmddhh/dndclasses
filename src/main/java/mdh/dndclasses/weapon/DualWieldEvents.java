@@ -4,7 +4,6 @@ import mdh.dndclasses.Dndclasses;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.LivingEquipmentChangeEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -29,13 +28,6 @@ public final class DualWieldEvents {
         if (event.phase == TickEvent.Phase.END && event.player instanceof ServerPlayer player) {
             // Keep the dual-wield attack speed modifier in sync with the held weapons.
             DualWieldRules.updateAttackSpeed(player);
-        }
-    }
-
-    @SubscribeEvent
-    public static void onEquipmentChange(LivingEquipmentChangeEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player && !player.level().isClientSide) {
-            DualWieldRules.reset(player);
         }
     }
 

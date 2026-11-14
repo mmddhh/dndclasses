@@ -59,6 +59,10 @@ public abstract class OffhandThrowUseMixin {
         boolean offhandThrow = offhand.getItem() instanceof DndWeapon offWeapon
                 && offWeapon.spec().isThrown() && offWeapon.spec().has(WeaponProperty.LIGHT);
         boolean mainThrow = main.getItem() instanceof DndWeapon mainWeapon && mainWeapon.spec().isThrown();
+        if (!main.isEmpty() && !mainThrow) {
+            // Normal main-hand use (blocks, food, tools): leave vanilla timing untouched.
+            return;
+        }
         if (!offhandThrow && !mainThrow) {
             return;
         }

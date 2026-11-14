@@ -186,6 +186,11 @@ public final class DndCombatEvents {
         // Outside dual wielding the offhand is still preferred, then the main hand.
         ItemStack offhand = player.getOffhandItem();
         ItemStack main = player.getMainHandItem();
+        if (!main.isEmpty() && !(main.getItem() instanceof DndWeapon)) {
+            // A block/food/tool in the main hand: do not consume the right click as an offhand
+            // throw, otherwise placing blocks is throttled by the throw cooldown.
+            return false;
+        }
         InteractionHand throwHand = null;
         // The throw is the bonus action: always use the hand opposite to the last attack/throw.
         // This is independent of whether both hands still hold a weapon, so throwing the offhand

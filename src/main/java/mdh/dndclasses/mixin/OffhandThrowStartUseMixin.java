@@ -35,9 +35,22 @@ public abstract class OffhandThrowStartUseMixin {
         if (player == null) {
             return;
         }
+        ItemStack offhand = player.getOffhandItem();
+        boolean offhandThrow = offhand.getItem() instanceof DndWeapon offHandWeapon
+                && offHandWeapon.spec().isThrown() && offHandWeapon.spec().has(WeaponProperty.LIGHT);
+        ItemStack main = player.getMainHandItem();
+        boolean mainThrow = main.getItem() instanceof DndWeapon mainWeapon && mainWeapon.spec().isThrown();
+        // The throw gating only applies while the right click would actually throw: main hand empty,
+        // or main hand itself a throwable weapon. A block/food/tool in the main hand keeps vanilla
+        // use speed, even when a light thrown weapon is held in the offhand.
+        if (!main.isEmpty() && !mainThrow) {
+            return;
+        }
+        if (!offhandThrow && !mainThrow) {
+            return;
+        }
         if (mdh.dndclasses.client.OffhandThrowState.isCoolingDown(player.level().getGameTime())) {
-            // A throw is still cooling down: cancel the use path completely, even when both hands
-            // are empty, so no predicted hand swing is played.
+            // A throw is still cooling down: cancel the use path so no predicted hand swing is played.
             ci.cancel();
             return;
         }
@@ -46,14 +59,6 @@ public abstract class OffhandThrowStartUseMixin {
         // cleared in tick() once the key is actually released.
         if (mdh.dndclasses.client.OffhandThrowState.isConsumed() && self.options.keyUse.isDown()) {
             ci.cancel();
-            return;
-        }
-        ItemStack offhand = player.getOffhandItem();
-        boolean offhandThrow = offhand.getItem() instanceof DndWeapon offHandWeapon
-                && offHandWeapon.spec().isThrown() && offHandWeapon.spec().has(WeaponProperty.LIGHT);
-        ItemStack main = player.getMainHandItem();
-        boolean mainThrow = main.getItem() instanceof DndWeapon mainWeapon && mainWeapon.spec().isThrown();
-        if (!offhandThrow && !mainThrow) {
             return;
         }
         // Cooldown window: do nothing at all (no packet, no main-hand swing animation).

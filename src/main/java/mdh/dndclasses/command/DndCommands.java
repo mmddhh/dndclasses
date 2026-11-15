@@ -19,6 +19,10 @@ import mdh.dndclasses.network.ServerStateSync;
 import mdh.dndclasses.saves.SaveQteManager;
 import mdh.dndclasses.spells.SpellClassifiers;
 import mdh.dndclasses.spells.SpellKind;
+import mdh.dndclasses.worldgen.NpcProfile;
+import mdh.dndclasses.worldgen.NpcSpawner;
+import mdh.dndclasses.worldgen.WorldPlan;
+import mdh.dndclasses.worldgen.WorldPlanGenerator;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
@@ -29,6 +33,11 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.loading.FMLPaths;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Mod.EventBusSubscriber(modid = Dndclasses.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class DndCommands {
@@ -129,6 +138,21 @@ public final class DndCommands {
                 .then(Commands.argument("id", StringArgumentType.word())
                         .executes(context -> subclassSet(context.getSource(),
                                 StringArgumentType.getString(context, "id")))));
+
+        dispatcher.register(Commands.literal("worldplan")
+                .requires(source -> source.hasPermission(2))
+                .executes(context -> worldPlan(context.getSource(), false))
+                .then(Commands.literal("json")
+                        .executes(context -> worldPlan(context.getSource(), true))));
+
+        dispatcher.register(Commands.literal("npc")
+                .requires(source -> source.hasPermission(2))
+                .then(Commands.literal("list")
+                        .executes(context -> npcList(context.getSource())))
+                .then(Commands.literal("spawn")
+                        .then(Commands.argument("settlement", IntegerArgumentType.integer(0, 10000))
+                                .executes(context -> npcSpawn(context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "settlement"))))));
     }
 
     private static int info(CommandSourceStack source) throws CommandSyntaxException {
@@ -416,6 +440,75 @@ public final class DndCommands {
             case INVALID -> source.sendFailure(Component.translatable("message.dndclasses.subclass.invalid"));
         }
         return result == SubclassSelection.Result.SUCCESS ? 1 : 0;
+    }
+
+    private static int worldPlan(CommandSourceStack source, boolean writeJson) {
+        WorldPlan plan = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        source.sendSuccess(() -> Component.literal(
+                "WorldPlan seed=" + plan.seed()
+                        + "  国家=" + plan.nations().size()
+                        + "  聚落=" + plan.settlements().size()
+                        + "  事件=" + plan.events().size()), false);
+        for (int i = 0; i < Math.min(5, plan.settlements().size()); i++) {
+            WorldPlan.Settlement settlement = plan.settlements().get(i);
+            WorldPlan.Nation nation = plan.nations().get(settlement.nationId());
+            source.sendSuccess(() -> Component.literal(
+                    "[" + settlement.id() + "] " + settlement.name()
+                            + " (" + nation.name() + ", " + settlement.population() + "人, "
+                            + settlement.culture() + ")"), false);
+        }
+        for (int i = Math.max(0, plan.events().size() - 3); i < plan.events().size(); i++) {
+            WorldPlan.HistoryEvent event = plan.events().get(i);
+            source.sendSuccess(() -> Component.literal(
+                    "Y" + event.year() + " [" + event.type() + "] " + event.summary()), false);
+        }
+        if (writeJson) {
+            Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses");
+            Path file = directory.resolve("worldplan-" + plan.seed() + ".json");
+            try {
+                Files.createDirectories(directory);
+                Files.writeString(file, plan.toJson().toString());
+                source.sendSuccess(() -> Component.literal("已写入 " + file), false);
+            } catch (IOException exception) {
+                source.sendFailure(Component.literal("写入失败: " + exception.getMessage()));
+                return 0;
+            }
+        }
+        return 1;
+    }
+
+    private static int npcList(CommandSourceStack source) {
+        WorldPlan plan = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        for (int i = 0; i < Math.min(20, plan.settlements().size()); i++) {
+            WorldPlan.Settlement settlement = plan.settlements().get(i);
+            WorldPlan.Nation nation = plan.nations().get(settlement.nationId());
+            source.sendSuccess(() -> Component.literal(
+                    "[" + settlement.id() + "] " + settlement.name() + " · " + nation.race()
+                            + " · " + nation.name()), false);
+        }
+        return 1;
+    }
+
+    private static int npcSpawn(CommandSourceStack source, int settlementId) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        WorldPlan plan = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        WorldPlan.Settlement settlement = plan.settlements().stream()
+                .filter(candidate -> candidate.id() == settlementId)
+                .findFirst()
+                .orElse(null);
+        if (settlement == null) {
+            source.sendFailure(Component.literal("没有 id=" + settlementId + " 的聚落。"));
+            return 0;
+        }
+        NpcProfile profile = WorldPlanGenerator.npcFor(plan, settlement, settlementId);
+        if (NpcSpawner.spawn(player, profile) == null) {
+            source.sendFailure(Component.literal("NPC 生成失败。"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "生成了 " + profile.name() + "（" + profile.race() + " " + profile.role()
+                        + "，聚落 " + settlement.name() + "）"), false);
+        return 1;
     }
 
     private static int subclassList(CommandSourceStack source) throws CommandSyntaxException {

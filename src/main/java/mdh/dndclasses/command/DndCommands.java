@@ -539,7 +539,7 @@ public final class DndCommands {
         }
         source.sendSuccess(() -> Component.literal(
                 "在 " + settlement.name() + "（" + settlement.x() + ", " + settlement.z()
-                        + "）放置了测试建筑，共 " + placed + " 个方块。"), false);
+                        + "）放置了测试建筑，按当地地形选材，共 " + placed + " 个方块。"), false);
         return 1;
     }
 

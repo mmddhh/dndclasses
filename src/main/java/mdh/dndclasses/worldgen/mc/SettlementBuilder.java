@@ -18,16 +18,20 @@ public final class SettlementBuilder {
     }
 
     public static int build(ServerLevel level, WorldPlan.Settlement settlement) {
-        int centerX = settlement.x();
-        int centerZ = settlement.z();
-        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, centerX, centerZ);
-        if (y <= level.getMinBuildHeight() + 1) {
+        Site site = findDrySite(level, settlement.x(), settlement.z());
+        if (site == null) {
             return 0;
         }
+        int centerX = site.x();
+        int centerZ = site.z();
+        int y = site.y();
 
-        BlockState wall = wallFor(settlement.materials().isEmpty() ? "stone" : settlement.materials().get(0));
-        BlockState roof = roofFor(settlement.materials().size() > 1
-                ? settlement.materials().get(1) : "stone");
+        String material = localMaterial(level, centerX, y, centerZ);
+        if (material == null) {
+            material = settlement.materials().isEmpty() ? "stone" : settlement.materials().get(0);
+        }
+        BlockState wall = wallFor(material);
+        BlockState roof = roofFor(material);
         BlockState foundation = Blocks.STONE_BRICKS.defaultBlockState();
         int placed = 0;
 
@@ -82,6 +86,87 @@ public final class SettlementBuilder {
         return level.setBlock(pos, state, 3) ? 1 : 0;
     }
 
+    private record Site(int x, int y, int z) {
+    }
+
+    /** Finds dry, non-fluid ground near the planned point; null when the area is water/void. */
+    private static Site findDrySite(ServerLevel level, int centerX, int centerZ) {
+        for (int radius = 0; radius <= 32; radius += 4) {
+            for (int dx = -radius; dx <= radius; dx += 4) {
+                for (int dz = -radius; dz <= radius; dz += 4) {
+                    if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                    if (y <= level.getMinBuildHeight() + 1) {
+                        continue;
+                    }
+                    BlockPos ground = new BlockPos(x, y - 1, z);
+                    BlockState below = level.getBlockState(ground);
+                    BlockState at = level.getBlockState(new BlockPos(x, y, z));
+                    if (!below.isAir() && below.getFluidState().isEmpty()
+                            && at.getFluidState().isEmpty()) {
+                        return new Site(x, y, z);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Picks the material actually visible around the site; null when the plan material should win. */
+    private static String localMaterial(ServerLevel level, int x, int y, int z) {
+        int oak = 0;
+        int spruce = 0;
+        int deepslate = 0;
+        int sandstone = 0;
+        int copper = 0;
+        int stone = 0;
+        for (int dx = -8; dx <= 8; dx += 2) {
+            for (int dz = -8; dz <= 8; dz += 2) {
+                BlockState state = level.getBlockState(new BlockPos(x + dx, y - 1, z + dz));
+                if (state.is(Blocks.OAK_LOG) || state.is(Blocks.OAK_LEAVES)
+                        || state.is(Blocks.OAK_PLANKS)) {
+                    oak++;
+                } else if (state.is(Blocks.SPRUCE_LOG) || state.is(Blocks.SPRUCE_LEAVES)
+                        || state.is(Blocks.SPRUCE_PLANKS)) {
+                    spruce++;
+                } else if (state.is(Blocks.DEEPSLATE) || state.is(Blocks.DEEPSLATE_BRICKS)) {
+                    deepslate++;
+                } else if (state.is(Blocks.SANDSTONE) || state.is(Blocks.SAND)) {
+                    sandstone++;
+                } else if (state.is(Blocks.COPPER_ORE) || state.is(Blocks.COPPER_BLOCK)) {
+                    copper++;
+                } else if (state.is(Blocks.STONE) || state.is(Blocks.COBBLESTONE)) {
+                    stone++;
+                }
+            }
+        }
+        int best = Math.max(Math.max(oak, spruce), Math.max(Math.max(deepslate, sandstone),
+                Math.max(copper, stone)));
+        if (best == 0) {
+            return null;
+        }
+        if (best == oak) {
+            return "oak";
+        }
+        if (best == spruce) {
+            return "spruce";
+        }
+        if (best == deepslate) {
+            return "deepslate";
+        }
+        if (best == sandstone) {
+            return "sandstone";
+        }
+        if (best == copper) {
+            return "copper";
+        }
+        return "stone";
+    }
+
     private static BlockState wallFor(String material) {
         return switch (material) {
             case "oak" -> Blocks.OAK_PLANKS.defaultBlockState();
@@ -95,7 +180,7 @@ public final class SettlementBuilder {
 
     private static BlockState roofFor(String material) {
         return switch (material) {
-            case "oak" -> Blocks.DARK_OAK_PLANKS.defaultBlockState();
+            case "oak" -> Blocks.OAK_PLANKS.defaultBlockState();
             case "spruce" -> Blocks.SPRUCE_PLANKS.defaultBlockState();
             case "deepslate" -> Blocks.DEEPSLATE_TILES.defaultBlockState();
             case "sandstone" -> Blocks.CUT_SANDSTONE.defaultBlockState();

@@ -24,6 +24,7 @@ import mdh.dndclasses.worldgen.WorldPlan;
 import mdh.dndclasses.worldgen.WorldPlanGenerator;
 import mdh.dndclasses.worldgen.WorldPlanVerifier;
 import mdh.dndclasses.worldgen.mc.NpcSpawner;
+import mdh.dndclasses.worldgen.mc.SettlementBuilder;
 import mdh.dndclasses.worldgen.mc.SettlementSiteSampler;
 import mdh.dndclasses.worldgen.mc.WorldPlanSavedData;
 import net.minecraft.commands.CommandSourceStack;
@@ -152,7 +153,15 @@ public final class DndCommands {
                 .then(Commands.literal("regen")
                         .executes(context -> worldPlanRegen(context.getSource())))
                 .then(Commands.literal("terrain")
-                        .executes(context -> worldPlanTerrain(context.getSource()))));
+                        .executes(context -> worldPlanTerrain(context.getSource())))
+                .then(Commands.literal("build")
+                        .then(Commands.argument("settlement", IntegerArgumentType.integer(0, 10000))
+                                .executes(context -> worldPlanBuild(context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "settlement")))))
+                .then(Commands.literal("tp")
+                        .then(Commands.argument("settlement", IntegerArgumentType.integer(0, 10000))
+                                .executes(context -> worldPlanTeleport(context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "settlement"))))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -513,6 +522,41 @@ public final class DndCommands {
         WorldPlan adjusted = SettlementSiteSampler.sample(source.getLevel(), data.plan());
         data.replace(adjusted);
         source.sendSuccess(() -> Component.literal("已按实际地形校正聚落坐标并保存。"), false);
+        return 1;
+    }
+
+    private static int worldPlanBuild(CommandSourceStack source, int settlementId) {
+        WorldPlan.Settlement settlement = WorldPlanSavedData.get(source.getLevel()).plan().settlements()
+                .stream().filter(candidate -> candidate.id() == settlementId).findFirst().orElse(null);
+        if (settlement == null) {
+            source.sendFailure(Component.literal("没有 id=" + settlementId + " 的聚落。"));
+            return 0;
+        }
+        int placed = SettlementBuilder.build(source.getLevel(), settlement);
+        if (placed <= 0) {
+            source.sendFailure(Component.literal("建筑放置失败（地形高度无效）。"));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "在 " + settlement.name() + "（" + settlement.x() + ", " + settlement.z()
+                        + "）放置了测试建筑，共 " + placed + " 个方块。"), false);
+        return 1;
+    }
+
+    private static int worldPlanTeleport(CommandSourceStack source, int settlementId)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        WorldPlan.Settlement settlement = WorldPlanSavedData.get(source.getLevel()).plan().settlements()
+                .stream().filter(candidate -> candidate.id() == settlementId).findFirst().orElse(null);
+        if (settlement == null) {
+            source.sendFailure(Component.literal("没有 id=" + settlementId + " 的聚落。"));
+            return 0;
+        }
+        int y = source.getLevel().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types
+                .MOTION_BLOCKING_NO_LEAVES, settlement.x(), settlement.z());
+        player.teleportTo(source.getLevel(), settlement.x() + 0.5D, y + 1.0D,
+                settlement.z() + 0.5D, player.getYRot(), player.getXRot());
+        source.sendSuccess(() -> Component.literal("已传送到 " + settlement.name() + "。"), false);
         return 1;
     }
 

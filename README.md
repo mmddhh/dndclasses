@@ -58,5 +58,9 @@ External content must use a non-reserved namespace (not `dndclasses`, `minecraft
 
 ## License
 
-All Rights Reserved (see `gradle.properties`). ApricityUI's bundled Ore theme is distributed
-under its own license (MPL-2.0).
+This mod is licensed under the **GNU General Public License v3.0 only** (GPL-3.0-only).
+See [LICENSE](LICENSE) for the full text.
+
+Copyright (C) 2026 mmddhh and dndClasses contributors.
+
+ApricityUI's bundled Ore theme is distributed under its own license (MPL-2.0).

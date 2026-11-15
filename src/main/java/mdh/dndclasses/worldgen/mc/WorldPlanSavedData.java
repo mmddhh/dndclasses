@@ -1,5 +1,7 @@
-package mdh.dndclasses.worldgen;
+package mdh.dndclasses.worldgen.mc;
 
+import mdh.dndclasses.worldgen.WorldPlan;
+import mdh.dndclasses.worldgen.WorldPlanGenerator;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;

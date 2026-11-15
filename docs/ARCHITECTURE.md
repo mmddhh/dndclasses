@@ -40,10 +40,23 @@
 ## 3. 物理拆分前的约束
 
 1. 所有新代码先判断属于哪个模块，不要继续往 `data`/`feature` 里堆；
-2. `worldgen` 保持零 `mdh` import；需要 Minecraft 的适配器放在 `worldgen/mc` 子包，并只被 `platform` 引用；
+2. `worldgen` 保持零 `mdh` / 零 Minecraft import；需要 Minecraft 的适配器放在 `worldgen/mc` 子包，并只被 `platform` 引用；
 3. 不再新增 `weapon` → `client`、`feature` → `armor` 这类直接引用；
 4. 网络发送、客户端状态、Mixin 一律只在 `platform` 层出现；
 5. 跨模块调用用接口（`character/spi`、`combat/spi`）而不是具体类。
+
+## 3.1 自动检查
+
+```powershell
+.\gradlew.bat checkArchitecture
+```
+
+规则：
+
+- `worldgen` 不能 import 任何 `mdh.dndclasses.*`；
+- `weapon/armor/gear/spells/spellcasting/feature/data` 不能 import `client/mixin/command`。
+
+这个任务没有挂到 `build`，只在重构前手动跑。
 
 ## 4. 建议的最小重构顺序
 

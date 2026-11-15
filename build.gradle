@@ -208,3 +208,40 @@ tasks.register('syncApricity', Copy) {
 tasks.matching { it.name in ['runClient', 'runServer', 'runData', 'runGameTestServer'] }.configureEach {
     dependsOn 'syncApricity'
 }
+
+// Lightweight guard for the package boundaries documented in docs/ARCHITECTURE.md.
+// This is intentionally not wired into `build`; run it before larger refactors.
+tasks.register('checkArchitecture') {
+    group = 'verification'
+    description = 'Checks the documented package boundaries (worldgen purity, no content->client imports).'
+    doLast {
+        def root = file('src/main/java/mdh/dndclasses')
+        def violations = []
+        def combatPackages = ['weapon', 'armor', 'gear', 'spells', 'spellcasting'] as Set
+        def contentPackages = ['feature', 'data'] as Set
+
+        fileTree(root).matching { include '**/*.java' }.each { source ->
+            def relative = root.toPath().relativize(source.toPath()).toString().replace('\\', '/')
+            def slash = relative.lastIndexOf('/')
+            def pkg = slash >= 0 ? relative.substring(0, slash).replace('/', '.') : ''
+            def imports = source.readLines()
+                    .findAll { it.startsWith('import mdh.dndclasses.') }
+                    .collect { it.substring('import '.length(), it.length() - 1) }
+
+            if (pkg == 'worldgen' && !imports.isEmpty()) {
+                violations << "${relative}: worldgen must stay Minecraft-free, found ${imports}"
+            }
+            if ((combatPackages.contains(pkg) || contentPackages.contains(pkg))
+                    && imports.any { it.startsWith('mdh.dndclasses.client.')
+                            || it.startsWith('mdh.dndclasses.mixin.')
+                            || it.startsWith('mdh.dndclasses.command.') }) {
+                violations << "${relative}: content/combat code must not import client/mixin/command"
+            }
+        }
+
+        if (!violations.isEmpty()) {
+            throw new GradleException("Architecture violations:\n - " + violations.join("\n - "))
+        }
+        logger.lifecycle('Architecture check passed.')
+    }
+}

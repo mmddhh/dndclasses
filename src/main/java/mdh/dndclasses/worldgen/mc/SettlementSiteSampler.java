@@ -1,5 +1,6 @@
-package mdh.dndclasses.worldgen;
+package mdh.dndclasses.worldgen.mc;
 
+import mdh.dndclasses.worldgen.WorldPlan;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;

@@ -1,5 +1,6 @@
-package mdh.dndclasses.worldgen;
+package mdh.dndclasses.worldgen.mc;
 
+import mdh.dndclasses.worldgen.NpcProfile;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;

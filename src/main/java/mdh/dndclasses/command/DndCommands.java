@@ -21,8 +21,10 @@ import mdh.dndclasses.spells.SpellClassifiers;
 import mdh.dndclasses.spells.SpellKind;
 import mdh.dndclasses.worldgen.NpcProfile;
 import mdh.dndclasses.worldgen.NpcSpawner;
+import mdh.dndclasses.worldgen.SettlementSiteSampler;
 import mdh.dndclasses.worldgen.WorldPlan;
 import mdh.dndclasses.worldgen.WorldPlanGenerator;
+import mdh.dndclasses.worldgen.WorldPlanSavedData;
 import mdh.dndclasses.worldgen.WorldPlanVerifier;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -146,7 +148,11 @@ public final class DndCommands {
                 .then(Commands.literal("json")
                         .executes(context -> worldPlan(context.getSource(), true)))
                 .then(Commands.literal("verify")
-                        .executes(context -> worldPlanVerify(context.getSource()))));
+                        .executes(context -> worldPlanVerify(context.getSource())))
+                .then(Commands.literal("regen")
+                        .executes(context -> worldPlanRegen(context.getSource())))
+                .then(Commands.literal("terrain")
+                        .executes(context -> worldPlanTerrain(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -446,7 +452,7 @@ public final class DndCommands {
     }
 
     private static int worldPlan(CommandSourceStack source, boolean writeJson) {
-        WorldPlan plan = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
         source.sendSuccess(() -> Component.literal(
                 "WorldPlan seed=" + plan.seed()
                         + "  国家=" + plan.nations().size()
@@ -481,7 +487,7 @@ public final class DndCommands {
     }
 
     private static int worldPlanVerify(CommandSourceStack source) {
-        WorldPlan plan = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
         WorldPlanVerifier.Result result = WorldPlanVerifier.verify(plan);
         if (result.ok()) {
             source.sendSuccess(() -> Component.literal("WorldPlan 校验通过。"), false);
@@ -495,8 +501,23 @@ public final class DndCommands {
         return result.ok() ? 1 : 0;
     }
 
+    private static int worldPlanRegen(CommandSourceStack source) {
+        WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
+        data.replace(WorldPlanGenerator.generate(source.getLevel().getSeed()));
+        source.sendSuccess(() -> Component.literal("WorldPlan 已按当前种子重新生成并保存。"), false);
+        return 1;
+    }
+
+    private static int worldPlanTerrain(CommandSourceStack source) {
+        WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
+        WorldPlan adjusted = SettlementSiteSampler.sample(source.getLevel(), data.plan());
+        data.replace(adjusted);
+        source.sendSuccess(() -> Component.literal("已按实际地形校正聚落坐标并保存。"), false);
+        return 1;
+    }
+
     private static int npcList(CommandSourceStack source) {
-        WorldPlan plan = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
         for (int i = 0; i < Math.min(20, plan.settlements().size()); i++) {
             WorldPlan.Settlement settlement = plan.settlements().get(i);
             WorldPlan.Nation nation = plan.nations().get(settlement.nationId());
@@ -509,7 +530,7 @@ public final class DndCommands {
 
     private static int npcSpawn(CommandSourceStack source, int settlementId) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        WorldPlan plan = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
         WorldPlan.Settlement settlement = plan.settlements().stream()
                 .filter(candidate -> candidate.id() == settlementId)
                 .findFirst()

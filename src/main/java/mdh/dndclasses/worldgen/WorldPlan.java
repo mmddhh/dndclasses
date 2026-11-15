@@ -11,7 +11,8 @@ import java.util.List;
  */
 public record WorldPlan(long seed, List<Nation> nations, List<Settlement> settlements, List<HistoryEvent> events) {
 
-    public record Nation(int id, String name, String race, String government, int military, int wealth) {
+    public record Nation(int id, String name, String race, String government, int military, int wealth,
+                         String culture) {
     }
 
     public record Settlement(int id, String name, int nationId, int x, int z, int population,
@@ -35,6 +36,7 @@ public record WorldPlan(long seed, List<Nation> nations, List<Settlement> settle
             json.addProperty("government", nation.government());
             json.addProperty("military", nation.military());
             json.addProperty("wealth", nation.wealth());
+            json.addProperty("culture", nation.culture());
             nationArray.add(json);
         }
         root.add("nations", nationArray);

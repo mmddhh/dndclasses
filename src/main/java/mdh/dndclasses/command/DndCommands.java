@@ -23,6 +23,7 @@ import mdh.dndclasses.worldgen.NpcProfile;
 import mdh.dndclasses.worldgen.NpcSpawner;
 import mdh.dndclasses.worldgen.WorldPlan;
 import mdh.dndclasses.worldgen.WorldPlanGenerator;
+import mdh.dndclasses.worldgen.WorldPlanVerifier;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
@@ -143,7 +144,9 @@ public final class DndCommands {
                 .requires(source -> source.hasPermission(2))
                 .executes(context -> worldPlan(context.getSource(), false))
                 .then(Commands.literal("json")
-                        .executes(context -> worldPlan(context.getSource(), true))));
+                        .executes(context -> worldPlan(context.getSource(), true)))
+                .then(Commands.literal("verify")
+                        .executes(context -> worldPlanVerify(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -475,6 +478,21 @@ public final class DndCommands {
             }
         }
         return 1;
+    }
+
+    private static int worldPlanVerify(CommandSourceStack source) {
+        WorldPlan plan = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        WorldPlanVerifier.Result result = WorldPlanVerifier.verify(plan);
+        if (result.ok()) {
+            source.sendSuccess(() -> Component.literal("WorldPlan 校验通过。"), false);
+        } else {
+            source.sendFailure(Component.literal("WorldPlan 校验失败，共 " + result.errors().size() + " 项："));
+            result.errors().stream().limit(10).forEach(error ->
+                    source.sendFailure(Component.literal(" - " + error)));
+        }
+        result.warnings().stream().limit(5).forEach(warning ->
+                source.sendSuccess(() -> Component.literal("警告: " + warning), false));
+        return result.ok() ? 1 : 0;
     }
 
     private static int npcList(CommandSourceStack source) {

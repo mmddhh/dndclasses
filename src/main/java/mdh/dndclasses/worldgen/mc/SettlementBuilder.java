@@ -46,8 +46,29 @@ public final class SettlementBuilder {
             }
         }
 
-        // Walls, with a 1x2 doorway on the south face.
-        for (int dy = 1; dy <= 3; dy++) {
+        String roofType = cultureValue(settlement.culture(), "roof", "flat");
+        String windowType = cultureValue(settlement.culture(), "window", "small");
+        String motif = cultureValue(settlement.culture(), "motif", "rune");
+        int wallHeight = switch (roofType) {
+            case "spiral" -> 5;
+            case "steep" -> 4;
+            case "flat" -> 2;
+            default -> 3;
+        };
+
+        // Clear a 9x9 volume tall enough for the selected roof.
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                for (int dy = 1; dy <= wallHeight + 6; dy++) {
+                    placed += set(level, centerX + dx, y + dy, centerZ + dz,
+                            Blocks.AIR.defaultBlockState());
+                }
+                placed += set(level, centerX + dx, y, centerZ + dz, foundation);
+            }
+        }
+
+        // Walls, windows and a 1x2 doorway on the south face.
+        for (int dy = 1; dy <= wallHeight; dy++) {
             for (int dx = -4; dx <= 4; dx++) {
                 for (int dz = -4; dz <= 4; dz++) {
                     boolean edge = Math.abs(dx) == 4 || Math.abs(dz) == 4;
@@ -55,27 +76,133 @@ public final class SettlementBuilder {
                         continue;
                     }
                     boolean door = dz == -4 && dx == 0 && dy <= 2;
-                    if (!door) {
+                    boolean window = isWindow(dx, dz, dy, wallHeight, windowType);
+                    if (!door && !window) {
                         placed += set(level, centerX + dx, y + dy, centerZ + dz, wall);
                     }
                 }
             }
         }
 
-        // Roof and corner merlons.
+        int roofBase = y + wallHeight + 1;
+        switch (roofType) {
+            case "gabled" -> buildGabledRoof(level, centerX, centerZ, roofBase, roof);
+            case "domed" -> buildDomedRoof(level, centerX, centerZ, roofBase, roof);
+            case "spiral" -> buildSpiralRoof(level, centerX, centerZ, roofBase, roof, wall);
+            case "flat" -> buildFlatRoof(level, centerX, centerZ, roofBase, roof, wall);
+            default -> buildSteepRoof(level, centerX, centerZ, roofBase, roof, wall);
+        }
+
+        placed += set(level, centerX, y, centerZ, motifBlock(motif));
+        placed += set(level, centerX, y + 1, centerZ, Blocks.TORCH.defaultBlockState());
+        return placed;
+    }
+
+    private static void buildFlatRoof(ServerLevel level, int x, int z, int base, BlockState roof,
+                                      BlockState wall) {
         for (int dx = -4; dx <= 4; dx++) {
             for (int dz = -4; dz <= 4; dz++) {
-                placed += set(level, centerX + dx, y + 4, centerZ + dz, roof);
+                set(level, x + dx, base, z + dz, roof);
             }
         }
         for (int dx : new int[]{-4, 4}) {
             for (int dz : new int[]{-4, 4}) {
-                placed += set(level, centerX + dx, y + 5, centerZ + dz, wall);
+                set(level, x + dx, base + 1, z + dz, wall);
             }
         }
+    }
 
-        placed += set(level, centerX, y + 1, centerZ, Blocks.TORCH.defaultBlockState());
-        return placed;
+    private static void buildSteepRoof(ServerLevel level, int x, int z, int base, BlockState roof,
+                                       BlockState wall) {
+        for (int layer = 0; layer <= 4; layer++) {
+            int half = 4 - layer;
+            for (int dx = -half; dx <= half; dx++) {
+                for (int dz = -half; dz <= half; dz++) {
+                    set(level, x + dx, base + layer, z + dz, roof);
+                }
+            }
+        }
+        set(level, x, base + 5, z, wall);
+    }
+
+    private static void buildGabledRoof(ServerLevel level, int x, int z, int base, BlockState roof) {
+        for (int layer = 0; layer <= 4; layer++) {
+            int half = 4 - layer;
+            for (int dx = -4; dx <= 4; dx++) {
+                for (int dz = -half; dz <= half; dz++) {
+                    set(level, x + dx, base + layer, z + dz, roof);
+                }
+            }
+        }
+    }
+
+    private static void buildDomedRoof(ServerLevel level, int x, int z, int base, BlockState roof) {
+        for (int layer = 0; layer <= 3; layer++) {
+            int radius = 4 - layer;
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if (dx * dx + dz * dz <= radius * radius + 1) {
+                        set(level, x + dx, base + layer, z + dz, roof);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void buildSpiralRoof(ServerLevel level, int x, int z, int base, BlockState roof,
+                                        BlockState wall) {
+        for (int layer = 0; layer <= 5; layer++) {
+            int offset = layer % 2 == 0 ? -1 : 1;
+            int half = Math.max(0, 3 - layer / 2);
+            for (int dx = -half; dx <= half; dx++) {
+                for (int dz = -half; dz <= half; dz++) {
+                    set(level, x + dx + offset, base + layer, z + dz, roof);
+                }
+            }
+        }
+        set(level, x, base + 6, z, wall);
+    }
+
+    private static boolean isWindow(int dx, int dz, int dy, int wallHeight, String style) {
+        boolean wall = Math.abs(dx) == 4 || Math.abs(dz) == 4;
+        if (!wall) {
+            return false;
+        }
+        int along = Math.abs(dx) == 4 ? dz : dx;
+        if (Math.abs(along) % 3 != 0 || Math.abs(along) == 0) {
+            return false;
+        }
+        return switch (style) {
+            case "tall" -> dy == 1 || dy == 2;
+            case "arched" -> dy == 2 || (dy == 3 && Math.abs(along) == 3);
+            case "round" -> dy == 2 && Math.abs(along) == 3;
+            default -> dy == 2;
+        };
+    }
+
+    private static String cultureValue(String culture, String key, String fallback) {
+        if (culture == null) {
+            return fallback;
+        }
+        for (String part : culture.split(";")) {
+            int split = part.indexOf('=');
+            if (split > 0 && part.substring(0, split).equals(key)) {
+                return part.substring(split + 1);
+            }
+        }
+        return fallback;
+    }
+
+    private static BlockState motifBlock(String motif) {
+        return switch (motif) {
+            case "rune" -> Blocks.CHISELED_STONE_BRICKS.defaultBlockState();
+            case "vine" -> Blocks.OAK_LEAVES.defaultBlockState();
+            case "star" -> Blocks.GLOWSTONE.defaultBlockState();
+            case "dragon" -> Blocks.MAGMA_BLOCK.defaultBlockState();
+            case "hammer" -> Blocks.IRON_BLOCK.defaultBlockState();
+            case "wave" -> Blocks.PRISMARINE_BRICKS.defaultBlockState();
+            default -> Blocks.STONE_BRICKS.defaultBlockState();
+        };
     }
 
     private static int set(ServerLevel level, int x, int y, int z, BlockState state) {

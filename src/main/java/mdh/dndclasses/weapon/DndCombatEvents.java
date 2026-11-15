@@ -25,12 +25,10 @@ import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import mdh.dndclasses.Dndclasses;
-import mdh.dndclasses.client.ClientReloadState;
+import mdh.dndclasses.compat.ClientHooks;
 import mdh.dndclasses.compat.BetterCombatCompat;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.fml.DistExecutor;
 import com.mojang.logging.LogUtils;
 import org.slf4j.Logger;
 
@@ -223,7 +221,7 @@ public final class DndCombatEvents {
                         // Also drop the "held in front" pose a cancelled reload left behind.
                         CrossbowItem.setCharged(main, false);
                     }
-                    DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> ClientReloadState::clear);
+                    ClientHooks.clearReloadAnimation();
                     player.displayClientMessage(Component.translatable("message.dndclasses.not_loaded"), true);
                     return true;
                 }

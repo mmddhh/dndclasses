@@ -88,6 +88,7 @@ public final class ClientSetup {
     public static void onClientSetup(FMLClientSetupEvent event) {
         DevAssets.syncApricity();
         event.enqueueWork(() -> {
+            mdh.dndclasses.compat.ClientHooks.setClearReloadAnimation(ClientReloadState::clear);
             for (RegistryObject<? extends Item> registryObject : WeaponItems.WEAPONS.values()) {
                 Item item = registryObject.get();
                 DndWeaponSpec spec = WeaponItems.specOf(item);

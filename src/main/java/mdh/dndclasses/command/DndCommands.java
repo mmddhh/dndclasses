@@ -165,7 +165,9 @@ public final class DndCommands {
                 .then(Commands.literal("info")
                         .then(Commands.argument("settlement", IntegerArgumentType.integer(0, 10000))
                                 .executes(context -> worldPlanInfo(context.getSource(),
-                                        IntegerArgumentType.getInteger(context, "settlement"))))));
+                                        IntegerArgumentType.getInteger(context, "settlement")))))
+                .then(Commands.literal("selftest")
+                        .executes(context -> worldPlanSelftest(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -626,6 +628,76 @@ public final class DndCommands {
         source.sendSuccess(() -> Component.literal("实际建材: "
                 + (local == null ? "附近没有干地" : materialName(local))), false);
         return 1;
+    }
+
+    private static int worldPlanSelftest(CommandSourceStack source) {
+        WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
+        int passed = 0;
+        int total = 0;
+
+        total++;
+        boolean counts = plan.nations().size() == 6 && plan.settlements().size() == 30
+                && plan.events().size() == 30;
+        source.sendSuccess(() -> Component.literal((counts ? "[通过] " : "[失败] ")
+                + "计划规模：国家 " + plan.nations().size() + "，聚落 "
+                + plan.settlements().size() + "，事件 " + plan.events().size()), false);
+        if (counts) {
+            passed++;
+        }
+
+        total++;
+        WorldPlanVerifier.Result verify = WorldPlanVerifier.verify(plan);
+        source.sendSuccess(() -> Component.literal((verify.ok() ? "[通过] " : "[失败] ")
+                + "计划校验" + (verify.ok() ? "" : "：" + verify.errors().size() + " 项错误")), false);
+        if (verify.ok()) {
+            passed++;
+        }
+
+        total++;
+        boolean cacheOk = true;
+        for (WorldPlan.Settlement settlement : plan.settlements()) {
+            net.minecraft.world.level.ChunkPos chunk = new net.minecraft.world.level.ChunkPos(
+                    settlement.x() >> 4, settlement.z() >> 4);
+            WorldPlan.Settlement cached = mdh.dndclasses.worldgen.mc.WorldPlanCache.settlementAt(chunk);
+            if (cached == null || cached.id() != settlement.id()) {
+                cacheOk = false;
+                break;
+            }
+        }
+        boolean finalCacheOk = cacheOk;
+        source.sendSuccess(() -> Component.literal((finalCacheOk ? "[通过] " : "[失败] ")
+                + "区块缓存与计划一致"), false);
+        if (cacheOk) {
+            passed++;
+        }
+
+        total++;
+        boolean featureRegistered = net.minecraft.core.registries.BuiltInRegistries.FEATURE
+                .containsKey(new ResourceLocation("dndclasses", "planned_ruin"));
+        source.sendSuccess(() -> Component.literal((featureRegistered ? "[通过] " : "[失败] ")
+                + "planned_ruin Feature 已注册"), false);
+        if (featureRegistered) {
+            passed++;
+        }
+
+        total++;
+        boolean dataOk = source.getServer().getResourceManager()
+                .getResource(new ResourceLocation("dndclasses",
+                        "worldgen/placed_feature/planned_ruin.json")).isPresent()
+                && source.getServer().getResourceManager()
+                .getResource(new ResourceLocation("dndclasses",
+                        "worldgen/configured_feature/planned_ruin.json")).isPresent();
+        source.sendSuccess(() -> Component.literal((dataOk ? "[通过] " : "[失败] ")
+                + "Feature 数据文件存在"), false);
+        if (dataOk) {
+            passed++;
+        }
+
+        int finalPassed = passed;
+        int finalTotal = total;
+        source.sendSuccess(() -> Component.literal("M1 selftest: " + finalPassed + "/" + finalTotal
+                + (finalPassed == finalTotal ? " 通过" : " 未通过")), false);
+        return finalPassed == finalTotal ? 1 : 0;
     }
 
     private static int npcList(CommandSourceStack source) {

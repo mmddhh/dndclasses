@@ -590,6 +590,11 @@ public final class DndCommands {
         String teleportName = settlement == null ? "未知聚落" : settlement.name();
         player.teleportTo(source.getLevel(), target.getX() + 0.5D, target.getY() + 1.0D,
                 target.getZ() + 0.5D, player.getYRot(), player.getXRot());
+        if (settlement != null) {
+            // The terrain search may have generated the target chunk before the plan cache was
+            // updated, so the worldgen feature can miss it. Build the watchtower explicitly here.
+            SettlementBuilder.build(source.getLevel(), settlement);
+        }
         source.sendSuccess(() -> Component.literal("已传送到 " + teleportName
                 + " 的地表。"), false);
         return 1;

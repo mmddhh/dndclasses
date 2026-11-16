@@ -239,7 +239,24 @@ public final class SettlementBuilder {
         return level.setBlock(pos, state, 3) ? 1 : 0;
     }
 
-    private record Site(int x, int y, int z) {
+    public record Site(int x, int y, int z) {
+    }
+
+    /** Public preview for commands: the actual dry site and locally chosen material. */
+    public static Site findSite(ServerLevel level, int centerX, int centerZ) {
+        return findDrySite(level, centerX, centerZ);
+    }
+
+    public static String materialAt(ServerLevel level, WorldPlan.Settlement settlement) {
+        Site site = findDrySite(level, settlement.x(), settlement.z());
+        if (site == null) {
+            return null;
+        }
+        String local = localMaterial(level, site.x(), site.y(), site.z());
+        if (local != null) {
+            return local;
+        }
+        return settlement.materials().isEmpty() ? "stone" : settlement.materials().get(0);
     }
 
     /** Finds dry, non-fluid ground near the planned point; null when the area is water/void. */
@@ -259,8 +276,9 @@ public final class SettlementBuilder {
                     BlockPos ground = new BlockPos(x, y - 1, z);
                     BlockState below = level.getBlockState(ground);
                     BlockState at = level.getBlockState(new BlockPos(x, y, z));
+                    BlockState above = level.getBlockState(new BlockPos(x, y + 1, z));
                     if (!below.isAir() && below.getFluidState().isEmpty()
-                            && at.getFluidState().isEmpty()) {
+                            && at.isAir() && above.isAir()) {
                         return new Site(x, y, z);
                     }
                 }

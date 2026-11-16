@@ -556,11 +556,24 @@ public final class DndCommands {
             source.sendFailure(Component.literal("没有 id=" + settlementId + " 的聚落。"));
             return 0;
         }
-        int y = source.getLevel().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types
-                .MOTION_BLOCKING_NO_LEAVES, settlement.x(), settlement.z());
-        player.teleportTo(source.getLevel(), settlement.x() + 0.5D, y + 1.0D,
-                settlement.z() + 0.5D, player.getYRot(), player.getXRot());
-        source.sendSuccess(() -> Component.literal("已传送到 " + settlement.name() + "。"), false);
+        SettlementBuilder.Site site = SettlementBuilder.findSite(source.getLevel(),
+                settlement.x(), settlement.z());
+        double x;
+        double z;
+        int y;
+        if (site != null) {
+            x = site.x() + 0.5D;
+            y = site.y() + 1;
+            z = site.z() + 0.5D;
+        } else {
+            x = settlement.x() + 0.5D;
+            y = source.getLevel().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types
+                    .MOTION_BLOCKING_NO_LEAVES, settlement.x(), settlement.z()) + 1;
+            z = settlement.z() + 0.5D;
+        }
+        player.teleportTo(source.getLevel(), x, y, z, player.getYRot(), player.getXRot());
+        source.sendSuccess(() -> Component.literal("已传送到 " + settlement.name()
+                + " 的地表。"), false);
         return 1;
     }
 
@@ -580,7 +593,10 @@ public final class DndCommands {
         source.sendSuccess(() -> Component.literal("坐标: " + settlement.x() + ", " + settlement.z()
                 + " · 国家文化: " + describeCulture(nation.culture())), false);
         source.sendSuccess(() -> Component.literal("聚落文化: " + describeCulture(settlement.culture())
-                + " · 材料: " + materialNames(settlement.materials())), false);
+                + " · 规划材料: " + materialNames(settlement.materials())), false);
+        String local = SettlementBuilder.materialAt(source.getLevel(), settlement);
+        source.sendSuccess(() -> Component.literal("实际建材: "
+                + (local == null ? "附近没有干地" : materialName(local))), false);
         return 1;
     }
 

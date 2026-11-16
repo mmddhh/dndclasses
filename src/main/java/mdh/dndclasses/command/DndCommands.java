@@ -589,12 +589,16 @@ public final class DndCommands {
                 target = new net.minecraft.core.BlockPos(water.x(), water.y(), water.z());
             }
         }
+        if (target == null && settlement != null) {
+            // Ocean-only seed: use a sea-level platform coordinate rather than the world spawn.
+            int seaY = Math.max(63, source.getLevel().getHeight(
+                    net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    settlement.x(), settlement.z()));
+            target = new net.minecraft.core.BlockPos(settlement.x(), seaY, settlement.z());
+        }
         if (target == null || settlement == null) {
-            // Last resort: put the player at the world spawn instead of refusing or dropping them
-            // into water/bedrock.
+            // Only reachable when the settlement id itself is invalid.
             target = source.getLevel().getSharedSpawnPos();
-            source.sendSuccess(() -> Component.literal(
-                    "该聚落位于海洋，已传送到世界出生点。"), false);
         }
         String teleportName = settlement == null ? "未知聚落" : settlement.name();
         player.teleportTo(source.getLevel(), target.getX() + 0.5D, target.getY() + 1.0D,

@@ -27,13 +27,16 @@ public final class SettlementBuilder {
         Site site = findDrySite(level, settlement.x(), settlement.z());
         boolean platform = false;
         if (site == null) {
-            // M1 fallback: an ocean settlement still gets a test platform so the placement path can
-            // be verified. Proper land site selection is the next milestone.
             site = findWaterSite(level, settlement.x(), settlement.z());
             platform = site != null;
         }
         if (site == null) {
-            return 0;
+            // Last resort for the M1 prototype: a platform at sea level, so an ocean-only seed can
+            // still be inspected. This will be replaced by real site selection in M2.
+            int seaY = Math.max(63, level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    settlement.x(), settlement.z()));
+            site = new Site(settlement.x(), seaY, settlement.z());
+            platform = true;
         }
         int centerX = site.x();
         int centerZ = site.z();

@@ -56,7 +56,7 @@ public final class WorldPlanGenerator {
                 int z = (s / 2) * 420 - 210 + rng.nextInt(80);
                 String name = uniqueSettlementName(rng, usedSettlementNames);
                 String culture = nation.culture + ";trim=" + pick(rng, TRIMS);
-                List<String> materials = pickDistinctMaterials(rng);
+                List<String> materials = preferencesFor(nation.race);
                 SettlementState settlement = new SettlementState(id, name, nationId, x, z,
                         40 + rng.nextInt(260), culture, materials);
                 settlements.add(settlement);
@@ -175,13 +175,15 @@ public final class WorldPlanGenerator {
         return ((long) low << 32) | (high & 0xffffffffL);
     }
 
-    private static List<String> pickDistinctMaterials(Random rng) {
-        List<String> pool = new ArrayList<>(List.of(MATERIALS));
-        List<String> result = new ArrayList<>(2);
-        for (int i = 0; i < 2 && !pool.isEmpty(); i++) {
-            result.add(pool.remove(rng.nextInt(pool.size())));
-        }
-        return result;
+    private static List<String> preferencesFor(String race) {
+        return switch (race) {
+            case "elf" -> List.of("oak", "spruce");
+            case "dwarf" -> List.of("deepslate", "stone");
+            case "orc" -> List.of("deepslate", "copper");
+            case "halfling" -> List.of("oak", "earth");
+            case "dragonborn" -> List.of("sandstone", "copper");
+            default -> List.of("stone", "oak");
+        };
     }
 
     private static String uniqueSettlementName(Random rng, Set<String> used) {

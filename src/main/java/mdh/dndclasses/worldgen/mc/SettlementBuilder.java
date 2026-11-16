@@ -32,7 +32,7 @@ public final class SettlementBuilder {
         int centerZ = site.z();
         int y = site.y();
 
-        String material = localMaterial(level, centerX, y, centerZ);
+        String material = chooseMaterial(level, new Site(centerX, y, centerZ), settlement);
         if (material == null) {
             material = settlement.materials().isEmpty() ? "stone" : settlement.materials().get(0);
         }
@@ -252,11 +252,62 @@ public final class SettlementBuilder {
         if (site == null) {
             return null;
         }
+        return chooseMaterial(level, site, settlement);
+    }
+
+    /** Culture preference wins when locally available; otherwise use the local substitute. */
+    private static String chooseMaterial(ServerLevel level, Site site, WorldPlan.Settlement settlement) {
+        for (String preferred : settlement.materials()) {
+            if (hasLocal(level, site.x(), site.y(), site.z(), preferred)) {
+                return preferred;
+            }
+        }
         String local = localMaterial(level, site.x(), site.y(), site.z());
         if (local != null) {
             return local;
         }
-        return settlement.materials().isEmpty() ? "stone" : settlement.materials().get(0);
+        return settlement.materials().isEmpty() ? null : settlement.materials().get(0);
+    }
+
+    private static boolean hasLocal(ServerLevel level, int x, int y, int z, String material) {
+        if ("sandstone".equals(material) && !isSandyBiome(level, x, y, z)) {
+            return false;
+        }
+        for (int dx = -8; dx <= 8; dx += 2) {
+            for (int dz = -8; dz <= 8; dz += 2) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    BlockState state = level.getBlockState(new BlockPos(x + dx, y + dy, z + dz));
+                    if (matchesMaterial(state, material)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesMaterial(BlockState state, String material) {
+        return switch (material) {
+            case "oak" -> state.is(Blocks.OAK_LOG) || state.is(Blocks.OAK_LEAVES)
+                    || state.is(Blocks.OAK_PLANKS);
+            case "spruce" -> state.is(Blocks.SPRUCE_LOG) || state.is(Blocks.SPRUCE_LEAVES)
+                    || state.is(Blocks.SPRUCE_PLANKS);
+            case "deepslate" -> state.is(Blocks.DEEPSLATE) || state.is(Blocks.DEEPSLATE_BRICKS);
+            case "sandstone" -> state.is(Blocks.SANDSTONE) || state.is(Blocks.SAND);
+            case "copper" -> state.is(Blocks.COPPER_ORE) || state.is(Blocks.COPPER_BLOCK);
+            case "stone" -> state.is(Blocks.STONE) || state.is(Blocks.COBBLESTONE);
+            case "earth" -> state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT)
+                    || state.is(Blocks.COARSE_DIRT) || state.is(Blocks.ROOTED_DIRT)
+                    || state.is(Blocks.PODZOL) || state.is(Blocks.MYCELIUM);
+            default -> false;
+        };
+    }
+
+    private static boolean isSandyBiome(ServerLevel level, int x, int y, int z) {
+        Holder<Biome> biome = level.getBiome(new BlockPos(x, y, z));
+        return biome.is(BiomeTags.IS_BADLANDS)
+                || biome.unwrapKey().map(key -> key.location().getPath().equals("desert"))
+                .orElse(false);
     }
 
     /** Finds dry, non-fluid ground near the planned point; null when the area is water/void. */

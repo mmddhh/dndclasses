@@ -593,7 +593,7 @@ public final class DndCommands {
         source.sendSuccess(() -> Component.literal("坐标: " + settlement.x() + ", " + settlement.z()
                 + " · 国家文化: " + describeCulture(nation.culture())), false);
         source.sendSuccess(() -> Component.literal("聚落文化: " + describeCulture(settlement.culture())
-                + " · 规划材料: " + materialNames(settlement.materials())), false);
+                + " · 文化偏好: " + materialNames(settlement.materials())), false);
         String local = SettlementBuilder.materialAt(source.getLevel(), settlement);
         source.sendSuccess(() -> Component.literal("实际建材: "
                 + (local == null ? "附近没有干地" : materialName(local))), false);

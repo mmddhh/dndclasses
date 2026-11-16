@@ -2,9 +2,15 @@ package mdh.dndclasses.worldgen.mc;
 
 import mdh.dndclasses.worldgen.WorldPlan;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BiomeTags;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
@@ -77,7 +83,16 @@ public final class SettlementBuilder {
                     }
                     boolean door = dz == -4 && dx == 0 && dy <= 2;
                     boolean window = isWindow(dx, dz, dy, wallHeight, windowType);
-                    if (!door && !window) {
+                    if (door) {
+                        BlockState doorState = Blocks.OAK_DOOR.defaultBlockState()
+                                .setValue(DoorBlock.FACING, Direction.NORTH)
+                                .setValue(DoorBlock.HALF, dy == 1
+                                        ? DoubleBlockHalf.LOWER : DoubleBlockHalf.UPPER);
+                        placed += set(level, centerX + dx, y + dy, centerZ + dz, doorState);
+                    } else if (window) {
+                        placed += set(level, centerX + dx, y + dy, centerZ + dz,
+                                Blocks.GLASS_PANE.defaultBlockState());
+                    } else {
                         placed += set(level, centerX + dx, y + dy, centerZ + dz, wall);
                     }
                 }
@@ -137,7 +152,13 @@ public final class SettlementBuilder {
     }
 
     private static void buildDomedRoof(ServerLevel level, int x, int z, int base, BlockState roof) {
-        for (int layer = 0; layer <= 3; layer++) {
+        // First layer must cover the full square footprint, otherwise the corners leak.
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                set(level, x + dx, base, z + dz, roof);
+            }
+        }
+        for (int layer = 1; layer <= 3; layer++) {
             int radius = 4 - layer;
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dz = -radius; dz <= radius; dz++) {
@@ -151,7 +172,12 @@ public final class SettlementBuilder {
 
     private static void buildSpiralRoof(ServerLevel level, int x, int z, int base, BlockState roof,
                                         BlockState wall) {
-        for (int layer = 0; layer <= 5; layer++) {
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                set(level, x + dx, base, z + dz, roof);
+            }
+        }
+        for (int layer = 1; layer <= 5; layer++) {
             int offset = layer % 2 == 0 ? -1 : 1;
             int half = Math.max(0, 3 - layer / 2);
             for (int dx = -half; dx <= half; dx++) {
@@ -282,6 +308,18 @@ public final class SettlementBuilder {
                 Math.max(copper, Math.max(stone, earth))));
         if (best == 0) {
             return null;
+        }
+        Holder<Biome> biome = level.getBiome(new BlockPos(x, y, z));
+        boolean sandyBiome = biome.is(BiomeTags.IS_BADLANDS)
+                || biome.unwrapKey().map(key -> key.location().getPath().equals("desert")).orElse(false);
+        if (best == sandstone && !sandyBiome) {
+            // A beach/shore sample should not turn a whole settlement into sandstone.
+            int next = Math.max(Math.max(oak, spruce), Math.max(Math.max(deepslate, copper),
+                    Math.max(stone, earth)));
+            best = next == 0 ? stone : next;
+            if (best == stone) {
+                return "stone";
+            }
         }
         if (best == oak) {
             return "oak";

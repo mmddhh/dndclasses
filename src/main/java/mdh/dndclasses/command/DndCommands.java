@@ -477,7 +477,7 @@ public final class DndCommands {
             source.sendSuccess(() -> Component.literal(
                     "[" + settlement.id() + "] " + settlement.name()
                             + " (" + nation.name() + ", " + settlement.population() + "人, "
-                            + settlement.culture() + ")"), false);
+                            + describeCulture(settlement.culture()) + ")"), false);
         }
         for (int i = Math.max(0, plan.events().size() - 3); i < plan.events().size(); i++) {
             WorldPlan.HistoryEvent event = plan.events().get(i);
@@ -575,12 +575,12 @@ public final class DndCommands {
         WorldPlan.Nation nation = plan.nations().get(settlement.nationId());
         source.sendSuccess(() -> Component.literal(
                 "[" + settlement.id() + "] " + settlement.name()
-                        + " · " + nation.name() + " (" + nation.race() + ")"
+                        + " · " + nation.name() + " (" + raceName(nation.race()) + ")"
                         + " · 人口 " + settlement.population()), false);
         source.sendSuccess(() -> Component.literal("坐标: " + settlement.x() + ", " + settlement.z()
-                + " · 国家文化: " + nation.culture()), false);
-        source.sendSuccess(() -> Component.literal("聚落文化: " + settlement.culture()
-                + " · 材料: " + String.join(", ", settlement.materials())), false);
+                + " · 国家文化: " + describeCulture(nation.culture())), false);
+        source.sendSuccess(() -> Component.literal("聚落文化: " + describeCulture(settlement.culture())
+                + " · 材料: " + materialNames(settlement.materials())), false);
         return 1;
     }
 
@@ -590,7 +590,7 @@ public final class DndCommands {
             WorldPlan.Settlement settlement = plan.settlements().get(i);
             WorldPlan.Nation nation = plan.nations().get(settlement.nationId());
             source.sendSuccess(() -> Component.literal(
-                    "[" + settlement.id() + "] " + settlement.name() + " · " + nation.race()
+                    "[" + settlement.id() + "] " + settlement.name() + " · " + raceName(nation.race())
                             + " · " + nation.name()), false);
         }
         return 1;
@@ -613,9 +613,104 @@ public final class DndCommands {
             return 0;
         }
         source.sendSuccess(() -> Component.literal(
-                "生成了 " + profile.name() + "（" + profile.race() + " " + profile.role()
+                "生成了 " + profile.name() + "（" + raceName(profile.race()) + " "
+                        + roleName(profile.role())
                         + "，聚落 " + settlement.name() + "）"), false);
         return 1;
+    }
+
+    private static String describeCulture(String culture) {
+        if (culture == null || culture.isBlank()) {
+            return "无";
+        }
+        StringBuilder out = new StringBuilder();
+        for (String part : culture.split(";")) {
+            int split = part.indexOf('=');
+            if (split <= 0) {
+                continue;
+            }
+            String key = part.substring(0, split);
+            String value = part.substring(split + 1);
+            String label = switch (key) {
+                case "roof" -> "屋顶";
+                case "window" -> "窗户";
+                case "motif" -> "纹样";
+                case "trim" -> "装饰";
+                default -> key;
+            };
+            String translated = switch (key + "=" + value) {
+                case "roof=steep" -> "尖顶";
+                case "roof=flat" -> "平顶";
+                case "roof=domed" -> "穹顶";
+                case "roof=gabled" -> "人字顶";
+                case "roof=spiral" -> "螺旋顶";
+                case "window=small" -> "小窗";
+                case "window=tall" -> "高窗";
+                case "window=arched" -> "拱窗";
+                case "window=round" -> "圆窗";
+                case "motif=rune" -> "符文";
+                case "motif=vine" -> "藤蔓";
+                case "motif=star" -> "星辰";
+                case "motif=dragon" -> "龙";
+                case "motif=hammer" -> "锤";
+                case "motif=wave" -> "波浪";
+                case "trim=carved" -> "雕刻";
+                case "trim=painted" -> "彩绘";
+                case "trim=plain" -> "素面";
+                case "trim=gilded" -> "镀金";
+                default -> value;
+            };
+            if (!out.isEmpty()) {
+                out.append("，");
+            }
+            out.append(label).append(' ').append(translated);
+        }
+        return out.isEmpty() ? "无" : out.toString();
+    }
+
+    private static String materialNames(java.util.List<String> materials) {
+        if (materials == null || materials.isEmpty()) {
+            return "无";
+        }
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (String material : materials) {
+            names.add(materialName(material));
+        }
+        return String.join("，", names);
+    }
+
+    private static String materialName(String material) {
+        return switch (material == null ? "" : material) {
+            case "oak" -> "橡木";
+            case "spruce" -> "云杉";
+            case "stone" -> "石料";
+            case "deepslate" -> "深板岩";
+            case "sandstone" -> "砂岩";
+            case "copper" -> "铜";
+            default -> material == null ? "未知" : material;
+        };
+    }
+
+    private static String raceName(String race) {
+        return switch (race == null ? "" : race) {
+            case "human" -> "人类";
+            case "elf" -> "精灵";
+            case "dwarf" -> "矮人";
+            case "orc" -> "兽人";
+            case "halfling" -> "半身人";
+            case "dragonborn" -> "龙裔";
+            default -> race == null ? "未知" : race;
+        };
+    }
+
+    private static String roleName(String role) {
+        return switch (role == null ? "" : role) {
+            case "merchant" -> "商人";
+            case "guard" -> "守卫";
+            case "scholar" -> "学者";
+            case "priest" -> "祭司";
+            default -> role == null ? "平民" : role;
+        };
     }
 
     private static int subclassList(CommandSourceStack source) throws CommandSyntaxException {

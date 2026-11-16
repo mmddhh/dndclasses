@@ -161,6 +161,10 @@ public final class DndCommands {
                 .then(Commands.literal("tp")
                         .then(Commands.argument("settlement", IntegerArgumentType.integer(0, 10000))
                                 .executes(context -> worldPlanTeleport(context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "settlement")))))
+                .then(Commands.literal("info")
+                        .then(Commands.argument("settlement", IntegerArgumentType.integer(0, 10000))
+                                .executes(context -> worldPlanInfo(context.getSource(),
                                         IntegerArgumentType.getInteger(context, "settlement"))))));
 
         dispatcher.register(Commands.literal("npc")
@@ -557,6 +561,26 @@ public final class DndCommands {
         player.teleportTo(source.getLevel(), settlement.x() + 0.5D, y + 1.0D,
                 settlement.z() + 0.5D, player.getYRot(), player.getXRot());
         source.sendSuccess(() -> Component.literal("已传送到 " + settlement.name() + "。"), false);
+        return 1;
+    }
+
+    private static int worldPlanInfo(CommandSourceStack source, int settlementId) {
+        WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
+        WorldPlan.Settlement settlement = plan.settlements().stream()
+                .filter(candidate -> candidate.id() == settlementId).findFirst().orElse(null);
+        if (settlement == null) {
+            source.sendFailure(Component.literal("没有 id=" + settlementId + " 的聚落。"));
+            return 0;
+        }
+        WorldPlan.Nation nation = plan.nations().get(settlement.nationId());
+        source.sendSuccess(() -> Component.literal(
+                "[" + settlement.id() + "] " + settlement.name()
+                        + " · " + nation.name() + " (" + nation.race() + ")"
+                        + " · 人口 " + settlement.population()), false);
+        source.sendSuccess(() -> Component.literal("坐标: " + settlement.x() + ", " + settlement.z()
+                + " · 国家文化: " + nation.culture()), false);
+        source.sendSuccess(() -> Component.literal("聚落文化: " + settlement.culture()
+                + " · 材料: " + String.join(", ", settlement.materials())), false);
         return 1;
     }
 

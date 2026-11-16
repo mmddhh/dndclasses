@@ -251,28 +251,35 @@ public final class SettlementBuilder {
         int sandstone = 0;
         int copper = 0;
         int stone = 0;
+        int earth = 0;
         for (int dx = -8; dx <= 8; dx += 2) {
             for (int dz = -8; dz <= 8; dz += 2) {
-                BlockState state = level.getBlockState(new BlockPos(x + dx, y - 1, z + dz));
-                if (state.is(Blocks.OAK_LOG) || state.is(Blocks.OAK_LEAVES)
-                        || state.is(Blocks.OAK_PLANKS)) {
-                    oak++;
-                } else if (state.is(Blocks.SPRUCE_LOG) || state.is(Blocks.SPRUCE_LEAVES)
-                        || state.is(Blocks.SPRUCE_PLANKS)) {
-                    spruce++;
-                } else if (state.is(Blocks.DEEPSLATE) || state.is(Blocks.DEEPSLATE_BRICKS)) {
-                    deepslate++;
-                } else if (state.is(Blocks.SANDSTONE) || state.is(Blocks.SAND)) {
-                    sandstone++;
-                } else if (state.is(Blocks.COPPER_ORE) || state.is(Blocks.COPPER_BLOCK)) {
-                    copper++;
-                } else if (state.is(Blocks.STONE) || state.is(Blocks.COBBLESTONE)) {
-                    stone++;
+                for (int dy = -1; dy <= 1; dy++) {
+                    BlockState state = level.getBlockState(new BlockPos(x + dx, y + dy, z + dz));
+                    if (state.is(Blocks.OAK_LOG) || state.is(Blocks.OAK_LEAVES)
+                            || state.is(Blocks.OAK_PLANKS)) {
+                        oak++;
+                    } else if (state.is(Blocks.SPRUCE_LOG) || state.is(Blocks.SPRUCE_LEAVES)
+                            || state.is(Blocks.SPRUCE_PLANKS)) {
+                        spruce++;
+                    } else if (state.is(Blocks.DEEPSLATE) || state.is(Blocks.DEEPSLATE_BRICKS)) {
+                        deepslate++;
+                    } else if (state.is(Blocks.SANDSTONE) || state.is(Blocks.SAND)) {
+                        sandstone++;
+                    } else if (state.is(Blocks.COPPER_ORE) || state.is(Blocks.COPPER_BLOCK)) {
+                        copper++;
+                    } else if (state.is(Blocks.STONE) || state.is(Blocks.COBBLESTONE)) {
+                        stone++;
+                    } else if (state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT)
+                            || state.is(Blocks.COARSE_DIRT) || state.is(Blocks.ROOTED_DIRT)
+                            || state.is(Blocks.PODZOL) || state.is(Blocks.MYCELIUM)) {
+                        earth++;
+                    }
                 }
             }
         }
         int best = Math.max(Math.max(oak, spruce), Math.max(Math.max(deepslate, sandstone),
-                Math.max(copper, stone)));
+                Math.max(copper, Math.max(stone, earth))));
         if (best == 0) {
             return null;
         }
@@ -291,6 +298,9 @@ public final class SettlementBuilder {
         if (best == copper) {
             return "copper";
         }
+        if (best == earth) {
+            return "earth";
+        }
         return "stone";
     }
 
@@ -301,6 +311,7 @@ public final class SettlementBuilder {
             case "deepslate" -> Blocks.DEEPSLATE_BRICKS.defaultBlockState();
             case "sandstone" -> Blocks.SANDSTONE.defaultBlockState();
             case "copper" -> Blocks.CUT_COPPER.defaultBlockState();
+            case "earth" -> Blocks.PACKED_MUD.defaultBlockState();
             default -> Blocks.STONE_BRICKS.defaultBlockState();
         };
     }
@@ -312,6 +323,7 @@ public final class SettlementBuilder {
             case "deepslate" -> Blocks.DEEPSLATE_TILES.defaultBlockState();
             case "sandstone" -> Blocks.CUT_SANDSTONE.defaultBlockState();
             case "copper" -> Blocks.WEATHERED_CUT_COPPER.defaultBlockState();
+            case "earth" -> Blocks.MUD_BRICKS.defaultBlockState();
             default -> Blocks.STONE_BRICK_SLAB.defaultBlockState();
         };
     }

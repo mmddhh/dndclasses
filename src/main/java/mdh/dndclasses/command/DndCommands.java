@@ -582,6 +582,13 @@ public final class DndCommands {
             target = SettlementSiteSampler.findSite(source.getLevel(),
                     settlement.x(), settlement.z(), 512);
         }
+        if (target == null && settlement != null) {
+            SettlementBuilder.Site water = SettlementBuilder.findWaterSite(source.getLevel(),
+                    settlement.x(), settlement.z());
+            if (water != null) {
+                target = new net.minecraft.core.BlockPos(water.x(), water.y(), water.z());
+            }
+        }
         if (target == null || settlement == null) {
             // Last resort: put the player at the world spawn instead of refusing or dropping them
             // into water/bedrock.

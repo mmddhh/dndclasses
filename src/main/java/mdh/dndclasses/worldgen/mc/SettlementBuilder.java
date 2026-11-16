@@ -25,6 +25,13 @@ public final class SettlementBuilder {
 
     public static int build(LevelAccessor level, WorldPlan.Settlement settlement) {
         Site site = findDrySite(level, settlement.x(), settlement.z());
+        boolean platform = false;
+        if (site == null) {
+            // M1 fallback: an ocean settlement still gets a test platform so the placement path can
+            // be verified. Proper land site selection is the next milestone.
+            site = findWaterSite(level, settlement.x(), settlement.z());
+            platform = site != null;
+        }
         if (site == null) {
             return 0;
         }
@@ -40,6 +47,13 @@ public final class SettlementBuilder {
         BlockState roof = roofFor(material);
         BlockState foundation = Blocks.STONE_BRICKS.defaultBlockState();
         int placed = 0;
+        if (platform) {
+            for (int dx = -5; dx <= 5; dx++) {
+                for (int dz = -5; dz <= 5; dz++) {
+                    placed += set(level, centerX + dx, y - 1, centerZ + dz, foundation);
+                }
+            }
+        }
 
         // Clear a 9x9x6 volume and lay the foundation.
         for (int dx = -4; dx <= 4; dx++) {
@@ -245,6 +259,20 @@ public final class SettlementBuilder {
     /** Public preview for commands: the actual dry site and locally chosen material. */
     public static Site findSite(LevelAccessor level, int centerX, int centerZ) {
         return findDrySite(level, centerX, centerZ);
+    }
+
+    public static Site findWaterSite(LevelAccessor level, int centerX, int centerZ) {
+        int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, centerX, centerZ);
+        if (y <= level.getMinBuildHeight() + 1) {
+            return null;
+        }
+        BlockPos surface = new BlockPos(centerX, y, centerZ);
+        BlockState at = level.getBlockState(surface);
+        BlockState below = level.getBlockState(surface.below());
+        if (!at.getFluidState().isEmpty() || !below.getFluidState().isEmpty()) {
+            return new Site(centerX, y, centerZ);
+        }
+        return null;
     }
 
     public static String materialAt(LevelAccessor level, WorldPlan.Settlement settlement) {

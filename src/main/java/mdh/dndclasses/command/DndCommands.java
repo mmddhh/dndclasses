@@ -516,7 +516,9 @@ public final class DndCommands {
 
     private static int worldPlanRegen(CommandSourceStack source) {
         WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
-        data.replace(WorldPlanGenerator.generate(source.getLevel().getSeed()));
+        WorldPlan regenerated = WorldPlanGenerator.generate(source.getLevel().getSeed());
+        data.replace(regenerated);
+        mdh.dndclasses.worldgen.mc.WorldPlanCache.set(regenerated);
         source.sendSuccess(() -> Component.literal("WorldPlan 已按当前种子重新生成并保存。"), false);
         return 1;
     }
@@ -525,6 +527,7 @@ public final class DndCommands {
         WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
         WorldPlan adjusted = SettlementSiteSampler.sample(source.getLevel(), data.plan());
         data.replace(adjusted);
+        mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
         source.sendSuccess(() -> Component.literal("已按实际地形校正聚落坐标并保存。"), false);
         return 1;
     }
@@ -550,31 +553,41 @@ public final class DndCommands {
     private static int worldPlanTeleport(CommandSourceStack source, int settlementId)
             throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        WorldPlan.Settlement settlement = WorldPlanSavedData.get(source.getLevel()).plan().settlements()
-                .stream().filter(candidate -> candidate.id() == settlementId).findFirst().orElse(null);
+        WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
+        WorldPlan plan = data.plan();
+        WorldPlan.Settlement settlement = findSettlement(plan, settlementId);
         if (settlement == null) {
             source.sendFailure(Component.literal("没有 id=" + settlementId + " 的聚落。"));
             return 0;
         }
         SettlementBuilder.Site site = SettlementBuilder.findSite(source.getLevel(),
                 settlement.x(), settlement.z());
-        double x;
-        double z;
-        int y;
-        if (site != null) {
-            x = site.x() + 0.5D;
-            y = site.y() + 1;
-            z = site.z() + 0.5D;
-        } else {
-            x = settlement.x() + 0.5D;
-            y = source.getLevel().getHeight(net.minecraft.world.level.levelgen.Heightmap.Types
-                    .MOTION_BLOCKING_NO_LEAVES, settlement.x(), settlement.z()) + 1;
-            z = settlement.z() + 0.5D;
+        if (site == null) {
+            // The plan may still point at ocean. Correct it against real terrain once, persist it
+            // and refresh the chunk-thread cache before teleporting.
+            WorldPlan adjusted = SettlementSiteSampler.sample(source.getLevel(), plan);
+            data.replace(adjusted);
+            mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
+            settlement = findSettlement(adjusted, settlementId);
+            site = settlement == null ? null
+                    : SettlementBuilder.findSite(source.getLevel(), settlement.x(), settlement.z());
         }
-        player.teleportTo(source.getLevel(), x, y, z, player.getYRot(), player.getXRot());
-        source.sendSuccess(() -> Component.literal("已传送到 " + settlement.name()
+        if (site == null || settlement == null) {
+            source.sendFailure(Component.literal(
+                    "该聚落附近没有干地，请先执行 /worldplan terrain 后再试。"));
+            return 0;
+        }
+        String teleportName = settlement.name();
+        player.teleportTo(source.getLevel(), site.x() + 0.5D, site.y() + 1.0D,
+                site.z() + 0.5D, player.getYRot(), player.getXRot());
+        source.sendSuccess(() -> Component.literal("已传送到 " + teleportName
                 + " 的地表。"), false);
         return 1;
+    }
+
+    private static WorldPlan.Settlement findSettlement(WorldPlan plan, int id) {
+        return plan.settlements().stream()
+                .filter(candidate -> candidate.id() == id).findFirst().orElse(null);
     }
 
     private static int worldPlanInfo(CommandSourceStack source, int settlementId) {

@@ -563,23 +563,33 @@ public final class DndCommands {
         SettlementBuilder.Site site = SettlementBuilder.findSite(source.getLevel(),
                 settlement.x(), settlement.z());
         if (site == null) {
-            // The plan may still point at ocean. Correct it against real terrain once, persist it
-            // and refresh the chunk-thread cache before teleporting.
-            WorldPlan adjusted = SettlementSiteSampler.sample(source.getLevel(), plan);
-            data.replace(adjusted);
-            mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
-            settlement = findSettlement(adjusted, settlementId);
-            site = settlement == null ? null
-                    : SettlementBuilder.findSite(source.getLevel(), settlement.x(), settlement.z());
+            // The plan may still point at ocean. Correct this settlement against real terrain,
+            // persist it and refresh the chunk-thread cache before teleporting.
+            WorldPlan adjusted = SettlementSiteSampler.relocate(source.getLevel(), plan,
+                    settlementId, 512);
+            if (adjusted != plan) {
+                data.replace(adjusted);
+                mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
+                plan = adjusted;
+                settlement = findSettlement(plan, settlementId);
+            }
         }
-        if (site == null || settlement == null) {
-            source.sendFailure(Component.literal(
-                    "该聚落附近没有干地，请先执行 /worldplan terrain 后再试。"));
-            return 0;
+        net.minecraft.core.BlockPos target = site == null ? null
+                : new net.minecraft.core.BlockPos(site.x(), site.y(), site.z());
+        if (target == null && settlement != null) {
+            target = SettlementSiteSampler.findSite(source.getLevel(),
+                    settlement.x(), settlement.z(), 512);
         }
-        String teleportName = settlement.name();
-        player.teleportTo(source.getLevel(), site.x() + 0.5D, site.y() + 1.0D,
-                site.z() + 0.5D, player.getYRot(), player.getXRot());
+        if (target == null || settlement == null) {
+            // Last resort: put the player at the world spawn instead of refusing or dropping them
+            // into water/bedrock.
+            target = source.getLevel().getSharedSpawnPos();
+            source.sendSuccess(() -> Component.literal(
+                    "该聚落位于海洋，已传送到世界出生点。"), false);
+        }
+        String teleportName = settlement == null ? "未知聚落" : settlement.name();
+        player.teleportTo(source.getLevel(), target.getX() + 0.5D, target.getY() + 1.0D,
+                target.getZ() + 0.5D, player.getYRot(), player.getXRot());
         source.sendSuccess(() -> Component.literal("已传送到 " + teleportName
                 + " 的地表。"), false);
         return 1;

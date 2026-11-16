@@ -26,7 +26,7 @@ public final class SettlementSiteSampler {
         List<WorldPlan.Settlement> adjusted = new ArrayList<>(plan.settlements().size());
         int moved = 0;
         for (WorldPlan.Settlement settlement : plan.settlements()) {
-            BlockPos site = findSite(level, settlement.x(), settlement.z());
+            BlockPos site = findSite(level, settlement.x(), settlement.z(), MAX_RADIUS);
             if (site == null) {
                 adjusted.add(settlement);
                 continue;
@@ -34,9 +34,7 @@ public final class SettlementSiteSampler {
             if (site.getX() != settlement.x() || site.getZ() != settlement.z()) {
                 moved++;
             }
-            adjusted.add(new WorldPlan.Settlement(settlement.id(), settlement.name(),
-                    settlement.nationId(), site.getX(), site.getZ(), settlement.population(),
-                    settlement.culture(), settlement.materials()));
+            adjusted.add(relocated(settlement, site));
         }
         if (moved == 0) {
             return plan;
@@ -44,8 +42,32 @@ public final class SettlementSiteSampler {
         return new WorldPlan(plan.seed(), plan.nations(), List.copyOf(adjusted), plan.events());
     }
 
-    private static BlockPos findSite(ServerLevel level, int centerX, int centerZ) {
-        for (int radius = 0; radius <= MAX_RADIUS; radius += STEP) {
+    /** Correct one settlement against a larger search radius; used by /worldplan tp. */
+    public static WorldPlan relocate(ServerLevel level, WorldPlan plan, int settlementId, int maxRadius) {
+        WorldPlan.Settlement target = plan.settlements().stream()
+                .filter(candidate -> candidate.id() == settlementId).findFirst().orElse(null);
+        if (target == null) {
+            return plan;
+        }
+        BlockPos site = findSite(level, target.x(), target.z(), maxRadius);
+        if (site == null || (site.getX() == target.x() && site.getZ() == target.z())) {
+            return plan;
+        }
+        List<WorldPlan.Settlement> adjusted = new ArrayList<>(plan.settlements().size());
+        for (WorldPlan.Settlement settlement : plan.settlements()) {
+            adjusted.add(settlement.id() == settlementId ? relocated(settlement, site) : settlement);
+        }
+        return new WorldPlan(plan.seed(), plan.nations(), List.copyOf(adjusted), plan.events());
+    }
+
+    private static WorldPlan.Settlement relocated(WorldPlan.Settlement settlement, BlockPos site) {
+        return new WorldPlan.Settlement(settlement.id(), settlement.name(),
+                settlement.nationId(), site.getX(), site.getZ(), settlement.population(),
+                settlement.culture(), settlement.materials());
+    }
+
+    public static BlockPos findSite(ServerLevel level, int centerX, int centerZ, int maxRadius) {
+        for (int radius = 0; radius <= maxRadius; radius += STEP) {
             for (int dx = -radius; dx <= radius; dx += STEP) {
                 for (int dz = -radius; dz <= radius; dz += STEP) {
                     if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
@@ -54,9 +76,15 @@ public final class SettlementSiteSampler {
                     int x = centerX + dx;
                     int z = centerZ + dz;
                     int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                    if (y <= level.getMinBuildHeight() + 1) {
+                        continue;
+                    }
                     BlockPos surface = new BlockPos(x, y, z);
                     BlockState below = level.getBlockState(surface.below());
-                    if (!below.isAir() && below.getFluidState().isEmpty()) {
+                    BlockState at = level.getBlockState(surface);
+                    BlockState above = level.getBlockState(surface.above());
+                    if (!below.isAir() && below.getFluidState().isEmpty()
+                            && at.getFluidState().isEmpty() && at.isAir() && above.isAir()) {
                         return surface;
                     }
                 }

@@ -4,7 +4,7 @@ import mdh.dndclasses.worldgen.WorldPlan;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
@@ -23,7 +23,7 @@ public final class SettlementBuilder {
     private SettlementBuilder() {
     }
 
-    public static int build(ServerLevel level, WorldPlan.Settlement settlement) {
+    public static int build(LevelAccessor level, WorldPlan.Settlement settlement) {
         Site site = findDrySite(level, settlement.x(), settlement.z());
         if (site == null) {
             return 0;
@@ -113,7 +113,7 @@ public final class SettlementBuilder {
         return placed;
     }
 
-    private static void buildFlatRoof(ServerLevel level, int x, int z, int base, BlockState roof,
+    private static void buildFlatRoof(LevelAccessor level, int x, int z, int base, BlockState roof,
                                       BlockState wall) {
         for (int dx = -4; dx <= 4; dx++) {
             for (int dz = -4; dz <= 4; dz++) {
@@ -127,7 +127,7 @@ public final class SettlementBuilder {
         }
     }
 
-    private static void buildSteepRoof(ServerLevel level, int x, int z, int base, BlockState roof,
+    private static void buildSteepRoof(LevelAccessor level, int x, int z, int base, BlockState roof,
                                        BlockState wall) {
         for (int layer = 0; layer <= 4; layer++) {
             int half = 4 - layer;
@@ -140,7 +140,7 @@ public final class SettlementBuilder {
         set(level, x, base + 5, z, wall);
     }
 
-    private static void buildGabledRoof(ServerLevel level, int x, int z, int base, BlockState roof) {
+    private static void buildGabledRoof(LevelAccessor level, int x, int z, int base, BlockState roof) {
         for (int layer = 0; layer <= 4; layer++) {
             int half = 4 - layer;
             for (int dx = -4; dx <= 4; dx++) {
@@ -151,7 +151,7 @@ public final class SettlementBuilder {
         }
     }
 
-    private static void buildDomedRoof(ServerLevel level, int x, int z, int base, BlockState roof) {
+    private static void buildDomedRoof(LevelAccessor level, int x, int z, int base, BlockState roof) {
         // First layer must cover the full square footprint, otherwise the corners leak.
         for (int dx = -4; dx <= 4; dx++) {
             for (int dz = -4; dz <= 4; dz++) {
@@ -170,7 +170,7 @@ public final class SettlementBuilder {
         }
     }
 
-    private static void buildSpiralRoof(ServerLevel level, int x, int z, int base, BlockState roof,
+    private static void buildSpiralRoof(LevelAccessor level, int x, int z, int base, BlockState roof,
                                         BlockState wall) {
         for (int dx = -4; dx <= 4; dx++) {
             for (int dz = -4; dz <= 4; dz++) {
@@ -231,7 +231,7 @@ public final class SettlementBuilder {
         };
     }
 
-    private static int set(ServerLevel level, int x, int y, int z, BlockState state) {
+    private static int set(LevelAccessor level, int x, int y, int z, BlockState state) {
         BlockPos pos = new BlockPos(x, y, z);
         if (level.getBlockState(pos) == state) {
             return 0;
@@ -243,11 +243,11 @@ public final class SettlementBuilder {
     }
 
     /** Public preview for commands: the actual dry site and locally chosen material. */
-    public static Site findSite(ServerLevel level, int centerX, int centerZ) {
+    public static Site findSite(LevelAccessor level, int centerX, int centerZ) {
         return findDrySite(level, centerX, centerZ);
     }
 
-    public static String materialAt(ServerLevel level, WorldPlan.Settlement settlement) {
+    public static String materialAt(LevelAccessor level, WorldPlan.Settlement settlement) {
         Site site = findDrySite(level, settlement.x(), settlement.z());
         if (site == null) {
             return null;
@@ -256,7 +256,7 @@ public final class SettlementBuilder {
     }
 
     /** Culture preference wins when locally available; otherwise use the local substitute. */
-    private static String chooseMaterial(ServerLevel level, Site site, WorldPlan.Settlement settlement) {
+    private static String chooseMaterial(LevelAccessor level, Site site, WorldPlan.Settlement settlement) {
         for (String preferred : settlement.materials()) {
             if (hasLocal(level, site.x(), site.y(), site.z(), preferred)) {
                 return preferred;
@@ -269,7 +269,7 @@ public final class SettlementBuilder {
         return settlement.materials().isEmpty() ? null : settlement.materials().get(0);
     }
 
-    private static boolean hasLocal(ServerLevel level, int x, int y, int z, String material) {
+    private static boolean hasLocal(LevelAccessor level, int x, int y, int z, String material) {
         if ("sandstone".equals(material) && !isSandyBiome(level, x, y, z)) {
             return false;
         }
@@ -303,7 +303,7 @@ public final class SettlementBuilder {
         };
     }
 
-    private static boolean isSandyBiome(ServerLevel level, int x, int y, int z) {
+    private static boolean isSandyBiome(LevelAccessor level, int x, int y, int z) {
         Holder<Biome> biome = level.getBiome(new BlockPos(x, y, z));
         return biome.is(BiomeTags.IS_BADLANDS)
                 || biome.unwrapKey().map(key -> key.location().getPath().equals("desert"))
@@ -311,7 +311,7 @@ public final class SettlementBuilder {
     }
 
     /** Finds dry, non-fluid ground near the planned point; null when the area is water/void. */
-    private static Site findDrySite(ServerLevel level, int centerX, int centerZ) {
+    private static Site findDrySite(LevelAccessor level, int centerX, int centerZ) {
         for (int radius = 0; radius <= 32; radius += 4) {
             for (int dx = -radius; dx <= radius; dx += 4) {
                 for (int dz = -radius; dz <= radius; dz += 4) {
@@ -339,7 +339,7 @@ public final class SettlementBuilder {
     }
 
     /** Picks the material actually visible around the site; null when the plan material should win. */
-    private static String localMaterial(ServerLevel level, int x, int y, int z) {
+    private static String localMaterial(LevelAccessor level, int x, int y, int z) {
         int oak = 0;
         int spruce = 0;
         int deepslate = 0;
@@ -435,3 +435,4 @@ public final class SettlementBuilder {
         };
     }
 }
+

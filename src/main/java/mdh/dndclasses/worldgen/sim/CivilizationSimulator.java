@@ -187,8 +187,9 @@ public final class CivilizationSimulator {
                             adjacent++;
                         }
                     }
-                    // Compact growth: only claim cells touching at least two owned cells.
-                    if (adjacent < 2) {
+                    // Prefer cells with many owned neighbours; a single contact is still allowed so
+                    // the initial 3x3 can grow, but it scores lower and is chosen last.
+                    if (adjacent <= 0) {
                         continue;
                     }
                     int dx = nx - nation.capitalX;

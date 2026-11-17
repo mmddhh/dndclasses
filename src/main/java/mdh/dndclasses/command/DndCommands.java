@@ -26,6 +26,7 @@ import mdh.dndclasses.worldgen.WorldPlanVerifier;
 import mdh.dndclasses.worldgen.mc.NpcSpawner;
 import mdh.dndclasses.worldgen.mc.SettlementBuilder;
 import mdh.dndclasses.worldgen.mc.SettlementSiteSampler;
+import mdh.dndclasses.worldgen.mc.TerrainSiteSelector;
 import mdh.dndclasses.worldgen.mc.WorldPlanSavedData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -167,7 +168,9 @@ public final class DndCommands {
                                 .executes(context -> worldPlanInfo(context.getSource(),
                                         IntegerArgumentType.getInteger(context, "settlement")))))
                 .then(Commands.literal("selftest")
-                        .executes(context -> worldPlanSelftest(context.getSource()))));
+                        .executes(context -> worldPlanSelftest(context.getSource())))
+                .then(Commands.literal("resite")
+                        .executes(context -> worldPlanResite(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -531,6 +534,17 @@ public final class DndCommands {
         data.replace(adjusted);
         mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
         source.sendSuccess(() -> Component.literal("已按实际地形校正聚落坐标并保存。"), false);
+        return 1;
+    }
+
+    private static int worldPlanResite(CommandSourceStack source) {
+        WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
+        source.sendSuccess(() -> Component.literal(
+                "正在寻找陆地锚点并重新分布聚落，可能触发区块生成，请稍候……"), false);
+        WorldPlan adjusted = TerrainSiteSelector.resite(source.getLevel(), data.plan());
+        data.replace(adjusted);
+        mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
+        source.sendSuccess(() -> Component.literal("聚落已重新分布到陆地附近并保存。"), false);
         return 1;
     }
 

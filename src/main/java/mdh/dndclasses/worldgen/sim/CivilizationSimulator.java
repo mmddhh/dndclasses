@@ -81,30 +81,28 @@ public final class CivilizationSimulator {
                 if (nation.cells <= 0) {
                     continue;
                 }
-                List<int[]> borders = borders(nation.id);
-                if (borders.isEmpty()) {
-                    continue;
-                }
-                int[] target = borders.get(rng.nextInt(borders.size()));
-                int currentOwner = owner[target[1]][target[0]];
-                if (currentOwner == -1) {
-                    owner[target[1]][target[0]] = nation.id;
-                    nation.cells++;
-                    if (year % 12 == 0) {
-                        events.add(new SimulationResult.Event(year, "expand", nation.id, -1,
-                                nation.name + " 扩张到新的边界。"));
-                    }
-                } else if (rng.nextDouble() < 0.10D) {
-                    NationState other = nations.get(currentOwner);
+                int[] warTarget = warTarget(nation);
+                if (warTarget != null && rng.nextDouble() < 0.15D) {
+                    NationState other = nations.get(warTarget[2]);
                     NationState winner = nation.power >= other.power ? nation : other;
                     NationState loser = winner == nation ? other : nation;
-                    owner[target[1]][target[0]] = winner.id;
+                    owner[warTarget[1]][warTarget[0]] = winner.id;
                     winner.cells++;
                     loser.cells--;
                     winner.culture = replaceMotif(winner.culture, motif(loser.culture));
                     if (year % 5 == 0) {
                         events.add(new SimulationResult.Event(year, "war", winner.id, loser.id,
                                 winner.name + " 从 " + loser.name + " 手中夺取了一块边境地区。"));
+                    }
+                } else {
+                    int[] target = bestFrontier(nation);
+                    if (target != null) {
+                        owner[target[1]][target[0]] = nation.id;
+                        nation.cells++;
+                        if (year % 12 == 0) {
+                            events.add(new SimulationResult.Event(year, "expand", nation.id, -1,
+                                    nation.name + " 扩张到新的边界。"));
+                        }
                     }
                 }
             }
@@ -151,7 +149,104 @@ public final class CivilizationSimulator {
             }
         }
         return new SimulationResult(map.seed(), grid, cellSize, List.copyOf(nationRecords),
-                List.copyOf(settlements), List.copyOf(events));
+                List.copyOf(settlements), List.copyOf(events), mapRows());
+    }
+
+    private List<String> mapRows() {
+        List<String> rows = new ArrayList<>(grid);
+        for (int z = 0; z < grid; z++) {
+            StringBuilder row = new StringBuilder(grid);
+            for (int x = 0; x < grid; x++) {
+                int id = owner[z][x];
+                row.append(id < 0 ? '.' : (char) ('0' + id));
+            }
+            rows.add(row.toString());
+        }
+        return rows;
+    }
+
+    private int[] bestFrontier(NationState nation) {
+        int bestScore = Integer.MIN_VALUE;
+        int[] best = null;
+        for (int z = 1; z < grid - 1; z++) {
+            for (int x = 1; x < grid - 1; x++) {
+                if (owner[z][x] != nation.id) {
+                    continue;
+                }
+                for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    int nx = x + dir[0];
+                    int nz = z + dir[1];
+                    if (!inBounds(nx, nz) || owner[nz][nx] != -1 || water[nz][nx]) {
+                        continue;
+                    }
+                    int adjacent = 0;
+                    for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                        int ax = nx + d[0];
+                        int az = nz + d[1];
+                        if (inBounds(ax, az) && owner[az][ax] == nation.id) {
+                            adjacent++;
+                        }
+                    }
+                    // Compact growth: only claim cells touching at least two owned cells.
+                    if (adjacent < 2) {
+                        continue;
+                    }
+                    int dx = nx - nation.capitalX;
+                    int dz = nz - nation.capitalZ;
+                    double distance = Math.sqrt(dx * dx + dz * dz);
+                    int score = (int) (adjacent * 100 + habitability[nz][nx] * 200 - distance * 4);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = new int[]{nx, nz};
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * A war requires a real shared border (at least four enemy cells touching this nation), not a
+     * single accidental corner touch.
+     */
+    private int[] warTarget(NationState nation) {
+        java.util.Map<Long, int[]> targets = new java.util.HashMap<>();
+        java.util.Map<Integer, Integer> shared = new java.util.HashMap<>();
+        for (int z = 1; z < grid - 1; z++) {
+            for (int x = 1; x < grid - 1; x++) {
+                if (owner[z][x] != nation.id) {
+                    continue;
+                }
+                for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    int nx = x + dir[0];
+                    int nz = z + dir[1];
+                    if (!inBounds(nx, nz) || owner[nz][nx] < 0) {
+                        continue;
+                    }
+                    int enemy = owner[nz][nx];
+                    long key = ((long) nx << 32) | (nz & 0xffffffffL);
+                    targets.putIfAbsent(key, new int[]{nx, nz, enemy});
+                    shared.merge(enemy, 1, Integer::sum);
+                }
+            }
+        }
+        int bestEnemy = -1;
+        int bestShared = 3;
+        for (java.util.Map.Entry<Integer, Integer> entry : shared.entrySet()) {
+            if (entry.getValue() > bestShared) {
+                bestShared = entry.getValue();
+                bestEnemy = entry.getKey();
+            }
+        }
+        if (bestEnemy < 0) {
+            return null;
+        }
+        for (int[] target : targets.values()) {
+            if (target[2] == bestEnemy) {
+                return target;
+            }
+        }
+        return null;
     }
 
     private List<int[]> pickCradles() {

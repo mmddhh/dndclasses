@@ -8,7 +8,7 @@ import java.util.List;
 /** Pure-data result of the civilization simulation prototype. */
 public record SimulationResult(long seed, int gridSize, int cellSize,
                               List<Nation> nations, List<Settlement> settlements,
-                              List<Event> events) {
+                              List<Event> events, List<String> map) {
 
     public record Nation(int id, String name, String race, String culture,
                          int cells, int capitalX, int capitalZ) {
@@ -66,6 +66,12 @@ public record SimulationResult(long seed, int gridSize, int cellSize,
             eventArray.add(json);
         }
         root.add("events", eventArray);
+
+        JsonArray mapArray = new JsonArray();
+        for (String row : map) {
+            mapArray.add(row);
+        }
+        root.add("map", mapArray);
         return root;
     }
 }

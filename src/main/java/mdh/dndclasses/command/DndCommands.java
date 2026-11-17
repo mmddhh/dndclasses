@@ -27,6 +27,8 @@ import mdh.dndclasses.worldgen.mc.NpcSpawner;
 import mdh.dndclasses.worldgen.mc.SettlementBuilder;
 import mdh.dndclasses.worldgen.mc.SettlementSiteSampler;
 import mdh.dndclasses.worldgen.mc.TerrainSiteSelector;
+import mdh.dndclasses.worldgen.sim.CivilizationSimulator;
+import mdh.dndclasses.worldgen.sim.SimulationResult;
 import mdh.dndclasses.worldgen.mc.WorldPlanSavedData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -170,7 +172,9 @@ public final class DndCommands {
                 .then(Commands.literal("selftest")
                         .executes(context -> worldPlanSelftest(context.getSource())))
                 .then(Commands.literal("resite")
-                        .executes(context -> worldPlanResite(context.getSource()))));
+                        .executes(context -> worldPlanResite(context.getSource())))
+                .then(Commands.literal("simulate")
+                        .executes(context -> worldPlanSimulate(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -545,6 +549,35 @@ public final class DndCommands {
         data.replace(adjusted);
         mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
         source.sendSuccess(() -> Component.literal("聚落已重新分布到陆地附近并保存。"), false);
+        return 1;
+    }
+
+    private static int worldPlanSimulate(CommandSourceStack source) {
+        long seed = source.getLevel().getSeed();
+        SimulationResult result = CivilizationSimulator.run(seed);
+        Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses");
+        Path file = directory.resolve("civilization-" + seed + ".json");
+        try {
+            Files.createDirectories(directory);
+            Files.writeString(file, result.toJson().toString());
+        } catch (IOException exception) {
+            source.sendFailure(Component.literal("写入文明演算失败: " + exception.getMessage()));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "文明演算：国家 " + result.nations().size()
+                        + "，聚落 " + result.settlements().size()
+                        + "，事件 " + result.events().size()), false);
+        result.nations().stream().limit(6).forEach(nation ->
+                source.sendSuccess(() -> Component.literal(
+                        "[" + nation.id() + "] " + nation.name() + "（" + raceName(nation.race())
+                                + "）领土 " + nation.cells() + " 格 · 首都 "
+                                + nation.capitalX() + "," + nation.capitalZ()
+                                + " · " + describeCulture(nation.culture())), false));
+        result.events().stream().skip(Math.max(0, result.events().size() - 5)).forEach(event ->
+                source.sendSuccess(() -> Component.literal(
+                        "Y" + event.year() + " [" + event.type() + "] " + event.summary()), false));
+        source.sendSuccess(() -> Component.literal("完整结果已写入 " + file), false);
         return 1;
     }
 

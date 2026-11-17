@@ -5,6 +5,8 @@ import net.minecraft.world.level.ChunkPos;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Immutable per-server snapshot of settlement positions for chunk-generation threads. It is filled
@@ -13,6 +15,7 @@ import java.util.Map;
 public final class WorldPlanCache {
 
     private static volatile Map<Long, WorldPlan.Settlement> settlementsByChunk = Map.of();
+    private static final Set<Integer> BUILT = ConcurrentHashMap.newKeySet();
 
     private WorldPlanCache() {
     }
@@ -29,7 +32,16 @@ public final class WorldPlanCache {
         return settlementsByChunk.get(ChunkPos.asLong(chunk.x, chunk.z));
     }
 
+    public static boolean isBuilt(int settlementId) {
+        return BUILT.contains(settlementId);
+    }
+
+    public static void markBuilt(int settlementId) {
+        BUILT.add(settlementId);
+    }
+
     public static void clear() {
         settlementsByChunk = Map.of();
+        BUILT.clear();
     }
 }

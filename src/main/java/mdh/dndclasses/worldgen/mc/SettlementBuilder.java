@@ -41,6 +41,9 @@ public final class SettlementBuilder {
         int centerX = site.x();
         int centerZ = site.z();
         int y = site.y();
+        if (hasBuildMarker(level, centerX, y, centerZ)) {
+            return 0;
+        }
 
         String material = chooseMaterial(level, new Site(centerX, y, centerZ), settlement);
         if (material == null) {
@@ -127,6 +130,8 @@ public final class SettlementBuilder {
 
         placed += set(level, centerX, y, centerZ, motifBlock(motif));
         placed += set(level, centerX, y + 1, centerZ, Blocks.TORCH.defaultBlockState());
+        // Invisible persistent marker: a reloaded server can still tell this site was built.
+        set(level, centerX, y + 1, centerZ + 1, Blocks.STRUCTURE_VOID.defaultBlockState());
         return placed;
     }
 
@@ -246,6 +251,16 @@ public final class SettlementBuilder {
             case "wave" -> Blocks.PRISMARINE_BRICKS.defaultBlockState();
             default -> Blocks.STONE_BRICKS.defaultBlockState();
         };
+    }
+
+    private static boolean hasBuildMarker(LevelAccessor level, int x, int y, int z) {
+        for (int dy = 0; dy <= 96; dy++) {
+            BlockPos pos = new BlockPos(x, y + 1 - dy, z + 1);
+            if (level.getBlockState(pos).is(Blocks.STRUCTURE_VOID)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static int set(LevelAccessor level, int x, int y, int z, BlockState state) {

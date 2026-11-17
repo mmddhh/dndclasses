@@ -23,9 +23,14 @@ public final class PlannedRuinFeature extends Feature<NoneFeatureConfiguration> 
         WorldGenLevel level = context.level();
         ChunkPos chunk = new ChunkPos(context.origin());
         WorldPlan.Settlement settlement = WorldPlanCache.settlementAt(chunk);
-        if (settlement == null) {
+        if (settlement == null || WorldPlanCache.isBuilt(settlement.id())) {
             return false;
         }
-        return SettlementBuilder.build(level, settlement) > 0;
+        int placed = SettlementBuilder.build(level, settlement);
+        if (placed > 0) {
+            WorldPlanCache.markBuilt(settlement.id());
+            return true;
+        }
+        return false;
     }
 }

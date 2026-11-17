@@ -541,11 +541,16 @@ public final class DndCommands {
             source.sendFailure(Component.literal("没有 id=" + settlementId + " 的聚落。"));
             return 0;
         }
+        if (mdh.dndclasses.worldgen.mc.WorldPlanCache.isBuilt(settlementId)) {
+            source.sendSuccess(() -> Component.literal("该聚落已经生成过测试建筑。"), false);
+            return 1;
+        }
         int placed = SettlementBuilder.build(source.getLevel(), settlement);
         if (placed <= 0) {
             source.sendFailure(Component.literal("建筑放置失败（地形高度无效）。"));
             return 0;
         }
+        mdh.dndclasses.worldgen.mc.WorldPlanCache.markBuilt(settlementId);
         source.sendSuccess(() -> Component.literal(
                 "在 " + settlement.name() + "（" + settlement.x() + ", " + settlement.z()
                         + "）放置了测试建筑，按当地地形选材，共 " + placed + " 个方块。"), false);
@@ -605,8 +610,13 @@ public final class DndCommands {
                 target.getZ() + 0.5D, player.getYRot(), player.getXRot());
         if (settlement != null) {
             // The terrain search may have generated the target chunk before the plan cache was
-            // updated, so the worldgen feature can miss it. Build the watchtower explicitly here.
-            SettlementBuilder.build(source.getLevel(), settlement);
+            // updated, so the worldgen feature can miss it. Build the watchtower explicitly here,
+            // but never twice: two builds would stack a tower on top of its own roof.
+            if (!mdh.dndclasses.worldgen.mc.WorldPlanCache.isBuilt(settlement.id())) {
+                if (SettlementBuilder.build(source.getLevel(), settlement) > 0) {
+                    mdh.dndclasses.worldgen.mc.WorldPlanCache.markBuilt(settlement.id());
+                }
+            }
         }
         source.sendSuccess(() -> Component.literal("已传送到 " + teleportName
                 + " 的地表。"), false);

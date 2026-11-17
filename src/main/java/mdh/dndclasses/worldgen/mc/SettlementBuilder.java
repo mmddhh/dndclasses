@@ -8,6 +8,7 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CrossCollisionBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -110,8 +111,15 @@ public final class SettlementBuilder {
                                         ? DoubleBlockHalf.LOWER : DoubleBlockHalf.UPPER);
                         placed += set(level, centerX + dx, y + dy, centerZ + dz, doorState);
                     } else if (window) {
-                        placed += set(level, centerX + dx, y + dy, centerZ + dz,
-                                Blocks.GLASS_PANE.defaultBlockState());
+                        BlockState pane = Blocks.GLASS_PANE.defaultBlockState();
+                        if (Math.abs(dx) == 4) {
+                            pane = pane.setValue(CrossCollisionBlock.NORTH, true)
+                                    .setValue(CrossCollisionBlock.SOUTH, true);
+                        } else {
+                            pane = pane.setValue(CrossCollisionBlock.EAST, true)
+                                    .setValue(CrossCollisionBlock.WEST, true);
+                        }
+                        placed += set(level, centerX + dx, y + dy, centerZ + dz, pane);
                     } else {
                         placed += set(level, centerX + dx, y + dy, centerZ + dz, wall);
                     }

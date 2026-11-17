@@ -24,6 +24,7 @@ import mdh.dndclasses.worldgen.WorldPlan;
 import mdh.dndclasses.worldgen.WorldPlanGenerator;
 import mdh.dndclasses.worldgen.WorldPlanVerifier;
 import mdh.dndclasses.worldgen.mc.NpcSpawner;
+import mdh.dndclasses.worldgen.mc.RealHabitabilitySampler;
 import mdh.dndclasses.worldgen.mc.SettlementBuilder;
 import mdh.dndclasses.worldgen.mc.SettlementSiteSampler;
 import mdh.dndclasses.worldgen.mc.TerrainSiteSelector;
@@ -554,7 +555,9 @@ public final class DndCommands {
 
     private static int worldPlanSimulate(CommandSourceStack source) {
         long seed = source.getLevel().getSeed();
-        SimulationResult result = CivilizationSimulator.run(seed);
+        mdh.dndclasses.worldgen.sim.HabitabilityMap map =
+                RealHabitabilitySampler.sample(source.getLevel());
+        SimulationResult result = CivilizationSimulator.run(map);
         Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses");
         Path file = directory.resolve("civilization-" + seed + ".json");
         try {

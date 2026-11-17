@@ -6,16 +6,13 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Pure-Java civilization prototype:
- * habitable grid -> cradles -> yearly expansion/war -> culture -> settlements.
- *
- * <p>No Minecraft imports. The same seed produces the same map/history; this is the layer that
- * should eventually consume real biome/height samples instead of synthetic noise.
+ * Pure-Java civilization simulation over a real habitability map.
+ * <p>
+ * The map is produced by {@code mdh.dndclasses.worldgen.mc.RealHabitabilitySampler}; this class
+ * has no Minecraft imports and is deterministic for a given map/seed.
  */
 public final class CivilizationSimulator {
 
-    private static final int GRID = 48;
-    private static final int CELL_SIZE = 256;
     private static final int YEARS = 150;
     private static final int CRADLES = 6;
     private static final int MIN_CRADLE_DISTANCE = 10;
@@ -30,46 +27,33 @@ public final class CivilizationSimulator {
     private static final String[] NAME_END = {"dor", "heim", "vale", "mere", "gard", "fell",
             "wood", "hold", "reach", "spire", "moor", "ford", "keep", "hall"};
 
-    private CivilizationSimulator() {
-    }
+    private final HabitabilityMap map;
+    private final int grid;
+    private final int cellSize;
+    private final double[][] habitability;
+    private final boolean[][] water;
+    private final int[][] owner;
+    private final List<NationState> nations = new ArrayList<>();
 
-    public static SimulationResult run(long seed) {
-        Random rng = new Random(seed);
-        Noise noise = new Noise(rng, 65, 0.12D);
-        double[][] habitability = new double[GRID][GRID];
-        boolean[][] water = new boolean[GRID][GRID];
-        for (int z = 0; z < GRID; z++) {
-            for (int x = 0; x < GRID; x++) {
-                double height = 0.55D * noise.sample(x, z)
-                        + 0.30D * noise.sample(x * 0.45D + 17, z * 0.45D + 9)
-                        + 0.15D * noise.sample(x * 0.18D + 41, z * 0.18D + 23);
-                height += 0.06D * Math.sin(x * 0.35D) * Math.cos(z * 0.28D);
-                water[z][x] = height < 0.42D;
-                if (water[z][x]) {
-                    continue;
-                }
-                double coast = 0.0D;
-                for (int dx = -2; dx <= 2; dx++) {
-                    for (int dz = -2; dz <= 2; dz++) {
-                        int nx = x + dx;
-                        int nz = z + dz;
-                        if (nx >= 0 && nz >= 0 && nx < GRID && nz < GRID && water[nz][nx]) {
-                            coast = 0.18D;
-                        }
-                    }
-                }
-                double resource = noise.sample(x * 0.8D + 7, z * 0.8D + 31);
-                habitability[z][x] = Math.max(0.02D,
-                        (height - 0.40D) * 1.4D + coast + resource * 0.35D);
-            }
-        }
-
-        List<int[]> cradles = pickCradles(habitability, water);
-        List<NationState> nations = new ArrayList<>();
-        int[][] owner = new int[GRID][GRID];
+    private CivilizationSimulator(HabitabilityMap map) {
+        this.map = map;
+        this.grid = map.gridSize();
+        this.cellSize = map.cellSize();
+        this.habitability = map.habitability();
+        this.water = map.water();
+        this.owner = new int[grid][grid];
         for (int[] row : owner) {
             java.util.Arrays.fill(row, -1);
         }
+    }
+
+    public static SimulationResult run(HabitabilityMap map) {
+        return new CivilizationSimulator(map).simulate();
+    }
+
+    private SimulationResult simulate() {
+        Random rng = new Random(map.seed());
+        List<int[]> cradles = pickCradles();
         for (int i = 0; i < cradles.size(); i++) {
             int[] cell = cradles.get(i);
             String race = RACES[i % RACES.length];
@@ -97,7 +81,7 @@ public final class CivilizationSimulator {
                 if (nation.cells <= 0) {
                     continue;
                 }
-                List<int[]> borders = borders(owner, water, nation.id);
+                List<int[]> borders = borders(nation.id);
                 if (borders.isEmpty()) {
                     continue;
                 }
@@ -117,9 +101,7 @@ public final class CivilizationSimulator {
                     owner[target[1]][target[0]] = winner.id;
                     winner.cells++;
                     loser.cells--;
-                    if (winner.culture.contains("motif=")) {
-                        winner.culture = replaceMotif(winner.culture, motif(loser.culture));
-                    }
+                    winner.culture = replaceMotif(winner.culture, motif(loser.culture));
                     if (year % 5 == 0) {
                         events.add(new SimulationResult.Event(year, "war", winner.id, loser.id,
                                 winner.name + " 从 " + loser.name + " 手中夺取了一块边境地区。"));
@@ -146,8 +128,8 @@ public final class CivilizationSimulator {
             }
             nationRecords.add(new SimulationResult.Nation(nation.id, nation.name, nation.race,
                     nation.culture, nation.cells,
-                    nation.capitalX * CELL_SIZE + CELL_SIZE / 2,
-                    nation.capitalZ * CELL_SIZE + CELL_SIZE / 2));
+                    nation.capitalX * cellSize + cellSize / 2,
+                    nation.capitalZ * cellSize + cellSize / 2));
         }
 
         List<SimulationResult.Settlement> settlements = new ArrayList<>();
@@ -155,28 +137,28 @@ public final class CivilizationSimulator {
             if (nation.cells <= 0) {
                 continue;
             }
-            List<int[]> owned = ownedCells(owner, nation.id);
+            List<int[]> owned = ownedCells(nation.id);
             owned.sort(Comparator.comparingDouble((int[] cell) -> -habitability[cell[1]][cell[0]]));
             int count = Math.min(5, Math.max(1, owned.size()));
             for (int i = 0; i < count; i++) {
                 int[] cell = owned.get(i);
                 String culture = nation.culture + ";trim=" + (i % 2 == 0 ? "carved" : "painted");
                 settlements.add(new SimulationResult.Settlement(settlements.size(),
-                        settlementName(new Random(seed ^ (cell[0] * 31L) ^ (cell[1] * 131L))),
-                        nation.id, cell[0] * CELL_SIZE + CELL_SIZE / 2,
-                        cell[1] * CELL_SIZE + CELL_SIZE / 2,
+                        settlementName(new Random(map.seed() ^ (cell[0] * 31L) ^ (cell[1] * 131L))),
+                        nation.id, cell[0] * cellSize + cellSize / 2,
+                        cell[1] * cellSize + cellSize / 2,
                         60 + (int) (habitability[cell[1]][cell[0]] * 400), culture));
             }
         }
-        return new SimulationResult(seed, GRID, CELL_SIZE, List.copyOf(nationRecords),
+        return new SimulationResult(map.seed(), grid, cellSize, List.copyOf(nationRecords),
                 List.copyOf(settlements), List.copyOf(events));
     }
 
-    private static List<int[]> pickCradles(double[][] habitability, boolean[][] water) {
+    private List<int[]> pickCradles() {
         List<int[]> candidates = new ArrayList<>();
-        for (int z = 1; z < GRID - 1; z++) {
-            for (int x = 1; x < GRID - 1; x++) {
-                if (water[z][x] || habitability[z][x] < 0.35D) {
+        for (int z = 2; z < grid - 2; z++) {
+            for (int x = 2; x < grid - 2; x++) {
+                if (water[z][x] || habitability[z][x] < 0.30D) {
                     continue;
                 }
                 double localBest = habitability[z][x];
@@ -184,10 +166,9 @@ public final class CivilizationSimulator {
                     for (int dz = -2; dz <= 2; dz++) {
                         int nx = x + dx;
                         int nz = z + dz;
-                        if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
-                            continue;
+                        if (inBounds(nx, nz)) {
+                            localBest = Math.max(localBest, habitability[nz][nx]);
                         }
-                        localBest = Math.max(localBest, habitability[nz][nx]);
                     }
                 }
                 if (localBest == habitability[z][x]) {
@@ -217,10 +198,10 @@ public final class CivilizationSimulator {
         return selected;
     }
 
-    private static List<int[]> borders(int[][] owner, boolean[][] water, int nation) {
+    private List<int[]> borders(int nation) {
         List<int[]> result = new ArrayList<>();
-        for (int z = 1; z < GRID - 1; z++) {
-            for (int x = 1; x < GRID - 1; x++) {
+        for (int z = 1; z < grid - 1; z++) {
+            for (int x = 1; x < grid - 1; x++) {
                 if (owner[z][x] != nation) {
                     continue;
                 }
@@ -239,10 +220,10 @@ public final class CivilizationSimulator {
         return result;
     }
 
-    private static List<int[]> ownedCells(int[][] owner, int nation) {
+    private List<int[]> ownedCells(int nation) {
         List<int[]> result = new ArrayList<>();
-        for (int z = 0; z < GRID; z++) {
-            for (int x = 0; x < GRID; x++) {
+        for (int z = 0; z < grid; z++) {
+            for (int x = 0; x < grid; x++) {
                 if (owner[z][x] == nation) {
                     result.add(new int[]{x, z});
                 }
@@ -251,8 +232,8 @@ public final class CivilizationSimulator {
         return result;
     }
 
-    private static boolean inBounds(int x, int z) {
-        return x >= 0 && z >= 0 && x < GRID && z < GRID;
+    private boolean inBounds(int x, int z) {
+        return x >= 0 && z >= 0 && x < grid && z < grid;
     }
 
     private static String replaceMotif(String culture, String motif) {
@@ -311,48 +292,6 @@ public final class CivilizationSimulator {
             this.culture = culture;
             this.capitalX = capitalX;
             this.capitalZ = capitalZ;
-        }
-    }
-
-    /** Deterministic smoothed value noise. */
-    private static final class Noise {
-        private final double[] lattice;
-        private final int size;
-        private final double frequency;
-
-        private Noise(Random rng, int size, double frequency) {
-            this.size = size;
-            this.frequency = frequency;
-            this.lattice = new double[size * size];
-            for (int i = 0; i < lattice.length; i++) {
-                lattice[i] = rng.nextDouble();
-            }
-        }
-
-        private double sample(double x, double z) {
-            double fx = x * frequency;
-            double fz = z * frequency;
-            int x0 = (int) Math.floor(fx);
-            int z0 = (int) Math.floor(fz);
-            double tx = smooth(fx - x0);
-            double tz = smooth(fz - z0);
-            double a = value(x0, z0);
-            double b = value(x0 + 1, z0);
-            double c = value(x0, z0 + 1);
-            double d = value(x0 + 1, z0 + 1);
-            return lerp(lerp(a, b, tx), lerp(c, d, tx), tz);
-        }
-
-        private double value(int x, int z) {
-            return lattice[Math.floorMod(z, size) * size + Math.floorMod(x, size)];
-        }
-
-        private static double smooth(double t) {
-            return t * t * (3 - 2 * t);
-        }
-
-        private static double lerp(double a, double b, double t) {
-            return a + (b - a) * t;
         }
     }
 }

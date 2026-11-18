@@ -16,7 +16,7 @@ import java.util.List;
  */
 public final class SettlementSiteSampler {
 
-    private static final int MAX_RADIUS = 96;
+    private static final int MAX_RADIUS = 192;
     private static final int STEP = 16;
 
     private SettlementSiteSampler() {

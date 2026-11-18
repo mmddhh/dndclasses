@@ -137,10 +137,14 @@ public final class CivilizationSimulator {
             }
             List<int[]> owned = ownedCells(nation.id);
             owned.sort(Comparator.comparingDouble((int[] cell) -> -habitability[cell[1]][cell[0]]));
-            int count = Math.min(5, Math.max(1, owned.size()));
-            for (int i = 0; i < count; i++) {
-                int[] cell = owned.get(i);
-                String culture = nation.culture + ";trim=" + (i % 2 == 0 ? "carved" : "painted");
+            int desired = Math.min(12, Math.max(3, nation.cells / 12 + 2));
+            List<int[]> selected = spread(owned, desired, 2);
+            if (selected.size() < desired) {
+                selected = spread(owned, desired, 1);
+            }
+            for (int[] cell : selected) {
+                String culture = nation.culture + ";trim=" + (selected.indexOf(cell) % 2 == 0
+                        ? "carved" : "painted");
                 settlements.add(new SimulationResult.Settlement(settlements.size(),
                         settlementName(new Random(map.seed() ^ (cell[0] * 31L) ^ (cell[1] * 131L))),
                         nation.id, cell[0] * cellSize + cellSize / 2,
@@ -150,6 +154,27 @@ public final class CivilizationSimulator {
         }
         return new SimulationResult(map.seed(), grid, cellSize, List.copyOf(nationRecords),
                 List.copyOf(settlements), List.copyOf(events), mapRows());
+    }
+
+    private List<int[]> spread(List<int[]> owned, int desired, int spacing) {
+        List<int[]> selected = new ArrayList<>();
+        for (int[] cell : owned) {
+            if (selected.size() >= desired) {
+                break;
+            }
+            boolean farEnough = true;
+            for (int[] chosen : selected) {
+                if (Math.abs(chosen[0] - cell[0]) < spacing
+                        && Math.abs(chosen[1] - cell[1]) < spacing) {
+                    farEnough = false;
+                    break;
+                }
+            }
+            if (farEnough) {
+                selected.add(cell);
+            }
+        }
+        return selected;
     }
 
     private List<String> mapRows() {

@@ -38,6 +38,7 @@ public final class RoadPlanner {
 
         Set<String> usedEdges = new HashSet<>();
         List<Road> roads = new ArrayList<>();
+        List<RoadNetwork.FailedRoute> failed = new ArrayList<>();
         for (WorldPlan.Nation nation : plan.nations()) {
             List<WorldPlan.Settlement> settlements = plan.settlements().stream()
                     .filter(settlement -> settlement.nationId() == nation.id())
@@ -45,14 +46,42 @@ public final class RoadPlanner {
                             settlement.id() == capitals.get(nation.id()).id() ? 0 : 1))
                     .toList();
             for (int[] edge : mst(settlements)) {
-                addRoad(roads, usedEdges, plan, terrain,
+                addRoad(roads, usedEdges, failed, plan, terrain,
                         settlements.get(edge[0]), settlements.get(edge[1]), false);
             }
         }
-        List<WorldPlan.Settlement> capitalList = new ArrayList<>(capitals.values());
-        for (int[] edge : mst(capitalList)) {
-            addRoad(roads, usedEdges, plan, terrain,
-                    capitalList.get(edge[0]), capitalList.get(edge[1]), true);
+
+        // No arbitrary capital-to-capital highways. A cross-border road only exists where the two
+        // nations have their nearest settlements within range, and A* can actually cross.
+        for (int a = 0; a < plan.nations().size(); a++) {
+            for (int b = a + 1; b < plan.nations().size(); b++) {
+                int nationA = plan.nations().get(a).id();
+                int nationB = plan.nations().get(b).id();
+                WorldPlan.Settlement bestA = null;
+                WorldPlan.Settlement bestB = null;
+                double bestDistance = Double.MAX_VALUE;
+                for (WorldPlan.Settlement sa : plan.settlements()) {
+                    if (sa.nationId() != nationA) {
+                        continue;
+                    }
+                    for (WorldPlan.Settlement sb : plan.settlements()) {
+                        if (sb.nationId() != nationB) {
+                            continue;
+                        }
+                        double dx = sa.x() - sb.x();
+                        double dz = sa.z() - sb.z();
+                        double distance = dx * dx + dz * dz;
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            bestA = sa;
+                            bestB = sb;
+                        }
+                    }
+                }
+                if (bestA != null && bestDistance <= 2048.0D * 2048.0D) {
+                    addRoad(roads, usedEdges, failed, plan, terrain, bestA, bestB, true);
+                }
+            }
         }
 
         List<RoadNetwork.BorderPost> posts = new ArrayList<>();
@@ -63,27 +92,30 @@ public final class RoadPlanner {
                         road.nationB()));
             }
         }
-        return new RoadNetwork(List.copyOf(roads), List.copyOf(posts));
+        return new RoadNetwork(List.copyOf(roads), List.copyOf(posts), List.copyOf(failed));
     }
 
-    private static void addRoad(List<Road> roads, Set<String> usedEdges, WorldPlan plan,
+    private static void addRoad(List<Road> roads, Set<String> usedEdges,
+                                List<RoadNetwork.FailedRoute> failed, WorldPlan plan,
                                 TerrainCost terrain, WorldPlan.Settlement a,
-                                WorldPlan.Settlement b, boolean interCapital) {
+                                WorldPlan.Settlement b, boolean crossNation) {
         String key = Math.min(a.id(), b.id()) + ":" + Math.max(a.id(), b.id());
         if (!usedEdges.add(key)) {
             return;
         }
         List<RoadNetwork.Node> path = aStar(terrain, a.x(), a.z(), b.x(), b.z());
         if (path.size() < 2) {
+            failed.add(new RoadNetwork.FailedRoute(a.nationId(), b.nationId(),
+                    a.x(), a.z(), b.x(), b.z(), "no_path_over_terrain"));
             return;
         }
         boolean capitalA = a.id() == firstSettlement(plan, a.nationId());
         boolean capitalB = b.id() == firstSettlement(plan, b.nationId());
         RoadNetwork.Tier tier;
-        if (interCapital || (capitalA && capitalB && a.nationId() != b.nationId())) {
-            tier = RoadNetwork.Tier.HIGHWAY;
-        } else if (capitalA || capitalB) {
+        if (crossNation) {
             tier = RoadNetwork.Tier.ROAD;
+        } else if (capitalA || capitalB) {
+            tier = RoadNetwork.Tier.HIGHWAY;
         } else {
             tier = RoadNetwork.Tier.PATH;
         }

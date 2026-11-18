@@ -568,9 +568,11 @@ public final class DndCommands {
         RoadNetwork network = RoadPlanner.plan(plan, new RealRoadTerrain(source.getLevel()));
         Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses");
         Path file = directory.resolve("roads-" + plan.seed() + ".json");
+        Path mapFile = directory.resolve("roads-map-" + plan.seed() + ".txt");
         try {
             Files.createDirectories(directory);
             Files.writeString(file, network.prettyJson());
+            Files.write(mapFile, network.debugMap(plan, new RealRoadTerrain(source.getLevel())));
         } catch (IOException exception) {
             source.sendFailure(Component.literal("写入道路规划失败: " + exception.getMessage()));
             return 0;
@@ -582,8 +584,10 @@ public final class DndCommands {
         long paths = network.roads().stream()
                 .filter(road -> road.tier() == RoadNetwork.Tier.PATH).count();
         source.sendSuccess(() -> Component.literal("道路：王道 " + highways + "，驰道 " + roads
-                + "，乡道 " + paths + "；边境哨塔 " + network.borderPosts().size()), false);
+                + "，乡道 " + paths + "；边境哨塔 " + network.borderPosts().size()
+                + "；失败路线 " + network.failedRoutes().size()), false);
         source.sendSuccess(() -> Component.literal("道路规划已写入 " + file), false);
+        source.sendSuccess(() -> Component.literal("可视化地图已写入 " + mapFile), false);
         return 1;
     }
 

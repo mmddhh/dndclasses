@@ -393,9 +393,8 @@ public final class SettlementBuilder {
                 }
                 BlockState below = level.getBlockState(new BlockPos(x, y - 1, z));
                 BlockState at = level.getBlockState(new BlockPos(x, y, z));
-                BlockState above = level.getBlockState(new BlockPos(x, y + 1, z));
                 if (below.isAir() || !below.getFluidState().isEmpty()
-                        || !at.isAir() || !above.isAir()) {
+                        || !at.getFluidState().isEmpty()) {
                     return -1;
                 }
                 baseY = Math.max(baseY, y);

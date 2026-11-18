@@ -111,9 +111,8 @@ public final class SettlementSiteSampler {
                     BlockPos surface = new BlockPos(x, y, z);
                     BlockState below = level.getBlockState(surface.below());
                     BlockState at = level.getBlockState(surface);
-                    BlockState above = level.getBlockState(surface.above());
                     if (!below.isAir() && below.getFluidState().isEmpty()
-                            && at.getFluidState().isEmpty() && at.isAir() && above.isAir()) {
+                            && at.getFluidState().isEmpty()) {
                         return surface;
                     }
                 }

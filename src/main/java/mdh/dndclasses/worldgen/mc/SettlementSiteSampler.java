@@ -22,6 +22,35 @@ public final class SettlementSiteSampler {
     private SettlementSiteSampler() {
     }
 
+    public static WorldPlan filterUnplaceable(ServerLevel level, WorldPlan plan) {
+        java.util.Map<Integer, Integer> idMap = new java.util.HashMap<>();
+        List<WorldPlan.Settlement> kept = new ArrayList<>();
+        for (WorldPlan.Settlement settlement : plan.settlements()) {
+            if (SettlementBuilder.findSite(level, settlement.x(), settlement.z()) == null) {
+                continue;
+            }
+            int newId = kept.size();
+            idMap.put(settlement.id(), newId);
+            kept.add(new WorldPlan.Settlement(newId, settlement.name(), settlement.nationId(),
+                    settlement.x(), settlement.z(), settlement.population(), settlement.culture(),
+                    settlement.materials()));
+        }
+        if (kept.size() == plan.settlements().size()) {
+            return plan;
+        }
+        List<WorldPlan.HistoryEvent> events = new ArrayList<>();
+        for (WorldPlan.HistoryEvent event : plan.events()) {
+            Integer settlementId = idMap.get(event.settlementId());
+            if (settlementId == null) {
+                continue;
+            }
+            events.add(new WorldPlan.HistoryEvent(event.year(), event.type(), event.nationA(),
+                    event.nationB(), settlementId, event.summary()));
+        }
+        return new WorldPlan(plan.seed(), plan.nations(), List.copyOf(kept),
+                List.copyOf(events));
+    }
+
     public static WorldPlan sample(ServerLevel level, WorldPlan plan) {
         List<WorldPlan.Settlement> adjusted = new ArrayList<>(plan.settlements().size());
         int moved = 0;

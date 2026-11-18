@@ -618,7 +618,8 @@ public final class DndCommands {
         WorldPlan plan = SimulationAdapter.adapt(simulation);
         // The simulation works on 256-block cells; snap each settlement onto real dry ground
         // before persisting it.
-        WorldPlan adopted = SettlementSiteSampler.sample(source.getLevel(), plan);
+        WorldPlan sampled = SettlementSiteSampler.sample(source.getLevel(), plan);
+        WorldPlan adopted = SettlementSiteSampler.filterUnplaceable(source.getLevel(), sampled);
         WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
         data.replace(adopted);
         mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adopted);

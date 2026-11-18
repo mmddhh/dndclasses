@@ -26,7 +26,7 @@ import java.util.Set;
 public final class RoadPlanner {
 
     private static final int STEP = 32;
-    private static final int MAX_EXPANDED = 24_000;
+    private static final int MAX_EXPANDED = 200_000;
 
     private RoadPlanner() {
     }

@@ -563,14 +563,17 @@ public final class DndCommands {
                 RealHabitabilitySampler.sample(source.getLevel());
         SimulationResult simulation = CivilizationSimulator.run(map);
         WorldPlan plan = SimulationAdapter.adapt(simulation);
+        // The simulation works on 256-block cells; snap each settlement onto real dry ground
+        // before persisting it.
+        WorldPlan adopted = SettlementSiteSampler.sample(source.getLevel(), plan);
         WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
-        data.replace(plan);
-        mdh.dndclasses.worldgen.mc.WorldPlanCache.set(plan);
+        data.replace(adopted);
+        mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adopted);
         source.sendSuccess(() -> Component.literal(
-                "已采用演算结果：国家 " + plan.nations().size()
-                        + "，聚落 " + plan.settlements().size()
-                        + "，事件 " + plan.events().size()), false);
-        WorldPlanVerifier.Result verify = WorldPlanVerifier.verify(plan);
+                "已采用演算结果：国家 " + adopted.nations().size()
+                        + "，聚落 " + adopted.settlements().size()
+                        + "，事件 " + adopted.events().size()), false);
+        WorldPlanVerifier.Result verify = WorldPlanVerifier.verify(adopted);
         if (!verify.ok()) {
             source.sendFailure(Component.literal("采用后的计划校验失败，共 "
                     + verify.errors().size() + " 项："));
@@ -578,7 +581,7 @@ public final class DndCommands {
                     source.sendFailure(Component.literal(" - " + error)));
         }
         Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses");
-        Path file = directory.resolve("civilization-" + plan.seed() + ".json");
+        Path file = directory.resolve("civilization-" + adopted.seed() + ".json");
         try {
             Files.createDirectories(directory);
             Files.writeString(file, simulation.prettyJson());

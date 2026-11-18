@@ -156,6 +156,11 @@ dependencies {
     runtimeOnly fg.deobf("curse.maven:rhino-416294:6186971")
     runtimeOnly fg.deobf("curse.maven:architectury-api-419699:5137938")
 
+    // Xaero's World Map for in-dev map inspection (version KtEupJvB = 1.47.0 Forge 1.20.1).
+    // runtimeOnly keeps it out of the published mod and out of mods.toml dependencies.
+    // fg.deobf resolves the remapped/refmap-fixed jar for the dev mappings.
+    runtimeOnly fg.deobf("maven.modrinth:xaeros-world-map:KtEupJvB")
+
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
 }

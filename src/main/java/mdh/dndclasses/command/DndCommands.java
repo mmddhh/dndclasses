@@ -29,6 +29,9 @@ import mdh.dndclasses.worldgen.mc.RealHabitabilitySampler;
 import mdh.dndclasses.worldgen.mc.SettlementBuilder;
 import mdh.dndclasses.worldgen.mc.SettlementSiteSampler;
 import mdh.dndclasses.worldgen.mc.TerrainSiteSelector;
+import mdh.dndclasses.worldgen.mc.RealRoadTerrain;
+import mdh.dndclasses.worldgen.road.RoadNetwork;
+import mdh.dndclasses.worldgen.road.RoadPlanner;
 import mdh.dndclasses.worldgen.sim.CivilizationSimulator;
 import mdh.dndclasses.worldgen.sim.SimulationResult;
 import mdh.dndclasses.worldgen.mc.WorldPlanSavedData;
@@ -178,7 +181,9 @@ public final class DndCommands {
                 .then(Commands.literal("simulate")
                         .executes(context -> worldPlanSimulate(context.getSource())))
                 .then(Commands.literal("adopt")
-                        .executes(context -> worldPlanAdopt(context.getSource()))));
+                        .executes(context -> worldPlanAdopt(context.getSource())))
+                .then(Commands.literal("roads")
+                        .executes(context -> worldPlanRoads(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -553,6 +558,32 @@ public final class DndCommands {
         data.replace(adjusted);
         mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
         source.sendSuccess(() -> Component.literal("聚落已重新分布到陆地附近并保存。"), false);
+        return 1;
+    }
+
+    private static int worldPlanRoads(CommandSourceStack source) {
+        WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
+        source.sendSuccess(() -> Component.literal(
+                "正在规划道路网络，A* 可能触发大量地形采样，请稍候……"), false);
+        RoadNetwork network = RoadPlanner.plan(plan, new RealRoadTerrain(source.getLevel()));
+        Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses");
+        Path file = directory.resolve("roads-" + plan.seed() + ".json");
+        try {
+            Files.createDirectories(directory);
+            Files.writeString(file, network.prettyJson());
+        } catch (IOException exception) {
+            source.sendFailure(Component.literal("写入道路规划失败: " + exception.getMessage()));
+            return 0;
+        }
+        long highways = network.roads().stream()
+                .filter(road -> road.tier() == RoadNetwork.Tier.HIGHWAY).count();
+        long roads = network.roads().stream()
+                .filter(road -> road.tier() == RoadNetwork.Tier.ROAD).count();
+        long paths = network.roads().stream()
+                .filter(road -> road.tier() == RoadNetwork.Tier.PATH).count();
+        source.sendSuccess(() -> Component.literal("道路：王道 " + highways + "，驰道 " + roads
+                + "，乡道 " + paths + "；边境哨塔 " + network.borderPosts().size()), false);
+        source.sendSuccess(() -> Component.literal("道路规划已写入 " + file), false);
         return 1;
     }
 

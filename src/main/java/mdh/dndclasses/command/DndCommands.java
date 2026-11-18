@@ -30,6 +30,7 @@ import mdh.dndclasses.worldgen.mc.SettlementBuilder;
 import mdh.dndclasses.worldgen.mc.SettlementSiteSampler;
 import mdh.dndclasses.worldgen.mc.TerrainSiteSelector;
 import mdh.dndclasses.worldgen.mc.RealRoadTerrain;
+import mdh.dndclasses.worldgen.mc.RoadPainter;
 import mdh.dndclasses.worldgen.road.RoadNetwork;
 import mdh.dndclasses.worldgen.road.RoadPlanner;
 import mdh.dndclasses.worldgen.sim.CivilizationSimulator;
@@ -183,7 +184,9 @@ public final class DndCommands {
                 .then(Commands.literal("adopt")
                         .executes(context -> worldPlanAdopt(context.getSource())))
                 .then(Commands.literal("roads")
-                        .executes(context -> worldPlanRoads(context.getSource()))));
+                        .executes(context -> worldPlanRoads(context.getSource())))
+                .then(Commands.literal("paint")
+                        .executes(context -> worldPlanPaint(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -561,6 +564,18 @@ public final class DndCommands {
         return 1;
     }
 
+    private static int worldPlanPaint(CommandSourceStack source) {
+        WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
+        source.sendSuccess(() -> Component.literal(
+                "正在铺道路并建造聚落测试塔，可能持续较久……"), false);
+        RoadNetwork network = RoadPlanner.plan(plan, new RealRoadTerrain(source.getLevel()));
+        int roads = RoadPainter.paintRoads(source.getLevel(), network);
+        int settlements = RoadPainter.paintSettlements(source.getLevel(), plan);
+        source.sendSuccess(() -> Component.literal("已铺设 " + roads + " 个道路方块，建造 "
+                + settlements + " 个聚落测试塔。"), false);
+        return 1;
+    }
+
     private static int worldPlanRoads(CommandSourceStack source) {
         WorldPlan plan = WorldPlanSavedData.get(source.getLevel()).plan();
         source.sendSuccess(() -> Component.literal(
@@ -610,6 +625,7 @@ public final class DndCommands {
         source.sendSuccess(() -> Component.literal(
                 "已采用演算结果：国家 " + adopted.nations().size()
                         + "，聚落 " + adopted.settlements().size()
+                        + "（含首都 " + adopted.nations().size() + "）"
                         + "，事件 " + adopted.events().size()), false);
         WorldPlanVerifier.Result verify = WorldPlanVerifier.verify(adopted);
         if (!verify.ok()) {

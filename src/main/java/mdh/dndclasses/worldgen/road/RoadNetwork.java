@@ -248,6 +248,13 @@ public record RoadNetwork(List<Road> roads, List<BorderPost> borderPosts,
             }
             svg.append("\"/>");
         }
+        for (FailedRoute failed : failedRoutes) {
+            svg.append("<line x1=\"").append(offsetX + (failed.fromX() - minX) * scale)
+                    .append("\" y1=\"").append(offsetY + (failed.fromZ() - minZ) * scale)
+                    .append("\" x2=\"").append(offsetX + (failed.toX() - minX) * scale)
+                    .append("\" y2=\"").append(offsetY + (failed.toZ() - minZ) * scale)
+                    .append("\" stroke=\"#ff3b30\" stroke-width=\"2\" stroke-dasharray=\"7 5\"/>");
+        }
         for (WorldPlan.Settlement settlement : settlements) {
             boolean capital = settlement.id() == plan.settlements().stream()
                     .filter(candidate -> candidate.nationId() == settlement.nationId())
@@ -270,7 +277,7 @@ public record RoadNetwork(List<Road> roads, List<BorderPost> borderPosts,
         svg.append("<text x=\"20\" y=\"50\" font-family=\"monospace\" font-size=\"13\">")
                 .append("red=capital  black=town  purple=border post</text>");
         svg.append("<text x=\"20\" y=\"70\" font-family=\"monospace\" font-size=\"13\">")
-                .append("green=land  blue=water</text>");
+                .append("green=land  blue=water  red dashed=no path/failed</text>");
         svg.append("</svg>");
         return svg.toString();
     }

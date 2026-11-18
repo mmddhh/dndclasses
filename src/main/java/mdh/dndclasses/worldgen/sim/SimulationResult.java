@@ -1,5 +1,6 @@
 package mdh.dndclasses.worldgen.sim;
 
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -19,6 +20,10 @@ public record SimulationResult(long seed, int gridSize, int cellSize,
     }
 
     public record Event(int year, String type, int nationA, int nationB, String summary) {
+    }
+
+    public String prettyJson() {
+        return new GsonBuilder().setPrettyPrinting().create().toJson(toJson());
     }
 
     public JsonObject toJson() {

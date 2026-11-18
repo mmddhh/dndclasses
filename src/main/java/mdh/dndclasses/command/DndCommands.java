@@ -562,7 +562,7 @@ public final class DndCommands {
         Path file = directory.resolve("civilization-" + seed + ".json");
         try {
             Files.createDirectories(directory);
-            Files.writeString(file, result.toJson().toString());
+            Files.writeString(file, result.prettyJson());
         } catch (IOException exception) {
             source.sendFailure(Component.literal("写入文明演算失败: " + exception.getMessage()));
             return 0;

@@ -30,14 +30,14 @@ public final class WorldPlanVerifier {
             errors.add("WorldPlan 为空。");
             return new Result(errors, warnings);
         }
-        if (plan.nations().size() != 6) {
-            errors.add("国家数量应为 6，实际 " + plan.nations().size() + "。");
+        if (plan.nations().isEmpty()) {
+            errors.add("WorldPlan 没有国家。");
         }
-        if (plan.settlements().size() != 30) {
-            errors.add("聚落数量应为 30，实际 " + plan.settlements().size() + "。");
+        if (plan.settlements().isEmpty()) {
+            errors.add("WorldPlan 没有聚落。");
         }
-        if (plan.events().size() != 30) {
-            errors.add("事件数量应为 30，实际 " + plan.events().size() + "。");
+        if (plan.events().isEmpty()) {
+            errors.add("WorldPlan 没有历史事件。");
         }
 
         Map<Integer, WorldPlan.Nation> nations = new HashMap<>();
@@ -99,7 +99,7 @@ public final class WorldPlanVerifier {
                 errors.add("Y" + event.year() + " 的事件没有摘要。");
             }
             if (!switch (event.type()) {
-                case "war", "alliance", "trade", "plague" -> true;
+                case "war", "alliance", "trade", "plague", "expand" -> true;
                 default -> false;
             }) {
                 errors.add("Y" + event.year() + " 未知事件类型 " + event.type() + "。");
@@ -107,9 +107,9 @@ public final class WorldPlanVerifier {
             if (!nations.containsKey(event.nationA())) {
                 errors.add("Y" + event.year() + " nationA 越界：" + event.nationA() + "。");
             }
-            if ("plague".equals(event.type())) {
+            if ("plague".equals(event.type()) || "expand".equals(event.type())) {
                 if (event.nationB() != -1) {
-                    errors.add("Y" + event.year() + " 瘟疫的 nationB 应为 -1。");
+                    errors.add("Y" + event.year() + " " + event.type() + " 的 nationB 应为 -1。");
                 }
             } else if (!nations.containsKey(event.nationB())) {
                 errors.add("Y" + event.year() + " nationB 越界：" + event.nationB() + "。");
@@ -119,7 +119,8 @@ public final class WorldPlanVerifier {
                 errors.add("Y" + event.year() + " 指向不存在的聚落 " + event.settlementId() + "。");
             } else {
                 boolean allowed = site.nationId() == event.nationA()
-                        || ("plague".equals(event.type()) ? false : site.nationId() == event.nationB());
+                        || (("war".equals(event.type()) || "alliance".equals(event.type())
+                        || "trade".equals(event.type())) && site.nationId() == event.nationB());
                 if (!allowed) {
                     errors.add("Y" + event.year() + " 的事件地点 " + site.id()
                             + " 不属于参与国 " + event.nationA() + "/" + event.nationB() + "。");

@@ -20,6 +20,7 @@ import mdh.dndclasses.saves.SaveQteManager;
 import mdh.dndclasses.spells.SpellClassifiers;
 import mdh.dndclasses.spells.SpellKind;
 import mdh.dndclasses.worldgen.NpcProfile;
+import mdh.dndclasses.worldgen.mc.SimulationAdapter;
 import mdh.dndclasses.worldgen.WorldPlan;
 import mdh.dndclasses.worldgen.WorldPlanGenerator;
 import mdh.dndclasses.worldgen.WorldPlanVerifier;
@@ -175,7 +176,9 @@ public final class DndCommands {
                 .then(Commands.literal("resite")
                         .executes(context -> worldPlanResite(context.getSource())))
                 .then(Commands.literal("simulate")
-                        .executes(context -> worldPlanSimulate(context.getSource()))));
+                        .executes(context -> worldPlanSimulate(context.getSource())))
+                .then(Commands.literal("adopt")
+                        .executes(context -> worldPlanAdopt(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -553,6 +556,39 @@ public final class DndCommands {
         return 1;
     }
 
+    private static int worldPlanAdopt(CommandSourceStack source) {
+        source.sendSuccess(() -> Component.literal(
+                "正在采样地形并采用文明演算结果……"), false);
+        mdh.dndclasses.worldgen.sim.HabitabilityMap map =
+                RealHabitabilitySampler.sample(source.getLevel());
+        SimulationResult simulation = CivilizationSimulator.run(map);
+        WorldPlan plan = SimulationAdapter.adapt(simulation);
+        WorldPlanSavedData data = WorldPlanSavedData.get(source.getLevel());
+        data.replace(plan);
+        mdh.dndclasses.worldgen.mc.WorldPlanCache.set(plan);
+        source.sendSuccess(() -> Component.literal(
+                "已采用演算结果：国家 " + plan.nations().size()
+                        + "，聚落 " + plan.settlements().size()
+                        + "，事件 " + plan.events().size()), false);
+        WorldPlanVerifier.Result verify = WorldPlanVerifier.verify(plan);
+        if (!verify.ok()) {
+            source.sendFailure(Component.literal("采用后的计划校验失败，共 "
+                    + verify.errors().size() + " 项："));
+            verify.errors().stream().limit(5).forEach(error ->
+                    source.sendFailure(Component.literal(" - " + error)));
+        }
+        Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses");
+        Path file = directory.resolve("civilization-" + plan.seed() + ".json");
+        try {
+            Files.createDirectories(directory);
+            Files.writeString(file, simulation.prettyJson());
+            source.sendSuccess(() -> Component.literal("演算快照已写入 " + file), false);
+        } catch (IOException exception) {
+            source.sendFailure(Component.literal("写入演算快照失败: " + exception.getMessage()));
+        }
+        return 1;
+    }
+
     private static int worldPlanSimulate(CommandSourceStack source) {
         long seed = source.getLevel().getSeed();
         mdh.dndclasses.worldgen.sim.HabitabilityMap map =
@@ -707,8 +743,8 @@ public final class DndCommands {
         int total = 0;
 
         total++;
-        boolean counts = plan.nations().size() == 6 && plan.settlements().size() == 30
-                && plan.events().size() == 30;
+        boolean counts = !plan.nations().isEmpty() && !plan.settlements().isEmpty()
+                && !plan.events().isEmpty();
         source.sendSuccess(() -> Component.literal((counts ? "[通过] " : "[失败] ")
                 + "计划规模：国家 " + plan.nations().size() + "，聚落 "
                 + plan.settlements().size() + "，事件 " + plan.events().size()), false);

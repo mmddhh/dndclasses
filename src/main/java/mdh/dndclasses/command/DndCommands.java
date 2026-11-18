@@ -569,10 +569,12 @@ public final class DndCommands {
         Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses");
         Path file = directory.resolve("roads-" + plan.seed() + ".json");
         Path mapFile = directory.resolve("roads-map-" + plan.seed() + ".txt");
+        Path svgFile = directory.resolve("roads-map-" + plan.seed() + ".svg");
         try {
             Files.createDirectories(directory);
             Files.writeString(file, network.prettyJson());
             Files.write(mapFile, network.debugMap(plan, new RealRoadTerrain(source.getLevel())));
+            Files.writeString(svgFile, network.toSvg(plan, new RealRoadTerrain(source.getLevel())));
         } catch (IOException exception) {
             source.sendFailure(Component.literal("写入道路规划失败: " + exception.getMessage()));
             return 0;
@@ -588,6 +590,7 @@ public final class DndCommands {
                 + "；失败路线 " + network.failedRoutes().size()), false);
         source.sendSuccess(() -> Component.literal("道路规划已写入 " + file), false);
         source.sendSuccess(() -> Component.literal("可视化地图已写入 " + mapFile), false);
+        source.sendSuccess(() -> Component.literal("SVG 地图已写入 " + svgFile), false);
         return 1;
     }
 

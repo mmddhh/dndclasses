@@ -103,8 +103,8 @@ public record RoadNetwork(List<Road> roads, List<BorderPost> borderPosts,
     }
 
     public List<String> debugMap(WorldPlan plan, TerrainCost terrain) {
-        int width = 96;
-        int height = 44;
+        int width = 160;
+        int height = 64;
         List<WorldPlan.Settlement> settlements = plan.settlements();
         if (settlements.isEmpty()) {
             return List.of("(no settlements)");
@@ -179,5 +179,99 @@ public record RoadNetwork(List<Road> roads, List<BorderPost> borderPosts,
         if (row >= 0 && row < grid.length && col >= 0 && col < grid[0].length) {
             grid[row][col] = mark;
         }
+    }
+
+    /** Self-contained SVG so the road topology can be inspected without a manual legend script. */
+    public String toSvg(WorldPlan plan, TerrainCost terrain) {
+        int width = 1200;
+        int height = 700;
+        int margin = 30;
+        List<WorldPlan.Settlement> settlements = plan.settlements();
+        if (settlements.isEmpty()) {
+            return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"80\">"
+                    + "<text x=\"10\" y=\"30\">no settlements</text></svg>";
+        }
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (WorldPlan.Settlement settlement : settlements) {
+            minX = Math.min(minX, settlement.x());
+            maxX = Math.max(maxX, settlement.x());
+            minZ = Math.min(minZ, settlement.z());
+            maxZ = Math.max(maxZ, settlement.z());
+        }
+        minX -= 512;
+        maxX += 512;
+        minZ -= 512;
+        maxZ += 512;
+        double scale = Math.min((width - 2.0 * margin) / (maxX - minX),
+                (height - 2.0 * margin) / (maxZ - minZ));
+        double offsetX = margin;
+        double offsetY = margin;
+        StringBuilder svg = new StringBuilder();
+        svg.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").append(width)
+                .append("\" height=\"").append(height).append("\">");
+        svg.append("<rect width=\"100%\" height=\"100%\" fill=\"#4a90d9\"/>");
+
+        int cellsX = 160;
+        int cellsZ = 90;
+        double cellW = (maxX - minX) / (double) cellsX;
+        double cellH = (maxZ - minZ) / (double) cellsZ;
+        for (int gz = 0; gz < cellsZ; gz++) {
+            for (int gx = 0; gx < cellsX; gx++) {
+                int x = minX + (int) (gx * cellW);
+                int z = minZ + (int) (gz * cellH);
+                if (terrain.passable(x, z)) {
+                    svg.append("<rect x=\"").append(offsetX + gx * cellW * scale)
+                            .append("\" y=\"").append(offsetY + gz * cellH * scale)
+                            .append("\" width=\"").append(cellW * scale + 0.5)
+                            .append("\" height=\"").append(cellH * scale + 0.5)
+                            .append("\" fill=\"#7bbf6a\"/>");
+                }
+            }
+        }
+
+        for (Road road : roads) {
+            String color = switch (road.tier()) {
+                case HIGHWAY -> "#f2c14e";
+                case ROAD -> "#b8b8b8";
+                case PATH -> "#c47a3a";
+            };
+            svg.append("<polyline fill=\"none\" stroke=\"").append(color)
+                    .append("\" stroke-width=\"").append(road.tier() == Tier.HIGHWAY ? 4
+                            : road.tier() == Tier.ROAD ? 3 : 2)
+                    .append("\" stroke-linecap=\"round\" stroke-linejoin=\"round\" points=\"");
+            for (Node node : road.path()) {
+                svg.append(offsetX + (node.x() - minX) * scale).append(',')
+                        .append(offsetY + (node.z() - minZ) * scale).append(' ');
+            }
+            svg.append("\"/>");
+        }
+        for (WorldPlan.Settlement settlement : settlements) {
+            boolean capital = settlement.id() == plan.settlements().stream()
+                    .filter(candidate -> candidate.nationId() == settlement.nationId())
+                    .mapToInt(WorldPlan.Settlement::id).min().orElse(-1);
+            svg.append("<circle cx=\"").append(offsetX + (settlement.x() - minX) * scale)
+                    .append("\" cy=\"").append(offsetY + (settlement.z() - minZ) * scale)
+                    .append("\" r=\"").append(capital ? 6 : 4)
+                    .append("\" fill=\"").append(capital ? "#d64545" : "#111111")
+                    .append("\" stroke=\"#ffffff\" stroke-width=\"1\"/>");
+        }
+        for (BorderPost post : borderPosts) {
+            svg.append("<rect x=\"").append(offsetX + (post.x() - minX) * scale - 4)
+                    .append("\" y=\"").append(offsetY + (post.z() - minZ) * scale - 4)
+                    .append("\" width=\"8\" height=\"8\" fill=\"#9b59b6\"/>");
+        }
+        svg.append("<rect x=\"10\" y=\"10\" width=\"330\" height=\"76\" fill=\"#ffffff\"")
+                .append(" fill-opacity=\"0.85\" stroke=\"#333\"/>");
+        svg.append("<text x=\"20\" y=\"30\" font-family=\"monospace\" font-size=\"13\">")
+                .append("gold=highway  silver=road  copper=path</text>");
+        svg.append("<text x=\"20\" y=\"50\" font-family=\"monospace\" font-size=\"13\">")
+                .append("red=capital  black=town  purple=border post</text>");
+        svg.append("<text x=\"20\" y=\"70\" font-family=\"monospace\" font-size=\"13\">")
+                .append("green=land  blue=water</text>");
+        svg.append("</svg>");
+        return svg.toString();
     }
 }

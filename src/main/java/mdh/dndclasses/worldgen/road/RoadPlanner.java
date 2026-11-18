@@ -3,6 +3,7 @@ package mdh.dndclasses.worldgen.road;
 import mdh.dndclasses.worldgen.WorldPlan;
 import mdh.dndclasses.worldgen.road.RoadNetwork.Road;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -39,47 +40,57 @@ public final class RoadPlanner {
         Set<String> usedEdges = new HashSet<>();
         List<Road> roads = new ArrayList<>();
         List<RoadNetwork.FailedRoute> failed = new ArrayList<>();
+        Map<Integer, List<WorldPlan.Settlement>> components = landComponents(plan, terrain);
+
+        // Internal roads only inside one connected landmass. A settlement on another island is
+        // deliberately left without a land road (a ferry/sea route is a separate later feature).
         for (WorldPlan.Nation nation : plan.nations()) {
-            List<WorldPlan.Settlement> settlements = plan.settlements().stream()
-                    .filter(settlement -> settlement.nationId() == nation.id())
-                    .sorted(Comparator.comparingInt(settlement ->
-                            settlement.id() == capitals.get(nation.id()).id() ? 0 : 1))
-                    .toList();
-            for (int[] edge : mst(settlements)) {
-                addRoad(roads, usedEdges, failed, plan, terrain,
-                        settlements.get(edge[0]), settlements.get(edge[1]), false);
+            for (List<WorldPlan.Settlement> component : components.values()) {
+                List<WorldPlan.Settlement> settlements = component.stream()
+                        .filter(settlement -> settlement.nationId() == nation.id())
+                        .sorted(Comparator.comparingInt(settlement ->
+                                settlement.id() == capitals.get(nation.id()).id() ? 0 : 1))
+                        .toList();
+                for (int[] edge : mst(settlements)) {
+                    addRoad(roads, usedEdges, failed, plan, terrain,
+                            settlements.get(edge[0]), settlements.get(edge[1]), false);
+                }
             }
         }
 
-        // No arbitrary capital-to-capital highways. A cross-border road only exists where the two
-        // nations have their nearest settlements within range, and A* can actually cross.
-        for (int a = 0; a < plan.nations().size(); a++) {
-            for (int b = a + 1; b < plan.nations().size(); b++) {
-                int nationA = plan.nations().get(a).id();
-                int nationB = plan.nations().get(b).id();
-                WorldPlan.Settlement bestA = null;
-                WorldPlan.Settlement bestB = null;
-                double bestDistance = Double.MAX_VALUE;
-                for (WorldPlan.Settlement sa : plan.settlements()) {
-                    if (sa.nationId() != nationA) {
-                        continue;
-                    }
-                    for (WorldPlan.Settlement sb : plan.settlements()) {
-                        if (sb.nationId() != nationB) {
+        // Cross-border roads: only the nearest pair per nation pair *within the same landmass*.
+        for (List<WorldPlan.Settlement> component : components.values()) {
+            Set<Integer> nations = new HashSet<>();
+            for (WorldPlan.Settlement settlement : component) {
+                nations.add(settlement.nationId());
+            }
+            List<Integer> nationIds = new ArrayList<>(nations);
+            for (int a = 0; a < nationIds.size(); a++) {
+                for (int b = a + 1; b < nationIds.size(); b++) {
+                    WorldPlan.Settlement bestA = null;
+                    WorldPlan.Settlement bestB = null;
+                    double bestDistance = Double.MAX_VALUE;
+                    for (WorldPlan.Settlement sa : component) {
+                        if (sa.nationId() != nationIds.get(a)) {
                             continue;
                         }
-                        double dx = sa.x() - sb.x();
-                        double dz = sa.z() - sb.z();
-                        double distance = dx * dx + dz * dz;
-                        if (distance < bestDistance) {
-                            bestDistance = distance;
-                            bestA = sa;
-                            bestB = sb;
+                        for (WorldPlan.Settlement sb : component) {
+                            if (sb.nationId() != nationIds.get(b)) {
+                                continue;
+                            }
+                            double dx = sa.x() - sb.x();
+                            double dz = sa.z() - sb.z();
+                            double distance = dx * dx + dz * dz;
+                            if (distance < bestDistance) {
+                                bestDistance = distance;
+                                bestA = sa;
+                                bestB = sb;
+                            }
                         }
                     }
-                }
-                if (bestA != null && bestDistance <= 2048.0D * 2048.0D) {
-                    addRoad(roads, usedEdges, failed, plan, terrain, bestA, bestB, true);
+                    if (bestA != null && bestDistance <= 2048.0D * 2048.0D) {
+                        addRoad(roads, usedEdges, failed, plan, terrain, bestA, bestB, true);
+                    }
                 }
             }
         }
@@ -131,6 +142,95 @@ public final class RoadPlanner {
     private static int firstSettlement(WorldPlan plan, int nationId) {
         return plan.settlements().stream().filter(settlement -> settlement.nationId() == nationId)
                 .mapToInt(WorldPlan.Settlement::id).findFirst().orElse(-1);
+    }
+
+    private static Map<Integer, List<WorldPlan.Settlement>> landComponents(
+            WorldPlan plan, TerrainCost terrain) {
+        if (plan.settlements().isEmpty()) {
+            return Map.of();
+        }
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (WorldPlan.Settlement settlement : plan.settlements()) {
+            minX = Math.min(minX, settlement.x());
+            maxX = Math.max(maxX, settlement.x());
+            minZ = Math.min(minZ, settlement.z());
+            maxZ = Math.max(maxZ, settlement.z());
+        }
+        minX -= 256;
+        maxX += 256;
+        minZ -= 256;
+        maxZ += 256;
+        int cols = Math.max(1, (maxX - minX) / STEP + 1);
+        int rows = Math.max(1, (maxZ - minZ) / STEP + 1);
+        int[][] component = new int[rows][cols];
+        for (int[] row : component) {
+            java.util.Arrays.fill(row, -1);
+        }
+        int next = 0;
+        for (int gz = 0; gz < rows; gz++) {
+            for (int gx = 0; gx < cols; gx++) {
+                if (component[gz][gx] != -1) {
+                    continue;
+                }
+                int x = minX + gx * STEP;
+                int z = minZ + gz * STEP;
+                if (!terrain.passable(x, z)) {
+                    continue;
+                }
+                int id = next++;
+                ArrayDeque<int[]> queue = new ArrayDeque<>();
+                queue.add(new int[]{gx, gz});
+                component[gz][gx] = id;
+                while (!queue.isEmpty()) {
+                    int[] cell = queue.poll();
+                    for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                        int nx = cell[0] + dir[0];
+                        int nz = cell[1] + dir[1];
+                        if (nx < 0 || nz < 0 || nx >= cols || nz >= rows
+                                || component[nz][nx] != -1) {
+                            continue;
+                        }
+                        if (!terrain.passable(minX + nx * STEP, minZ + nz * STEP)) {
+                            continue;
+                        }
+                        component[nz][nx] = id;
+                        queue.add(new int[]{nx, nz});
+                    }
+                }
+            }
+        }
+        Map<Integer, List<WorldPlan.Settlement>> result = new HashMap<>();
+        for (WorldPlan.Settlement settlement : plan.settlements()) {
+            int gx = (settlement.x() - minX) / STEP;
+            int gz = (settlement.z() - minZ) / STEP;
+            int id = -1;
+            if (gx >= 0 && gz >= 0 && gx < cols && gz < rows) {
+                id = component[gz][gx];
+            }
+            if (id < 0) {
+                outer:
+                for (int radius = 1; radius <= 8; radius++) {
+                    for (int dx = -radius; dx <= radius; dx++) {
+                        for (int dz = -radius; dz <= radius; dz++) {
+                            int nx = gx + dx;
+                            int nz = gz + dz;
+                            if (nx >= 0 && nz >= 0 && nx < cols && nz < rows
+                                    && component[nz][nx] >= 0) {
+                                id = component[nz][nx];
+                                break outer;
+                            }
+                        }
+                    }
+                }
+            }
+            if (id >= 0) {
+                result.computeIfAbsent(id, ignored -> new ArrayList<>()).add(settlement);
+            }
+        }
+        return result;
     }
 
     /** Prim MST over a small settlement list; returns index pairs. */

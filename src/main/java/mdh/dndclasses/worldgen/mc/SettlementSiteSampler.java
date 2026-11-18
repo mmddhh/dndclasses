@@ -26,7 +26,7 @@ public final class SettlementSiteSampler {
         java.util.Map<Integer, Integer> idMap = new java.util.HashMap<>();
         List<WorldPlan.Settlement> kept = new ArrayList<>();
         for (WorldPlan.Settlement settlement : plan.settlements()) {
-            if (SettlementBuilder.findSite(level, settlement.x(), settlement.z()) == null) {
+            if (findSite(level, settlement.x(), settlement.z(), MAX_RADIUS) == null) {
                 continue;
             }
             int newId = kept.size();

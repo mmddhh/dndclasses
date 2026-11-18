@@ -62,17 +62,6 @@ public final class SettlementBuilder {
             }
         }
 
-        // Clear a 9x9x6 volume and lay the foundation.
-        for (int dx = -4; dx <= 4; dx++) {
-            for (int dz = -4; dz <= 4; dz++) {
-                for (int dy = 1; dy <= 6; dy++) {
-                    placed += set(level, centerX + dx, y + dy, centerZ + dz,
-                            Blocks.AIR.defaultBlockState());
-                }
-                placed += set(level, centerX + dx, y, centerZ + dz, foundation);
-            }
-        }
-
         String roofType = cultureValue(settlement.culture(), "roof", "flat");
         String windowType = cultureValue(settlement.culture(), "window", "small");
         String motif = cultureValue(settlement.culture(), "motif", "rune");
@@ -89,6 +78,11 @@ public final class SettlementBuilder {
                 for (int dy = 1; dy <= wallHeight + 6; dy++) {
                     placed += set(level, centerX + dx, y + dy, centerZ + dz,
                             Blocks.AIR.defaultBlockState());
+                }
+                int groundY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                        centerX + dx, centerZ + dz);
+                for (int fillY = y; fillY > groundY; fillY--) {
+                    placed += set(level, centerX + dx, fillY, centerZ + dz, foundation);
                 }
                 placed += set(level, centerX + dx, y, centerZ + dz, foundation);
             }
@@ -372,24 +366,44 @@ public final class SettlementBuilder {
                     if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
                         continue;
                     }
-                    int x = centerX + dx;
-                    int z = centerZ + dz;
-                    int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-                    if (y <= level.getMinBuildHeight() + 1) {
-                        continue;
-                    }
-                    BlockPos ground = new BlockPos(x, y - 1, z);
-                    BlockState below = level.getBlockState(ground);
-                    BlockState at = level.getBlockState(new BlockPos(x, y, z));
-                    BlockState above = level.getBlockState(new BlockPos(x, y + 1, z));
-                    if (!below.isAir() && below.getFluidState().isEmpty()
-                            && at.isAir() && above.isAir()) {
-                        return new Site(x, y, z);
+                    int baseY = footprintBase(level, centerX + dx, centerZ + dz);
+                    if (baseY > 0) {
+                        return new Site(centerX + dx, baseY, centerZ + dz);
                     }
                 }
             }
         }
         return null;
+    }
+
+    /**
+     * The tower is 9x9. Pick the highest dry surface in that footprint as the foundation level, so
+     * the building sits on a small plateau instead of being buried by a slope.
+     */
+    private static int footprintBase(LevelAccessor level, int centerX, int centerZ) {
+        int baseY = -1;
+        int lowest = Integer.MAX_VALUE;
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                int x = centerX + dx;
+                int z = centerZ + dz;
+                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                if (y <= level.getMinBuildHeight() + 1) {
+                    return -1;
+                }
+                BlockState below = level.getBlockState(new BlockPos(x, y - 1, z));
+                BlockState at = level.getBlockState(new BlockPos(x, y, z));
+                BlockState above = level.getBlockState(new BlockPos(x, y + 1, z));
+                if (below.isAir() || !below.getFluidState().isEmpty()
+                        || !at.isAir() || !above.isAir()) {
+                    return -1;
+                }
+                baseY = Math.max(baseY, y);
+                lowest = Math.min(lowest, y);
+            }
+        }
+        // Reject cliffs where the footprint spans too many vertical blocks.
+        return baseY - lowest <= 10 ? baseY : -1;
     }
 
     /** Picks the material actually visible around the site; null when the plan material should win. */

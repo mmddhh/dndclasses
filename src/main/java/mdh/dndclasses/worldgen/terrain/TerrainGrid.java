@@ -88,13 +88,13 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
 
     private void drawRiverCurves(Graphics2D graphics) {
         graphics.setColor(new Color(45, 120, 190, 230));
-        graphics.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND,
-                BasicStroke.JOIN_ROUND));
         int size = size();
         for (RiverPath path : riverPaths) {
             if (path.points().size() < 2) {
                 continue;
             }
+            graphics.setStroke(new BasicStroke(Math.min(7f, 1.8f + path.width() * 1.2f),
+                    BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             java.awt.geom.Path2D.Double line = null;
             RiverPath.Node previous = null;
             for (RiverPath.Node node : path.points()) {
@@ -115,6 +115,11 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
             if (line != null) {
                 graphics.draw(line);
             }
+            RiverPath.Node source = path.points().get(0);
+            graphics.setColor(new Color(30, 95, 165));
+            graphics.fillOval((int) ((source.x() + 0.5) * SCALE) - 3,
+                    (int) ((source.z() + 0.5) * SCALE) - 3, 6, 6);
+            graphics.setColor(new Color(45, 120, 190, 230));
         }
     }
 
@@ -169,6 +174,7 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
         graphics.drawString("white cross = world center (0,0)", left, y + 18);
         graphics.drawString("image edges wrap into each other", left, y + 38);
         graphics.drawString("water: light shallow / dark deep", left, y + 58);
+        graphics.drawString("river width = upstream flow, dot = spring", left, y + 78);
     }
 
     private void drawHeightLegend(Graphics2D graphics, int mapSize) {

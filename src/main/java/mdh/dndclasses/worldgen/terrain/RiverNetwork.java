@@ -197,7 +197,12 @@ public final class RiverNetwork {
                 cursor = next;
             }
             if (path.size() >= 8 && water[path.get(path.size() - 1)]) {
-                RiverPath smoothed = smooth(path, size);
+                int maxFlow = 0;
+                for (int index : path) {
+                    maxFlow = Math.max(maxFlow, flow[index]);
+                }
+                int width = 1 + Math.min(4, maxFlow / 220);
+                RiverPath smoothed = smooth(path, size, width);
                 paths.add(smoothed);
                 for (RiverPath.Node node : smoothed.points()) {
                     river[node.z() * size + node.x()] = true;
@@ -225,7 +230,7 @@ public final class RiverNetwork {
                     cursor = downstream[cursor];
                 }
                 if (path.size() >= 8 && water[path.get(path.size() - 1)]) {
-                    RiverPath smoothed = smooth(path, size);
+                    RiverPath smoothed = smooth(path, size, 1);
                     paths.add(smoothed);
                     for (RiverPath.Node node : smoothed.points()) {
                         river[node.z() * size + node.x()] = true;
@@ -236,7 +241,7 @@ public final class RiverNetwork {
         return new Result(river, flow, paths);
     }
 
-    private static RiverPath smooth(List<Integer> path, int size) {
+    private static RiverPath smooth(List<Integer> path, int size, int width) {
         int[] xs = new int[path.size()];
         int[] zs = new int[path.size()];
         int half = size / 2;
@@ -281,7 +286,7 @@ public final class RiverNetwork {
         int last = path.size() - 1;
         points.add(new RiverPath.Node(Math.floorMod(xs[last], size),
                 Math.floorMod(zs[last], size)));
-        return new RiverPath(List.copyOf(points));
+        return new RiverPath(List.copyOf(points), width);
     }
 
     private static double catmull(double a, double b, double c, double d, double t) {

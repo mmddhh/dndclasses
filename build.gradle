@@ -146,9 +146,9 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-    def spatialLoopJar = file('libs/SpatialLoop-forge-1.20.1-0.1.4.jar')
-    compileOnly files(spatialLoopJar)
-    runtimeOnly files(spatialLoopJar)
+    def spatialLoopJar = fg.deobf("libs:SpatialLoop-forge-1.20.1:0.1.4")
+    compileOnly spatialLoopJar
+    runtimeOnly spatialLoopJar
     // ApricityUI - required UI library (https://www.curseforge.com/minecraft/mc-mods/apricityui)
     // Pinned to 1.2.9 (Modrinth version 9EEmLQY4); keep in sync with dndspells.
     implementation fg.deobf("maven.modrinth:apricityui:9EEmLQY4")

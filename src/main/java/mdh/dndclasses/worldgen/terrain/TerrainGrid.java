@@ -14,7 +14,8 @@ import java.nio.file.Path;
 /** Coarse terrain grid shared by the climate/civilization prototype and diagnostics. */
 public record TerrainGrid(WorldTopology topology, long seed, short[] height, byte[] biome,
                           float[] temperature, float[] humidity, boolean[] water,
-                          boolean[] river, int[] riverFlow, float[] habitability) {
+                          boolean[] lake, boolean[] river, int[] riverFlow,
+                          float[] habitability) {
 
     private static final int SCALE = 4;
     private static final int LEGEND_WIDTH = 340;
@@ -125,6 +126,11 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
         graphics.setColor(Color.WHITE);
         graphics.drawString("river", left + 22, y);
         y += 20;
+        graphics.setColor(new Color(55, 130, 175));
+        graphics.fillRect(left, y - 12, 14, 14);
+        graphics.setColor(Color.WHITE);
+        graphics.drawString("lake", left + 22, y);
+        y += 20;
         graphics.setColor(new Color(200, 200, 200));
         graphics.drawString("white cross = world center (0,0)", left, y + 18);
         graphics.drawString("image edges wrap into each other", left, y + 38);
@@ -165,6 +171,9 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
     private Color heightColor(int index) {
         if (river[index]) {
             return new Color(45, 120, 190);
+        }
+        if (lake[index]) {
+            return new Color(55, 130, 175);
         }
         if (water[index]) {
             int depth = Math.max(0, TerrainModel.SEA_LEVEL - height[index]);
@@ -224,6 +233,9 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
     private Color terrainColor(int index) {
         if (river[index]) {
             return new Color(45, 120, 190);
+        }
+        if (lake[index]) {
+            return new Color(55, 130, 175);
         }
         if (water[index]) {
             int depth = Math.max(0, TerrainModel.SEA_LEVEL - height[index]);

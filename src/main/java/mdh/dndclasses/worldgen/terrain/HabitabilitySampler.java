@@ -1,5 +1,8 @@
 package mdh.dndclasses.worldgen.terrain;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Builds the coarse 245x245 habitability grid from {@link TerrainModel} without any Minecraft API. */
 public final class HabitabilitySampler {
 
@@ -34,9 +37,10 @@ public final class HabitabilitySampler {
         }
 
         java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
-        RiverNetwork.Result rivers = RiverNetwork.compute(topology, height, water);
+        RiverNetwork.Result rivers = RiverNetwork.compute(topology, height, water, humidity);
+        boolean[] lakes = findLakes(topology, water);
         for (int i = 0; i < water.length; i++) {
-            if (water[i] || rivers.river()[i]) {
+            if (water[i] || lakes[i] || rivers.river()[i]) {
                 waterDistance[i] = 0;
                 queue.add(i);
             }
@@ -110,10 +114,74 @@ public final class HabitabilitySampler {
             }
         }
         return new TerrainGrid(topology, seed, height, biome, temperature, humidity, water,
-                rivers.river(), rivers.flow(), smoothed);
+                lakes, rivers.river(), rivers.flow(), smoothed);
     }
 
     private static double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    /** The largest water body is the ocean; every other enclosed water body is a lake. */
+    private static boolean[] findLakes(WorldTopology topology, boolean[] water) {
+        int size = topology.gridSize();
+        boolean[] visited = new boolean[water.length];
+        boolean[] lake = new boolean[water.length];
+        int largest = -1;
+        int largestSize = 0;
+        for (int start = 0; start < water.length; start++) {
+            if (!water[start] || visited[start]) {
+                continue;
+            }
+            List<Integer> component = new ArrayList<>();
+            java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
+            queue.add(start);
+            visited[start] = true;
+            while (!queue.isEmpty()) {
+                int current = queue.poll();
+                component.add(current);
+                int gx = current % size;
+                int gz = current / size;
+                for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    int nx = Math.floorMod(gx + dir[0], size);
+                    int nz = Math.floorMod(gz + dir[1], size);
+                    int next = nz * size + nx;
+                    if (water[next] && !visited[next]) {
+                        visited[next] = true;
+                        queue.add(next);
+                    }
+                }
+            }
+            if (component.size() > largestSize) {
+                largestSize = component.size();
+                largest = start;
+            }
+            // Mark temporarily; the largest component is cleared below.
+            for (int index : component) {
+                lake[index] = true;
+            }
+        }
+        if (largest >= 0) {
+            // Re-run BFS from the largest component and clear it.
+            java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
+            queue.add(largest);
+            boolean[] cleared = new boolean[water.length];
+            cleared[largest] = true;
+            while (!queue.isEmpty()) {
+                int current = queue.poll();
+                lake[current] = false;
+                int gx = current % size;
+                int gz = current / size;
+                for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    int nx = Math.floorMod(gx + dir[0], size);
+                    int nz = Math.floorMod(gz + dir[1], size);
+                    int next = nz * size + nx;
+                    if (water[next] && !cleared[next]) {
+                        cleared[next] = true;
+                        queue.add(next);
+                    }
+                }
+            }
+        }
+        return lake;
     }
 }

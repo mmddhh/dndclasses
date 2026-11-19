@@ -23,7 +23,8 @@ public final class RiverNetwork {
     private RiverNetwork() {
     }
 
-    public static Result compute(WorldTopology topology, short[] height, boolean[] water) {
+    public static Result compute(WorldTopology topology, short[] height, boolean[] water,
+                                 float[] humidity) {
         int size = topology.gridSize();
         int count = size * size;
         int[] filled = new int[count];
@@ -122,11 +123,20 @@ public final class RiverNetwork {
                 candidates.add(index);
             }
         }
-        candidates.sort(Comparator.comparingInt((Integer index) -> -height[index]));
+        candidates.sort(Comparator.comparingDouble((Integer index) ->
+                -(height[index] + humidity[index] * 120.0D)));
         List<Integer> sources = new ArrayList<>();
-        // Spread sources over the four quadrants so one mountainous quadrant cannot starve the
-        // others; within each quadrant prefer the highest and keep some spacing.
+        // Wet quadrants get more sources; dry quadrants still get a baseline.
         for (int quadrant = 0; quadrant < 4; quadrant++) {
+            double wetness = 0.0D;
+            int cells = 0;
+            for (int index = 0; index < count; index++) {
+                if (quadrantOf(index, size) == quadrant) {
+                    wetness += humidity[index];
+                    cells++;
+                }
+            }
+            int maxInQuadrant = 4 + (int) Math.round((wetness / Math.max(1, cells)) * 9.0D);
             int selectedInQuadrant = 0;
             for (int candidate : candidates) {
                 if (quadrantOf(candidate, size) != quadrant) {
@@ -135,7 +145,7 @@ public final class RiverNetwork {
                 if (isFarEnough(candidate, sources, size, 5)) {
                     sources.add(candidate);
                     selectedInQuadrant++;
-                    if (selectedInQuadrant >= 6) {
+                    if (selectedInQuadrant >= maxInQuadrant) {
                         break;
                     }
                 }
@@ -143,10 +153,10 @@ public final class RiverNetwork {
         }
         // Fill any remaining slots globally.
         for (int candidate : candidates) {
-            if (sources.size() >= 24) {
+            if (sources.size() >= 40) {
                 break;
             }
-            if (isFarEnough(candidate, sources, size, 7)) {
+            if (isFarEnough(candidate, sources, size, 6)) {
                 sources.add(candidate);
             }
         }

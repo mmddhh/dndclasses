@@ -15,7 +15,7 @@ import java.nio.file.Path;
 public record TerrainGrid(WorldTopology topology, long seed, short[] height, byte[] biome,
                           float[] temperature, float[] humidity, boolean[] water,
                           boolean[] lake, boolean[] river, int[] riverFlow,
-                          float[] habitability) {
+                          java.util.List<RiverPath> riverPaths, float[] habitability) {
 
     private static final int SCALE = 4;
     private static final int LEGEND_WIDTH = 340;
@@ -73,6 +73,8 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
         drawMapFrame(terrainGraphics, mapSize, size);
         drawMapFrame(habitabilityGraphics, mapSize, size);
         drawMapFrame(heightGraphics, mapSize, size);
+        drawRiverCurves(terrainGraphics);
+        drawRiverCurves(heightGraphics);
         drawTerrainLegend(terrainGraphics, mapSize);
         drawHabitabilityLegend(habitabilityGraphics, mapSize);
         drawHeightLegend(heightGraphics, mapSize);
@@ -82,6 +84,38 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
                 directory.resolve("habitability-" + seed + ".png").toFile());
         ImageIO.write(heightImage, "png",
                 directory.resolve("heightmap-" + seed + ".png").toFile());
+    }
+
+    private void drawRiverCurves(Graphics2D graphics) {
+        graphics.setColor(new Color(45, 120, 190, 230));
+        graphics.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND,
+                BasicStroke.JOIN_ROUND));
+        int size = size();
+        for (RiverPath path : riverPaths) {
+            if (path.points().size() < 2) {
+                continue;
+            }
+            java.awt.geom.Path2D.Double line = null;
+            RiverPath.Node previous = null;
+            for (RiverPath.Node node : path.points()) {
+                boolean seamJump = previous != null
+                        && (Math.abs(node.x() - previous.x()) > size / 2
+                        || Math.abs(node.z() - previous.z()) > size / 2);
+                if (line == null || seamJump) {
+                    if (line != null) {
+                        graphics.draw(line);
+                    }
+                    line = new java.awt.geom.Path2D.Double();
+                    line.moveTo((node.x() + 0.5) * SCALE, (node.z() + 0.5) * SCALE);
+                } else {
+                    line.lineTo((node.x() + 0.5) * SCALE, (node.z() + 0.5) * SCALE);
+                }
+                previous = node;
+            }
+            if (line != null) {
+                graphics.draw(line);
+            }
+        }
     }
 
     private void drawMapFrame(Graphics2D graphics, int mapSize, int size) {

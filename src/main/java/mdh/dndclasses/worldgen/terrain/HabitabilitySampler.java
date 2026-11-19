@@ -114,7 +114,7 @@ public final class HabitabilitySampler {
             }
         }
         return new TerrainGrid(topology, seed, height, biome, temperature, humidity, water,
-                lakes, rivers.river(), rivers.flow(), smoothed);
+                lakes, rivers.river(), rivers.flow(), rivers.paths(), smoothed);
     }
 
     private static double clamp(double value, double min, double max) {

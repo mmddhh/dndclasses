@@ -17,7 +17,7 @@ import java.util.PriorityQueue;
  */
 public final class RiverNetwork {
 
-    public record Result(boolean[] river, int[] flow) {
+    public record Result(boolean[] river, int[] flow, List<RiverPath> paths) {
     }
 
     private RiverNetwork() {
@@ -117,6 +117,7 @@ public final class RiverNetwork {
         }
 
         boolean[] river = new boolean[count];
+        List<RiverPath> paths = new ArrayList<>();
         List<Integer> candidates = new ArrayList<>();
         for (int index = 0; index < count; index++) {
             if (!water[index] && height[index] > TerrainModel.SEA_LEVEL + 45) {
@@ -196,8 +197,12 @@ public final class RiverNetwork {
                 cursor = next;
             }
             if (path.size() >= 8 && water[path.get(path.size() - 1)]) {
+                RiverPath smoothed = smooth(path, size);
+                paths.add(smoothed);
+                for (RiverPath.Node node : smoothed.points()) {
+                    river[node.z() * size + node.x()] = true;
+                }
                 for (int index : path) {
-                    river[index] = true;
                     flow[index] += 100;
                 }
             }
@@ -220,13 +225,72 @@ public final class RiverNetwork {
                     cursor = downstream[cursor];
                 }
                 if (path.size() >= 8 && water[path.get(path.size() - 1)]) {
-                    for (int pathIndex : path) {
-                        river[pathIndex] = true;
+                    RiverPath smoothed = smooth(path, size);
+                    paths.add(smoothed);
+                    for (RiverPath.Node node : smoothed.points()) {
+                        river[node.z() * size + node.x()] = true;
                     }
                 }
             }
         }
-        return new Result(river, flow);
+        return new Result(river, flow, paths);
+    }
+
+    private static RiverPath smooth(List<Integer> path, int size) {
+        int[] xs = new int[path.size()];
+        int[] zs = new int[path.size()];
+        int half = size / 2;
+        for (int i = 0; i < path.size(); i++) {
+            int rawX = path.get(i) % size;
+            int rawZ = path.get(i) / size;
+            int x = rawX;
+            int z = rawZ;
+            if (i > 0) {
+                while (x - xs[i - 1] > half) {
+                    x -= size;
+                }
+                while (xs[i - 1] - x > half) {
+                    x += size;
+                }
+                while (z - zs[i - 1] > half) {
+                    z -= size;
+                }
+                while (zs[i - 1] - z > half) {
+                    z += size;
+                }
+            }
+            xs[i] = x;
+            zs[i] = z;
+        }
+
+        List<RiverPath.Node> points = new ArrayList<>();
+        for (int i = 0; i < path.size() - 1; i++) {
+            int a = Math.max(0, i - 1);
+            int b = i;
+            int c = i + 1;
+            int d = Math.min(path.size() - 1, i + 2);
+            for (int step = 0; step < 4; step++) {
+                double t = step / 4.0D;
+                int x = Math.floorMod((int) Math.round(
+                        catmull(xs[a], xs[b], xs[c], xs[d], t)), size);
+                int z = Math.floorMod((int) Math.round(
+                        catmull(zs[a], zs[b], zs[c], zs[d], t)), size);
+                points.add(new RiverPath.Node(x, z));
+            }
+        }
+        int last = path.size() - 1;
+        points.add(new RiverPath.Node(Math.floorMod(xs[last], size),
+                Math.floorMod(zs[last], size)));
+        return new RiverPath(List.copyOf(points));
+    }
+
+    private static double catmull(double a, double b, double c, double d, double t) {
+        double t2 = t * t;
+        double t3 = t2 * t;
+        return 0.5D * ((2.0D * b)
+                + (-a + c) * t
+                + (2.0D * a - 5.0D * b + 4.0D * c - d) * t2
+                + (-a + 3.0D * b - 3.0D * c + d) * t3);
     }
 
     private static int quadrantOf(int index, int size) {

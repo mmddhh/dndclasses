@@ -20,6 +20,7 @@ public final class TerrainPrototype {
         int land = 0;
         int ocean = 0;
         int high = 0;
+        int riverCells = 0;
         double habitabilitySum = 0.0D;
         for (int i = 0; i < grid.height().length; i++) {
             if (grid.water()[i]) {
@@ -30,6 +31,9 @@ public final class TerrainPrototype {
             }
             if (grid.height()[i] > 140) {
                 high++;
+            }
+            if (grid.river()[i]) {
+                riverCells++;
             }
         }
         int size = grid.size();
@@ -44,7 +48,7 @@ public final class TerrainPrototype {
         System.out.println("seed=" + seed + " side=" + topology.sideBlocks()
                 + " grid=" + size + "x" + size + " cell=" + topology.cellSize());
         System.out.println("sampleMs=" + elapsedMs + " land=" + land + " ocean=" + ocean
-                + " highland=" + high + " meanHabitability="
+                + " highland=" + high + " rivers=" + riverCells + " meanHabitability="
                 + String.format("%.3f", habitabilitySum / Math.max(1, land)));
         System.out.println("seam height diff: avg="
                 + String.format("%.2f", seamDifference / size) + " max=" + seamMax);

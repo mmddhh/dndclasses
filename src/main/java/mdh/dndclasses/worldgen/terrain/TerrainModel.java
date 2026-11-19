@@ -17,6 +17,7 @@ public final class TerrainModel {
     private final TileableNoise continent;
     private final TileableNoise detail;
     private final TileableNoise ridgeNoise;
+    private final TileableNoise warpNoise;
     private final TileableNoise temperatureNoise;
     private final TileableNoise humidityNoise;
 
@@ -26,6 +27,7 @@ public final class TerrainModel {
         this.continent = new TileableNoise(seed ^ 0x1111L, topology, 7);
         this.detail = new TileableNoise(seed ^ 0x2222L, topology, 17);
         this.ridgeNoise = new TileableNoise(seed ^ 0x3333L, topology, 37);
+        this.warpNoise = new TileableNoise(seed ^ 0x6666L, topology, 5);
         this.temperatureNoise = new TileableNoise(seed ^ 0x4444L, topology, 11);
         this.humidityNoise = new TileableNoise(seed ^ 0x5555L, topology, 17);
     }
@@ -38,20 +40,34 @@ public final class TerrainModel {
         return seed;
     }
 
-    /** Approximate surface height in blocks, including sea floor. */
+    /** Approximate surface height in blocks, including ocean depth and mountain ridges. */
     public int height(int x, int z) {
         int wx = topology.wrap(x);
         int wz = topology.wrap(z);
-        double broad = continent.sample(wx, wz);
-        double fine = detail.sample(wx, wz);
-        double ridge = 1.0D - Math.abs(ridgeNoise.sample(wx, wz) * 2.0D - 1.0D);
+        double warpX = (warpNoise.sample(wx, wz) - 0.5D) * 1_800.0D;
+        double warpZ = (warpNoise.sample(wx + 3_731, wz - 1_919) - 0.5D) * 1_800.0D;
+        int sampledX = topology.wrap((int) Math.round(wx + warpX));
+        int sampledZ = topology.wrap((int) Math.round(wz + warpZ));
 
-        double base = SEA_LEVEL + (broad - 0.48D) * 150.0D;
-        double hills = (fine - 0.5D) * 20.0D;
-        double mountains = Math.pow(Math.max(0.0D, ridge), 3.0D) * 90.0D
-                * Math.max(0.0D, broad - 0.42D);
-        double value = base + hills + mountains;
-        return (int) Math.max(MIN_Y + 2, Math.min(MAX_Y - 8, Math.round(value)));
+        double broad = continent.sample(sampledX, sampledZ);
+        double fine = detail.sample(wx, wz);
+        double ridge = 1.0D - Math.abs(ridgeNoise.sample(sampledX, sampledZ) * 2.0D - 1.0D);
+
+        double seaThreshold = 0.50D;
+        if (broad < seaThreshold) {
+            // Ocean floor: shallow shelf near the coast, then a deeper basin.
+            double depth = (seaThreshold - broad) * 240.0D
+                    + Math.max(0.0D, 0.55D - broad) * 80.0D
+                    + (fine - 0.5D) * 18.0D;
+            return (int) Math.max(MIN_Y + 4, Math.round(SEA_LEVEL - depth));
+        }
+
+        double base = SEA_LEVEL + (broad - seaThreshold) * 165.0D;
+        double roughness = (fine - 0.5D) * 34.0D;
+        double mountainMask = smoothstep(0.55D, 0.78D, broad);
+        double mountain = Math.pow(Math.max(0.0D, ridge), 2.2D) * 210.0D * mountainMask;
+        double value = base + roughness + mountain;
+        return (int) Math.max(SEA_LEVEL + 1, Math.min(MAX_Y - 8, Math.round(value)));
     }
 
     public boolean water(int x, int z) {
@@ -146,6 +162,11 @@ public final class TerrainModel {
 
     private static double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static double smoothstep(double edge0, double edge1, double value) {
+        double t = clamp((value - edge0) / (edge1 - edge0), 0.0D, 1.0D);
+        return t * t * (3.0D - 2.0D * t);
     }
 
     public enum Biome {

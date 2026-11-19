@@ -14,7 +14,7 @@ import java.nio.file.Path;
 /** Coarse terrain grid shared by the climate/civilization prototype and diagnostics. */
 public record TerrainGrid(WorldTopology topology, long seed, short[] height, byte[] biome,
                           float[] temperature, float[] humidity, boolean[] water,
-                          float[] habitability) {
+                          boolean[] river, int[] riverFlow, float[] habitability) {
 
     private static final int SCALE = 4;
     private static final int LEGEND_WIDTH = 340;
@@ -108,9 +108,15 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
             graphics.drawString(biome.name().toLowerCase(), left + 22, y);
             y += 20;
         }
+        graphics.setColor(new Color(45, 120, 190));
+        graphics.fillRect(left, y - 12, 14, 14);
+        graphics.setColor(Color.WHITE);
+        graphics.drawString("river", left + 22, y);
+        y += 20;
         graphics.setColor(new Color(200, 200, 200));
         graphics.drawString("white cross = world center (0,0)", left, y + 18);
         graphics.drawString("image edges wrap into each other", left, y + 38);
+        graphics.drawString("water: light shallow / dark deep", left, y + 58);
     }
 
     private void drawHabitabilityLegend(Graphics2D graphics, int mapSize) {
@@ -138,8 +144,9 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
         graphics.setColor(new Color(38, 92, 150));
         graphics.fillRect(barX, barY + barHeight + 22, 14, 14);
         graphics.setColor(Color.WHITE);
-        graphics.drawString("water (habitability 0)", barX + 22, barY + barHeight + 34);
-        graphics.drawString("white cross = world center (0,0)", left, barY + barHeight + 62);
+        graphics.drawString("water (habitability 0)", left + 22, barY + barHeight + 34);
+        graphics.drawString("rivers also count as water", left, barY + barHeight + 52);
+        graphics.drawString("white cross = world center (0,0)", left, barY + barHeight + 74);
     }
 
     private void configure(Graphics2D graphics) {
@@ -150,8 +157,16 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
     }
 
     private Color terrainColor(int index) {
+        if (river[index]) {
+            return new Color(45, 120, 190);
+        }
         if (water[index]) {
-            return new Color(38, 92, 150);
+            int depth = Math.max(0, TerrainModel.SEA_LEVEL - height[index]);
+            float t = Math.min(1.0f, depth / 110.0f);
+            return new Color(
+                    (int) (80 - 65 * t),
+                    (int) (155 - 110 * t),
+                    (int) (210 - 130 * t));
         }
         return terrainColorForBiome(TerrainModel.Biome.values()[biome[index] & 0xff]);
     }

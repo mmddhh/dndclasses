@@ -34,8 +34,9 @@ public final class HabitabilitySampler {
         }
 
         java.util.ArrayDeque<Integer> queue = new java.util.ArrayDeque<>();
+        RiverNetwork.Result rivers = RiverNetwork.compute(topology, height, water);
         for (int i = 0; i < water.length; i++) {
-            if (water[i]) {
+            if (water[i] || rivers.river()[i]) {
                 waterDistance[i] = 0;
                 queue.add(i);
             }
@@ -109,7 +110,7 @@ public final class HabitabilitySampler {
             }
         }
         return new TerrainGrid(topology, seed, height, biome, temperature, humidity, water,
-                smoothed);
+                rivers.river(), rivers.flow(), smoothed);
     }
 
     private static double clamp(double value, double min, double max) {

@@ -10,7 +10,8 @@
     "LivingEntityHurtTypeMixin",
     "SlotOffhandRuleMixin",
     "ServerPlaySwapMixin",
-    "OffhandThrowSwingMixin"
+    "OffhandThrowSwingMixin",
+    "SpatialLoopRadiusMixin"
   ],
   "client": [
     "ConditionMovementMixin",

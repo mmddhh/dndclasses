@@ -15,6 +15,7 @@ public final class TerrainModel {
     private final WorldTopology topology;
     private final long seed;
     private final TileableNoise continent;
+    private final TileableNoise superContinent;
     private final TileableNoise continentDetail;
     private final TileableNoise detail;
     private final TileableNoise ridgeNoise;
@@ -27,6 +28,7 @@ public final class TerrainModel {
         this.topology = topology;
         this.seed = seed;
         this.continent = new TileableNoise(seed ^ 0x1111L, topology, 7);
+        this.superContinent = new TileableNoise(seed ^ 0x9999L, topology, 3);
         this.continentDetail = new TileableNoise(seed ^ 0x7777L, topology, 19);
         this.detail = new TileableNoise(seed ^ 0x2222L, topology, 17);
         this.ridgeNoise = new TileableNoise(seed ^ 0x3333L, topology, 37);
@@ -55,12 +57,13 @@ public final class TerrainModel {
         int sampledX = topology.wrap((int) Math.round(wx + warpX));
         int sampledZ = topology.wrap((int) Math.round(wz + warpZ));
 
-        double broad = continent.sample(sampledX, sampledZ);
+        double broad = superContinent.sample(sampledX, sampledZ) * 0.68D
+                + continent.sample(sampledX, sampledZ) * 0.32D;
         broad += (continentDetail.sample(sampledX, sampledZ) - 0.5D) * 0.22D;
         double fine = detail.sample(wx, wz);
         double ridge = 1.0D - Math.abs(ridgeNoise.sample(sampledX, sampledZ) * 2.0D - 1.0D);
 
-        double seaThreshold = 0.50D;
+        double seaThreshold = 0.46D;
         if (broad < seaThreshold) {
             // Ocean floor: shallow shelf near the coast, then a deeper basin.
             double depth = (seaThreshold - broad) * 240.0D

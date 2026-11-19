@@ -124,27 +124,30 @@ public final class RiverNetwork {
         }
         candidates.sort(Comparator.comparingInt((Integer index) -> -height[index]));
         List<Integer> sources = new ArrayList<>();
-        for (int candidate : candidates) {
-            int gx = candidate % size;
-            int gz = candidate / size;
-            boolean farEnough = true;
-            for (int source : sources) {
-                int sx = source % size;
-                int sz = source / size;
-                int dx = Math.abs(gx - sx);
-                int dz = Math.abs(gz - sz);
-                dx = Math.min(dx, size - dx);
-                dz = Math.min(dz, size - dz);
-                if (Math.max(dx, dz) < 7) {
-                    farEnough = false;
-                    break;
+        // Spread sources over the four quadrants so one mountainous quadrant cannot starve the
+        // others; within each quadrant prefer the highest and keep some spacing.
+        for (int quadrant = 0; quadrant < 4; quadrant++) {
+            int selectedInQuadrant = 0;
+            for (int candidate : candidates) {
+                if (quadrantOf(candidate, size) != quadrant) {
+                    continue;
+                }
+                if (isFarEnough(candidate, sources, size, 5)) {
+                    sources.add(candidate);
+                    selectedInQuadrant++;
+                    if (selectedInQuadrant >= 6) {
+                        break;
+                    }
                 }
             }
-            if (farEnough) {
+        }
+        // Fill any remaining slots globally.
+        for (int candidate : candidates) {
+            if (sources.size() >= 24) {
+                break;
+            }
+            if (isFarEnough(candidate, sources, size, 7)) {
                 sources.add(candidate);
-                if (sources.size() >= 24) {
-                    break;
-                }
             }
         }
 
@@ -214,5 +217,28 @@ public final class RiverNetwork {
             }
         }
         return new Result(river, flow);
+    }
+
+    private static int quadrantOf(int index, int size) {
+        int gx = index % size;
+        int gz = index / size;
+        return (gx < size / 2 ? 0 : 1) + (gz < size / 2 ? 0 : 2);
+    }
+
+    private static boolean isFarEnough(int candidate, List<Integer> sources, int size, int spacing) {
+        int gx = candidate % size;
+        int gz = candidate / size;
+        for (int source : sources) {
+            int sx = source % size;
+            int sz = source / size;
+            int dx = Math.abs(gx - sx);
+            int dz = Math.abs(gz - sz);
+            dx = Math.min(dx, size - dx);
+            dz = Math.min(dz, size - dz);
+            if (Math.max(dx, dz) < spacing) {
+                return false;
+            }
+        }
+        return true;
     }
 }

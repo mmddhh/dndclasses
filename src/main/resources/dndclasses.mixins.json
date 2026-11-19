@@ -10,8 +10,7 @@
     "LivingEntityHurtTypeMixin",
     "SlotOffhandRuleMixin",
     "ServerPlaySwapMixin",
-    "OffhandThrowSwingMixin",
-    "SpatialLoopRadiusMixin"
+    "OffhandThrowSwingMixin"
   ],
   "client": [
     "ConditionMovementMixin",
@@ -21,7 +20,8 @@
     "PlantHitSkipMixin",
     "OffhandThrowUseMixin",
     "OffhandThrowStartUseMixin",
-    "OffhandThrowItemUsedMixin"
+    "OffhandThrowItemUsedMixin",
+    "SpatialLoopRadiusMixin"
   ],
   "injectors": {
     "defaultRequire": 1

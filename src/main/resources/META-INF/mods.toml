@@ -78,6 +78,14 @@ versionRange = "[2001.0.0,)"
 ordering = "AFTER"
 side = "BOTH"
 
+# SpatialLoop is the required finite toroidal world provider.
+[[dependencies."${mod_id}"]]
+modId = "spatialloop"
+mandatory = true
+versionRange = "[0.1.4,)"
+ordering = "AFTER"
+side = "BOTH"
+
 # Better Combat is optional. When installed it provides attack animations and geometric hit
 # detection; this mod then only keeps ownership of its D&D damage rules and weapon data.
 [[dependencies."${mod_id}"]]

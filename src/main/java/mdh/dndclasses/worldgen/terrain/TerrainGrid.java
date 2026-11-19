@@ -86,6 +86,10 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
         graphics.drawString("z -31,360", 8, 18);
         graphics.drawString("z +31,360", 8, mapSize - 28);
         graphics.drawString("canonical 0,0 = top-left; center marked (0,0)", 8, mapSize - 44);
+        graphics.drawString("center (0,0) = south pole; top/bottom seam = north pole",
+                8, mapSize - 60);
+        graphics.drawString("equator climate at z = -15,680 and z = +15,680",
+                8, mapSize - 76);
     }
 
     private void drawTerrainLegend(Graphics2D graphics, int mapSize) {

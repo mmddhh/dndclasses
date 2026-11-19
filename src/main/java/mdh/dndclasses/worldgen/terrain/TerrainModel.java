@@ -24,8 +24,8 @@ public final class TerrainModel {
         this.topology = topology;
         this.seed = seed;
         this.continent = new TileableNoise(seed ^ 0x1111L, topology, 7);
-        this.detail = new TileableNoise(seed ^ 0x2222L, topology, 23);
-        this.ridgeNoise = new TileableNoise(seed ^ 0x3333L, topology, 41);
+        this.detail = new TileableNoise(seed ^ 0x2222L, topology, 17);
+        this.ridgeNoise = new TileableNoise(seed ^ 0x3333L, topology, 37);
         this.temperatureNoise = new TileableNoise(seed ^ 0x4444L, topology, 11);
         this.humidityNoise = new TileableNoise(seed ^ 0x5555L, topology, 17);
     }
@@ -47,7 +47,7 @@ public final class TerrainModel {
         double ridge = 1.0D - Math.abs(ridgeNoise.sample(wx, wz) * 2.0D - 1.0D);
 
         double base = SEA_LEVEL + (broad - 0.48D) * 150.0D;
-        double hills = (fine - 0.5D) * 32.0D;
+        double hills = (fine - 0.5D) * 20.0D;
         double mountains = Math.pow(Math.max(0.0D, ridge), 3.0D) * 90.0D
                 * Math.max(0.0D, broad - 0.42D);
         double value = base + hills + mountains;
@@ -59,11 +59,12 @@ public final class TerrainModel {
     }
 
     /**
-     * Folded latitude: 0 at the south pole / north seam, 1 at the two symmetric equators.
+     * Folded latitude in centered coordinates: 0 at (0,0) south pole and at the z=±half seam
+     * north pole, 1 at the two symmetric equators z=±half/2.
      */
     public double latitude(int z) {
-        double normalized = topology.wrap(z) / (double) topology.sideBlocks();
-        return Math.abs(Math.sin(Math.PI * normalized));
+        double centered = topology.center(z) / (topology.sideBlocks() / 2.0D);
+        return Math.abs(Math.sin(Math.PI * centered));
     }
 
     public double temperature(int x, int z) {

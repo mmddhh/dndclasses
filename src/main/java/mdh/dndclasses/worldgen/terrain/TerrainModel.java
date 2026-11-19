@@ -27,8 +27,8 @@ public final class TerrainModel {
     public TerrainModel(WorldTopology topology, long seed) {
         this.topology = topology;
         this.seed = seed;
-        this.continent = new TileableNoise(seed ^ 0x1111L, topology, 7);
-        this.superContinent = new TileableNoise(seed ^ 0x9999L, topology, 3);
+        this.continent = new TileableNoise(seed ^ 0x1111L, topology, 11);
+        this.superContinent = new TileableNoise(seed ^ 0x9999L, topology, 5);
         this.continentDetail = new TileableNoise(seed ^ 0x7777L, topology, 19);
         this.detail = new TileableNoise(seed ^ 0x2222L, topology, 17);
         this.ridgeNoise = new TileableNoise(seed ^ 0x3333L, topology, 37);
@@ -57,9 +57,9 @@ public final class TerrainModel {
         int sampledX = topology.wrap((int) Math.round(wx + warpX));
         int sampledZ = topology.wrap((int) Math.round(wz + warpZ));
 
-        double broad = superContinent.sample(sampledX, sampledZ) * 0.68D
-                + continent.sample(sampledX, sampledZ) * 0.32D;
-        broad += (continentDetail.sample(sampledX, sampledZ) - 0.5D) * 0.22D;
+        double broad = superContinent.sample(sampledX, sampledZ) * 0.58D
+                + continent.sample(sampledX, sampledZ) * 0.42D;
+        broad += (continentDetail.sample(sampledX, sampledZ) - 0.5D) * 0.20D;
         double fine = detail.sample(wx, wz);
         double ridge = 1.0D - Math.abs(ridgeNoise.sample(sampledX, sampledZ) * 2.0D - 1.0D);
 

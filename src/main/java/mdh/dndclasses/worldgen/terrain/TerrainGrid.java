@@ -39,17 +39,23 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
                 BufferedImage.TYPE_INT_RGB);
         BufferedImage habitabilityImage = new BufferedImage(mapSize + LEGEND_WIDTH, mapSize,
                 BufferedImage.TYPE_INT_RGB);
+        BufferedImage heightImage = new BufferedImage(mapSize + LEGEND_WIDTH, mapSize,
+                BufferedImage.TYPE_INT_RGB);
 
         Graphics2D terrainGraphics = terrain.createGraphics();
         Graphics2D habitabilityGraphics = habitabilityImage.createGraphics();
+        Graphics2D heightGraphics = heightImage.createGraphics();
         configure(terrainGraphics);
         configure(habitabilityGraphics);
+        configure(heightGraphics);
 
         terrainGraphics.setColor(Color.BLACK);
         terrainGraphics.fillRect(0, 0, terrain.getWidth(), terrain.getHeight());
         habitabilityGraphics.setColor(Color.BLACK);
         habitabilityGraphics.fillRect(0, 0, habitabilityImage.getWidth(),
                 habitabilityImage.getHeight());
+        heightGraphics.setColor(Color.BLACK);
+        heightGraphics.fillRect(0, 0, heightImage.getWidth(), heightImage.getHeight());
 
         for (int z = 0; z < size; z++) {
             for (int x = 0; x < size; x++) {
@@ -58,17 +64,23 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
                 terrainGraphics.fillRect(x * SCALE, z * SCALE, SCALE, SCALE);
                 habitabilityGraphics.setColor(habitabilityColor(index));
                 habitabilityGraphics.fillRect(x * SCALE, z * SCALE, SCALE, SCALE);
+                heightGraphics.setColor(heightColor(index));
+                heightGraphics.fillRect(x * SCALE, z * SCALE, SCALE, SCALE);
             }
         }
 
         drawMapFrame(terrainGraphics, mapSize, size);
         drawMapFrame(habitabilityGraphics, mapSize, size);
+        drawMapFrame(heightGraphics, mapSize, size);
         drawTerrainLegend(terrainGraphics, mapSize);
         drawHabitabilityLegend(habitabilityGraphics, mapSize);
+        drawHeightLegend(heightGraphics, mapSize);
 
         ImageIO.write(terrain, "png", directory.resolve("terrain-" + seed + ".png").toFile());
         ImageIO.write(habitabilityImage, "png",
                 directory.resolve("habitability-" + seed + ".png").toFile());
+        ImageIO.write(heightImage, "png",
+                directory.resolve("heightmap-" + seed + ".png").toFile());
     }
 
     private void drawMapFrame(Graphics2D graphics, int mapSize, int size) {
@@ -119,8 +131,61 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
         graphics.drawString("water: light shallow / dark deep", left, y + 58);
     }
 
-    private void drawHabitabilityLegend(Graphics2D graphics, int mapSize) {
+    private void drawHeightLegend(Graphics2D graphics, int mapSize) {
         int left = mapSize + 16;
+        int top = 24;
+        graphics.setColor(Color.WHITE);
+        graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, 16));
+        graphics.drawString("Height / rivers", left, top);
+        graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        graphics.drawString("dark low -> light high", left, top + 24);
+
+        int barX = left;
+        int barY = top + 44;
+        int barWidth = 34;
+        int barHeight = 300;
+        for (int i = 0; i < barHeight; i++) {
+            float value = 1.0f - i / (float) (barHeight - 1);
+            graphics.setColor(landHeightColor(value));
+            graphics.fillRect(barX, barY + i, barWidth, 1);
+        }
+        graphics.setColor(Color.WHITE);
+        graphics.drawString("320", barX + barWidth + 8, barY + 12);
+        graphics.drawString("140", barX + barWidth + 8, barY + barHeight / 2);
+        graphics.drawString("63 sea", barX + barWidth + 8, barY + barHeight);
+        graphics.setColor(new Color(45, 120, 190));
+        graphics.fillRect(barX, barY + barHeight + 22, 14, 14);
+        graphics.setColor(Color.WHITE);
+        graphics.drawString("river", barX + 22, barY + barHeight + 34);
+        graphics.setColor(new Color(200, 200, 200));
+        graphics.drawString("blue = water/river", left, barY + barHeight + 58);
+        graphics.drawString("white cross = world center (0,0)", left, barY + barHeight + 78);
+    }
+
+    private Color heightColor(int index) {
+        if (river[index]) {
+            return new Color(45, 120, 190);
+        }
+        if (water[index]) {
+            int depth = Math.max(0, TerrainModel.SEA_LEVEL - height[index]);
+            float t = Math.min(1.0f, depth / 110.0f);
+            return new Color((int) (80 - 65 * t), (int) (155 - 110 * t),
+                    (int) (210 - 130 * t));
+        }
+        float t = Math.max(0.0f, Math.min(1.0f,
+                (height[index] - TerrainModel.SEA_LEVEL) / 160.0f));
+        return landHeightColor(t);
+    }
+
+    private static Color landHeightColor(float raw) {
+        float value = Math.max(0.0f, Math.min(1.0f, raw));
+        int red = (int) (90 + 150 * value);
+        int green = (int) (105 + 120 * value);
+        int blue = (int) (65 + 110 * value);
+        return new Color(red, green, blue);
+    }
+
+    private void drawHabitabilityLegend(Graphics2D graphics, int mapSize) {        int left = mapSize + 16;
         int top = 24;
         graphics.setColor(Color.WHITE);
         graphics.setFont(new Font(Font.MONOSPACED, Font.BOLD, 16));

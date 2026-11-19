@@ -42,7 +42,7 @@ public final class RiverNetwork {
             int index = cell[1];
             int gx = index % size;
             int gz = index / size;
-            for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            for (int[] dir : new int[][]{{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}}) {
                 int nx = Math.floorMod(gx + dir[0], size);
                 int nz = Math.floorMod(gz + dir[1], size);
                 int next = nz * size + nx;
@@ -68,7 +68,7 @@ public final class RiverNetwork {
             int current = waterQueue.poll();
             int gx = current % size;
             int gz = current / size;
-            for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            for (int[] dir : new int[][]{{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}}) {
                 int nx = Math.floorMod(gx + dir[0], size);
                 int nz = Math.floorMod(gz + dir[1], size);
                 int next = nz * size + nx;
@@ -89,7 +89,7 @@ public final class RiverNetwork {
             int gz = index / size;
             int best = -1;
             int bestHeight = filled[index];
-            for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            for (int[] dir : new int[][]{{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}}) {
                 int nx = Math.floorMod(gx + dir[0], size);
                 int nz = Math.floorMod(gz + dir[1], size);
                 int next = nz * size + nx;
@@ -165,7 +165,7 @@ public final class RiverNetwork {
                     int gz = cursor / size;
                     int fallback = -1;
                     int bestDistance = Integer.MAX_VALUE;
-                    for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    for (int[] dir : new int[][]{{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}}) {
                         int nx = Math.floorMod(gx + dir[0], size);
                         int nz = Math.floorMod(gz + dir[1], size);
                         int candidate = nz * size + nx;

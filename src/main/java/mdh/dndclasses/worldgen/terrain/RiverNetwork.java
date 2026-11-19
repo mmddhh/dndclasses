@@ -163,39 +163,7 @@ public final class RiverNetwork {
         }
 
         for (int source : sources) {
-            List<Integer> path = new ArrayList<>();
-            boolean[] pathVisited = new boolean[count];
-            int cursor = source;
-            int guard = 0;
-            while (cursor >= 0 && guard++ < count) {
-                path.add(cursor);
-                pathVisited[cursor] = true;
-                if (water[cursor]) {
-                    break;
-                }
-                int next = downstream[cursor];
-                if (next < 0 || next == cursor || pathVisited[next]) {
-                    int gx = cursor % size;
-                    int gz = cursor / size;
-                    int fallback = -1;
-                    int bestDistance = Integer.MAX_VALUE;
-                    for (int[] dir : new int[][]{{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}}) {
-                        int nx = Math.floorMod(gx + dir[0], size);
-                        int nz = Math.floorMod(gz + dir[1], size);
-                        int candidate = nz * size + nx;
-                        if (!pathVisited[candidate] && waterDistance[candidate] >= 0
-                                && waterDistance[candidate] < bestDistance) {
-                            bestDistance = waterDistance[candidate];
-                            fallback = candidate;
-                        }
-                    }
-                    next = fallback;
-                }
-                if (next < 0) {
-                    break;
-                }
-                cursor = next;
-            }
+            List<Integer> path = aStarToWater(source, height, water, waterDistance, size);
             if (path.size() >= 8 && water[path.get(path.size() - 1)]) {
                 int maxFlow = 0;
                 for (int index : path) {
@@ -239,6 +207,80 @@ public final class RiverNetwork {
             }
         }
         return new Result(river, flow, paths);
+    }
+
+    private static List<Integer> aStarToWater(int source, short[] height, boolean[] water,
+                                             int[] waterDistance, int size) {
+        int count = height.length;
+        double[] gScore = new double[count];
+        java.util.Arrays.fill(gScore, Double.MAX_VALUE);
+        int[] cameFrom = new int[count];
+        java.util.Arrays.fill(cameFrom, -1);
+        boolean[] closed = new boolean[count];
+        java.util.PriorityQueue<long[]> open = new java.util.PriorityQueue<>(
+                java.util.Comparator.comparingDouble(a -> Double.longBitsToDouble(a[1])));
+        gScore[source] = 0.0D;
+        open.add(new long[]{source, Double.doubleToLongBits(
+                waterDistance[source] * 0.7D)});
+        int expanded = 0;
+        int found = -1;
+        while (!open.isEmpty() && expanded++ < 60_000) {
+            long[] entry = open.poll();
+            int current = (int) entry[0];
+            if (closed[current]) {
+                continue;
+            }
+            closed[current] = true;
+            if (water[current] && current != source) {
+                found = current;
+                break;
+            }
+            int gx = current % size;
+            int gz = current / size;
+            for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1},
+                    {1, 1}, {1, -1}, {-1, 1}, {-1, -1}}) {
+                int nx = Math.floorMod(gx + dir[0], size);
+                int nz = Math.floorMod(gz + dir[1], size);
+                int next = nz * size + nx;
+                if (closed[next]) {
+                    continue;
+                }
+                if (water[next] && next != source) {
+                    double tentative = gScore[current] + 1.0D;
+                    if (tentative < gScore[next]) {
+                        gScore[next] = tentative;
+                        cameFrom[next] = current;
+                        open.add(new long[]{next, Double.doubleToLongBits(
+                                tentative + waterDistance[next] * 0.7D)});
+                    }
+                    continue;
+                }
+                int difference = height[next] - height[current];
+                double uphill = Math.max(0, difference) * 0.85D;
+                double slope = Math.abs(difference) * 0.12D;
+                double meander = 0.7D + 0.6D * (0.5D + 0.5D
+                        * Math.sin(next * 0.37D + height[next] * 0.11D));
+                double tentative = gScore[current] + 1.0D + uphill + slope + meander;
+                if (tentative < gScore[next]) {
+                    gScore[next] = tentative;
+                    cameFrom[next] = current;
+                    double heuristic = waterDistance[next] * 0.7D;
+                    open.add(new long[]{next,
+                            Double.doubleToLongBits(tentative + heuristic)});
+                }
+            }
+        }
+        if (found < 0) {
+            return List.of();
+        }
+        List<Integer> path = new ArrayList<>();
+        int cursor = found;
+        while (cursor >= 0) {
+            path.add(cursor);
+            cursor = cameFrom[cursor];
+        }
+        java.util.Collections.reverse(path);
+        return path;
     }
 
     private static RiverPath smooth(List<Integer> path, int size, int width) {

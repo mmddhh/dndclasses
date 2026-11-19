@@ -170,6 +170,11 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
         graphics.setColor(Color.WHITE);
         graphics.drawString("lake", left + 22, y);
         y += 20;
+        graphics.setColor(new Color(205, 185, 125));
+        graphics.fillRect(left, y - 12, 14, 14);
+        graphics.setColor(Color.WHITE);
+        graphics.drawString("lake shore", left + 22, y);
+        y += 20;
         graphics.setColor(new Color(200, 200, 200));
         graphics.drawString("white cross = world center (0,0)", left, y + 18);
         graphics.drawString("image edges wrap into each other", left, y + 38);
@@ -285,7 +290,24 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
                     (int) (155 - 110 * t),
                     (int) (210 - 130 * t));
         }
+        if (isLakeShore(index)) {
+            return new Color(205, 185, 125);
+        }
         return terrainColorForBiome(TerrainModel.Biome.values()[biome[index] & 0xff]);
+    }
+
+    private boolean isLakeShore(int index) {
+        int size = size();
+        int gx = index % size;
+        int gz = index / size;
+        for (int[] dir : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            int nx = Math.floorMod(gx + dir[0], size);
+            int nz = Math.floorMod(gz + dir[1], size);
+            if (lake[nz * size + nx]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Color terrainColorForBiome(TerrainModel.Biome biome) {

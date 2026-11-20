@@ -580,6 +580,8 @@ public final class DndCommands {
         }
         int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                 0, 0);
+        level.getWorldBorder().setCenter(0.0D, 0.0D);
+        level.getWorldBorder().setSize(62_720.0D);
         player.teleportTo(level, 0.5D, y + 1.0D, 0.5D, player.getYRot(), player.getXRot());
         source.sendSuccess(() -> Component.literal(
                 "已进入 dndclasses:dnd_overworld 测试地形维度。"), false);

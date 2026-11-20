@@ -601,7 +601,7 @@ public final class DndCommands {
     private static int worldPlanMap(CommandSourceStack source) {
         long seed = source.getLevel().getSeed();
         mdh.dndclasses.worldgen.terrain.TerrainGrid grid =
-                mdh.dndclasses.worldgen.terrain.HabitabilitySampler.sample(
+                mdh.dndclasses.worldgen.terrain.DensityMapSampler.sample(
                         mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), seed);
         Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses").resolve("maps");
         try {

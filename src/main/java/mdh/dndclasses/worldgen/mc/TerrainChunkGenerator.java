@@ -51,13 +51,20 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     private static final BlockState SNOW = Blocks.SNOW_BLOCK.defaultBlockState();
     private static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
 
-    private final long seed;
-    private final TerrainModel model;
+    private long seed;
+    private TerrainModel model;
 
     public TerrainChunkGenerator(BiomeSource biomeSource, long seed) {
         super(biomeSource);
         this.seed = seed;
         this.model = new TerrainModel(WorldTopology.standard(), seed);
+    }
+
+    public void setWorldSeed(long worldSeed) {
+        if (worldSeed != seed) {
+            this.seed = worldSeed;
+            this.model = new TerrainModel(WorldTopology.standard(), worldSeed);
+        }
     }
 
     @Override

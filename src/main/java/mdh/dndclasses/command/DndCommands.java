@@ -188,7 +188,9 @@ public final class DndCommands {
                 .then(Commands.literal("paint")
                         .executes(context -> worldPlanPaint(context.getSource())))
                 .then(Commands.literal("dimension")
-                        .executes(context -> worldPlanDimension(context.getSource()))));
+                        .executes(context -> worldPlanDimension(context.getSource())))
+                .then(Commands.literal("map")
+                        .executes(context -> worldPlanMap(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -580,7 +582,8 @@ public final class DndCommands {
         }
         mdh.dndclasses.worldgen.terrain.TerrainModel model =
                 new mdh.dndclasses.worldgen.terrain.TerrainModel(
-                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), 12345L);
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(),
+                        level.getSeed());
         int[] land = findLand(model, 0, 0, 12_000, 256);
         int x = land[0];
         int z = land[1];
@@ -592,6 +595,23 @@ public final class DndCommands {
                 player.getYRot(), player.getXRot());
         source.sendSuccess(() -> Component.literal(
                 "已进入 dndclasses:dnd_overworld，落点 " + x + ", " + z + "。"), false);
+        return 1;
+    }
+
+    private static int worldPlanMap(CommandSourceStack source) {
+        long seed = source.getLevel().getSeed();
+        mdh.dndclasses.worldgen.terrain.TerrainGrid grid =
+                mdh.dndclasses.worldgen.terrain.HabitabilitySampler.sample(
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), seed);
+        Path directory = FMLPaths.CONFIGDIR.get().resolve("dndclasses").resolve("maps");
+        try {
+            grid.writeImages(directory);
+        } catch (IOException exception) {
+            source.sendFailure(Component.literal("写地形图失败: " + exception.getMessage()));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("地形图已写入 " + directory
+                + "（seed=" + seed + "）"), false);
         return 1;
     }
 

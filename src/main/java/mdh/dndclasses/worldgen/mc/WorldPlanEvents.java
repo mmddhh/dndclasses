@@ -36,6 +36,9 @@ public final class WorldPlanEvents {
                 new ResourceLocation(Dndclasses.MODID, "dnd_overworld"))) {
             return;
         }
+        if (level.getChunkSource().getGenerator() instanceof TerrainChunkGenerator generator) {
+            generator.setWorldSeed(level.getSeed());
+        }
         WorldBorder border = level.getWorldBorder();
         border.setCenter(0.0D, 0.0D);
         border.setSize(62_720.0D);

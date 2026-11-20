@@ -149,6 +149,10 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 }
                 if (top >= 0) {
                     TerrainModel.Biome biome = model.biome(x, z, top);
+                    if (biome == TerrainModel.Biome.OCEAN) {
+                        // Density says this column is above sea level; never paint dry ocean gravel.
+                        biome = TerrainModel.Biome.PLAINS;
+                    }
                     chunk.setBlockState(new BlockPos(x, top, z),
                             surfaceState(biome, top, top), false);
                 }

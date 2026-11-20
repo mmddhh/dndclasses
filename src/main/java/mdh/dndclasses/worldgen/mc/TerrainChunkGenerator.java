@@ -60,14 +60,14 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         super(biomeSource);
         this.seed = seed;
         this.model = new TerrainModel(WorldTopology.standard(), seed);
-        this.density = new TerrainDensity(WorldTopology.standard(), model, seed);
+        this.density = new TerrainDensity(WorldTopology.standard(), seed);
     }
 
     public void setWorldSeed(long worldSeed) {
         if (worldSeed != seed) {
             this.seed = worldSeed;
             this.model = new TerrainModel(WorldTopology.standard(), worldSeed);
-            this.density = new TerrainDensity(WorldTopology.standard(), model, worldSeed);
+            this.density = new TerrainDensity(WorldTopology.standard(), worldSeed);
         }
     }
 
@@ -130,8 +130,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 int x = minX + localX;
                 int z = minZ + localZ;
                 int top = -1;
-                int maxY = Math.min(MIN_Y + HEIGHT - 1,
-                        Math.max(SEA_LEVEL + 4, model.height(x, z) + 24));
+                int maxY = MIN_Y + HEIGHT - 1;
                 for (int y = MIN_Y; y <= maxY; y++) {
                     boolean solid = y <= MIN_Y + 1 || density.density(x, y, z) > 0.0D;
                     if (!solid) {
@@ -185,7 +184,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     @Override
     public int getBaseHeight(int x, int z, Heightmap.Types type,
                              LevelHeightAccessor level, RandomState randomState) {
-        return Math.max(MIN_Y + 5, Math.min(MIN_Y + HEIGHT - 10, model.height(x, z)));
+        return Math.max(MIN_Y + 5, Math.min(MIN_Y + HEIGHT - 10, density.surfaceHeight(x, z)));
     }
 
     @Override

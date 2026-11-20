@@ -580,11 +580,11 @@ public final class DndCommands {
                     "测试维度未加载：检查 data/dndclasses/dimension/dnd_overworld.json"));
             return 0;
         }
-        mdh.dndclasses.worldgen.terrain.TerrainModel model =
-                new mdh.dndclasses.worldgen.terrain.TerrainModel(
+        mdh.dndclasses.worldgen.terrain.TerrainDensity density =
+                new mdh.dndclasses.worldgen.terrain.TerrainDensity(
                         mdh.dndclasses.worldgen.terrain.WorldTopology.standard(),
                         level.getSeed());
-        int[] land = findLand(model, 0, 0, 12_000, 256);
+        int[] land = findLand(density, 0, 0, 12_000, 256);
         int x = land[0];
         int z = land[1];
         int landY = level.getHeight(
@@ -615,7 +615,7 @@ public final class DndCommands {
         return 1;
     }
 
-    private static int[] findLand(mdh.dndclasses.worldgen.terrain.TerrainModel model,
+    private static int[] findLand(mdh.dndclasses.worldgen.terrain.TerrainDensity density,
                                   int centerX, int centerZ, int maxRadius, int step) {
         for (int radius = 0; radius <= maxRadius; radius += step) {
             for (int dx = -radius; dx <= radius; dx += step) {
@@ -625,7 +625,7 @@ public final class DndCommands {
                     }
                     int x = centerX + dx;
                     int z = centerZ + dz;
-                    if (model.height(x, z) > 73) {
+                    if (density.surfaceHeight(x, z) > 73) {
                         return new int[]{x, z};
                     }
                 }

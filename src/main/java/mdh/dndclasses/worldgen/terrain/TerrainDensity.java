@@ -23,34 +23,22 @@ public final class TerrainDensity {
     private final WorldTopology topology;
     private final long seed;
     private final int side;
+    private final TerrainModel continent;
 
     public TerrainDensity(WorldTopology topology, long seed) {
         this.topology = topology;
         this.seed = seed;
         this.side = topology.sideBlocks();
+        this.continent = new TerrainModel(topology, seed);
     }
 
     /** Positive is solid, negative is air or water. */
     public double density(int x, int y, int z) {
-        int wx = topology.wrap(x);
-        int wz = topology.wrap(z);
-
-        double warpX = gradient2(wx, wz, 48, 0x51ED270BL) * 360.0D;
-        double warpZ = gradient2(wx + 3_177, wz - 7_133, 48, 0x6A09E667L) * 360.0D;
-        double warpY = gradient3(wx, y, wz, 64, 0xBB67AE85L) * 55.0D;
-        double px = wx + warpX;
-        double py = y + warpY;
-        double pz = wz + warpZ;
-
-        double continent = fbm3(px, py, pz, 24, 4, 0x243F6A88L);
-        double erosion = fbm3(px + 1_219, py * 1.35D, pz - 2_731, 96, 4, 0x85A308D3L);
-        double ridge = ridged3(px, py, pz, 220, 3, 0x13198A2EL);
-
-        double vertical = (SEA_LEVEL - y) / 92.0D;
-        double relief = (continent - 0.5D) * 2.0D * 1.95D
-                + (erosion - 0.5D) * 0.48D
-                + ridge * ridge * 0.95D * (0.35D + erosion * 0.65D);
-        return vertical + relief - 0.10D;
+        int base = continent.height(x, z);
+        double vertical = (base - y) / 8.0D;
+        double rough = gradient3(x, y, z, 320, 0x243F6A88L) * 1.8D
+                + gradient3(x + 1_219, y * 1.3D, z - 2_731, 128, 0x85A308D3L) * 0.8D;
+        return vertical + rough;
     }
 
     /** Highest solid block at a column, used by the adapter and by land-spawn selection. */

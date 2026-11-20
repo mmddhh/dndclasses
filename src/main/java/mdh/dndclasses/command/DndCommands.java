@@ -578,14 +578,40 @@ public final class DndCommands {
                     "测试维度未加载：检查 data/dndclasses/dimension/dnd_overworld.json"));
             return 0;
         }
-        int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                0, 0);
+        mdh.dndclasses.worldgen.terrain.TerrainModel model =
+                new mdh.dndclasses.worldgen.terrain.TerrainModel(
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), 12345L);
+        int[] land = findLand(model, 0, 0, 12_000, 256);
+        int x = land[0];
+        int z = land[1];
+        int landY = level.getHeight(
+                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
         level.getWorldBorder().setCenter(0.0D, 0.0D);
         level.getWorldBorder().setSize(62_720.0D);
-        player.teleportTo(level, 0.5D, y + 1.0D, 0.5D, player.getYRot(), player.getXRot());
+        player.teleportTo(level, x + 0.5D, landY + 1.0D, z + 0.5D,
+                player.getYRot(), player.getXRot());
         source.sendSuccess(() -> Component.literal(
-                "已进入 dndclasses:dnd_overworld 测试地形维度。"), false);
+                "已进入 dndclasses:dnd_overworld，落点 " + x + ", " + z + "。"), false);
         return 1;
+    }
+
+    private static int[] findLand(mdh.dndclasses.worldgen.terrain.TerrainModel model,
+                                  int centerX, int centerZ, int maxRadius, int step) {
+        for (int radius = 0; radius <= maxRadius; radius += step) {
+            for (int dx = -radius; dx <= radius; dx += step) {
+                for (int dz = -radius; dz <= radius; dz += step) {
+                    if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+                    int x = centerX + dx;
+                    int z = centerZ + dz;
+                    if (model.height(x, z) > 73) {
+                        return new int[]{x, z};
+                    }
+                }
+            }
+        }
+        return new int[]{0, 0};
     }
 
     private static int worldPlanPaint(CommandSourceStack source) {

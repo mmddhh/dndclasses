@@ -2,6 +2,7 @@ package mdh.dndclasses.worldgen.mc;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import mdh.dndclasses.worldgen.terrain.TerrainDensity;
 import mdh.dndclasses.worldgen.terrain.TerrainModel;
 import mdh.dndclasses.worldgen.terrain.WorldTopology;
 import net.minecraft.core.BlockPos;
@@ -53,17 +54,20 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
 
     private long seed;
     private TerrainModel model;
+    private TerrainDensity density;
 
     public TerrainChunkGenerator(BiomeSource biomeSource, long seed) {
         super(biomeSource);
         this.seed = seed;
         this.model = new TerrainModel(WorldTopology.standard(), seed);
+        this.density = new TerrainDensity(WorldTopology.standard(), model, seed);
     }
 
     public void setWorldSeed(long worldSeed) {
         if (worldSeed != seed) {
             this.seed = worldSeed;
             this.model = new TerrainModel(WorldTopology.standard(), worldSeed);
+            this.density = new TerrainDensity(WorldTopology.standard(), model, worldSeed);
         }
     }
 
@@ -125,24 +129,37 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
             for (int localZ = 0; localZ < 16; localZ++) {
                 int x = minX + localX;
                 int z = minZ + localZ;
-                int height = Math.max(MIN_Y + 5, Math.min(MIN_Y + HEIGHT - 10, model.height(x, z)));
-                TerrainModel.Biome biome = model.biome(x, z);
-                for (int y = MIN_Y; y <= height; y++) {
+                int top = -1;
+                int maxY = Math.min(MIN_Y + HEIGHT - 1,
+                        Math.max(SEA_LEVEL + 4, model.height(x, z) + 24));
+                for (int y = MIN_Y; y <= maxY; y++) {
+                    boolean solid = y <= MIN_Y + 1 || density.density(x, y, z) > 0.0D;
+                    if (!solid) {
+                        continue;
+                    }
                     BlockState state;
                     if (y == MIN_Y) {
                         state = BEDROCK;
                     } else if (y < 0) {
                         state = DEEPSLATE;
-                    } else if (y < height - 3) {
-                        state = STONE;
                     } else {
-                        state = surfaceState(biome, y, height);
+                        state = STONE;
                     }
                     chunk.setBlockState(new BlockPos(x, y, z), state, false);
+                    top = y;
                 }
-                if (height < SEA_LEVEL) {
-                    for (int y = height + 1; y <= SEA_LEVEL; y++) {
+                if (top >= 0) {
+                    TerrainModel.Biome biome = model.biome(x, z);
+                    chunk.setBlockState(new BlockPos(x, top, z),
+                            surfaceState(biome, top, top), false);
+                }
+                if (top < SEA_LEVEL) {
+                    for (int y = Math.max(MIN_Y + 1, top + 1); y <= SEA_LEVEL; y++) {
                         chunk.setBlockState(new BlockPos(x, y, z), WATER, false);
+                    }
+                    if (top >= 0) {
+                        chunk.setBlockState(new BlockPos(x, top, z),
+                                top < SEA_LEVEL - 2 ? GRAVEL : SAND, false);
                     }
                 }
             }

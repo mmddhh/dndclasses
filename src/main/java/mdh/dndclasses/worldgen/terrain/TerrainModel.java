@@ -20,6 +20,8 @@ public final class TerrainModel {
     private final TileableNoise detail;
     private final TileableNoise microDetail;
     private final TileableNoise roughDetail;
+    private final TileableNoise localDetail;
+    private final TileableNoise tinyDetail;
     private final TileableNoise ridgeNoise;
     private final TileableNoise warpNoise;
     private final TileableNoise coastNoise;
@@ -35,6 +37,8 @@ public final class TerrainModel {
         this.detail = new TileableNoise(seed ^ 0x2222L, topology, 17);
         this.microDetail = new TileableNoise(seed ^ 0xAAAAL, topology, 512);
         this.roughDetail = new TileableNoise(seed ^ 0xBBBBL, topology, 128);
+        this.localDetail = new TileableNoise(seed ^ 0xCCCCL, topology, 4096);
+        this.tinyDetail = new TileableNoise(seed ^ 0xDDDDL, topology, 2048);
         this.ridgeNoise = new TileableNoise(seed ^ 0x3333L, topology, 37);
         this.warpNoise = new TileableNoise(seed ^ 0x6666L, topology, 5);
         this.coastNoise = new TileableNoise(seed ^ 0x8888L, topology, 53);
@@ -67,6 +71,8 @@ public final class TerrainModel {
         double fine = detail.sample(wx, wz);
         double micro = microDetail.sample(wx, wz);
         double rough = roughDetail.sample(wx, wz);
+        double local = localDetail.sample(wx, wz);
+        double tiny = tinyDetail.sample(wx, wz);
         double ridge = 1.0D - Math.abs(ridgeNoise.sample(sampledX, sampledZ) * 2.0D - 1.0D);
 
         double seaThreshold = 0.46D;
@@ -75,14 +81,17 @@ public final class TerrainModel {
             double depth = (seaThreshold - broad) * 240.0D
                     + Math.max(0.0D, 0.55D - broad) * 80.0D
                     + (fine - 0.5D) * 18.0D
-                    + (micro - 0.5D) * 6.0D;
+                    + (micro - 0.5D) * 6.0D
+                    + (local - 0.5D) * 4.0D;
             return (int) Math.max(MIN_Y + 4, Math.round(SEA_LEVEL - depth));
         }
 
         double base = SEA_LEVEL + (broad - seaThreshold) * 165.0D;
         double roughness = (fine - 0.5D) * 34.0D
                 + (micro - 0.5D) * 16.0D
-                + (rough - 0.5D) * 9.0D;
+                + (rough - 0.5D) * 9.0D
+                + (local - 0.5D) * 6.0D
+                + (tiny - 0.5D) * 3.0D;
         double coastRoughness = 0.0D;
         if (broad < seaThreshold + 0.08D) {
             coastRoughness = (coastNoise.sample(wx, wz) - 0.5D) * 22.0D;
@@ -224,18 +233,14 @@ public final class TerrainModel {
      * coordinate is scaled by {@code period / sideBlocks}, the field is seamless in both axes.
      */
     private static final class TileableNoise {
-        private final double[] lattice;
+        private final long seed;
         private final int period;
         private final double scale;
 
         private TileableNoise(long seed, WorldTopology topology, int period) {
+            this.seed = seed;
             this.period = period;
             this.scale = period / (double) topology.sideBlocks();
-            this.lattice = new double[period * period];
-            Random random = new Random(seed);
-            for (int i = 0; i < lattice.length; i++) {
-                lattice[i] = random.nextDouble();
-            }
         }
 
         private double sample(int x, int z) {
@@ -253,7 +258,13 @@ public final class TerrainModel {
         }
 
         private double value(int x, int z) {
-            return lattice[Math.floorMod(z, period) * period + Math.floorMod(x, period)];
+            long hash = seed;
+            hash ^= (long) Math.floorMod(x, period) * 0x9E3779B97F4A7C15L;
+            hash ^= (long) Math.floorMod(z, period) * 0xC2B2AE3D27D4EB4FL;
+            hash = (hash ^ (hash >>> 30)) * 0xBF58476D1CE4E5B9L;
+            hash = (hash ^ (hash >>> 27)) * 0x94D049BB133111EBL;
+            hash ^= hash >>> 31;
+            return (hash >>> 11) * 0x1.0p-53;
         }
 
         private static double smooth(double t) {

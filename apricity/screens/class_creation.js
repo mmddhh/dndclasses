@@ -1130,10 +1130,7 @@ var RACE_DATA = [
     { key: "standard_human", asi: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 }, asiChoice: 0, speed: 30, traits: [] },
     { key: "variant_human", asi: {}, asiChoice: 2, speed: 30, traits: ["skill_versatility", "feat"] }
   ]},
-  { key: "dragonborn", speed: 30, size: "medium", subraces: [
-    { key: "dragonborn", asi: { str: 2, cha: 1 }, asiChoice: 0, speed: 30,
-      traits: ["draconic_ancestry", "breath_weapon", "damage_resistance"] }
-  ]},
+  { key: "dragonborn", speed: 30, size: "medium", subraces: [] },
   { key: "gnome", speed: 25, size: "small", subraces: [
     { key: "forest_gnome", asi: { int: 2, dex: 1 }, asiChoice: 0, speed: 25,
       traits: ["darkvision_60", "gnome_cunning", "natural_illusionist"] },
@@ -1244,8 +1241,8 @@ function raceRenderList() {
       btn.innerHTML = t("race.dndclasses." + race.key);
       btn.addEventListener("click", function () {
         raceState.race = race.key;
-        raceState.subrace = race.subraces[0].key;
-        raceResetPicks(race.subraces[0]);
+        raceState.subrace = race.subraces.length === 1 ? race.subraces[0].key : null;
+        raceResetPicks(race.subraces.length === 1 ? race.subraces[0] : null);
         raceRenderList();
         raceRenderDetail();
         raceRefreshConfirm();

@@ -87,16 +87,16 @@ public final class TerrainModel {
         }
 
         double base = SEA_LEVEL + (broad - seaThreshold) * 165.0D;
+        double mountainMask = smoothstep(0.55D, 0.78D, broad);
         double roughness = (fine - 0.5D) * 34.0D
                 + (micro - 0.5D) * 16.0D
                 + (rough - 0.5D) * 9.0D
-                + (local - 0.5D) * 6.0D
-                + (tiny - 0.5D) * 3.0D;
+                + (local - 0.5D) * 6.0D * mountainMask
+                + (tiny - 0.5D) * 3.0D * mountainMask;
         double coastRoughness = 0.0D;
         if (broad < seaThreshold + 0.08D) {
             coastRoughness = (coastNoise.sample(wx, wz) - 0.5D) * 22.0D;
         }
-        double mountainMask = smoothstep(0.55D, 0.78D, broad);
         double mountain = Math.pow(Math.max(0.0D, ridge), 2.2D) * 210.0D * mountainMask;
         double value = base + roughness + coastRoughness + mountain;
         return (int) Math.max(SEA_LEVEL + 1, Math.min(MAX_Y - 8, Math.round(value)));

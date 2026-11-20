@@ -162,6 +162,9 @@ dependencies {
     // fg.deobf resolves the remapped/refmap-fixed jar for the dev mappings.
     runtimeOnly fg.deobf("maven.modrinth:xaeros-world-map:KtEupJvB")
 
+    // Chunky for fast chunk pre-generation while checking the custom terrain in dev.
+    runtimeOnly fg.deobf("maven.modrinth:chunky:4FTDk9wv")
+
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
 }

@@ -1,6 +1,10 @@
 package mdh.dndclasses.worldgen.mc;
 
 import mdh.dndclasses.Dndclasses;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.border.WorldBorder;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -21,5 +25,19 @@ public final class WorldPlanEvents {
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         WorldPlanCache.clear();
+    }
+
+    @SubscribeEvent
+    public static void onLevelLoad(LevelEvent.Load event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) {
+            return;
+        }
+        if (!level.dimension().location().equals(
+                new ResourceLocation(Dndclasses.MODID, "dnd_overworld"))) {
+            return;
+        }
+        WorldBorder border = level.getWorldBorder();
+        border.setCenter(0.0D, 0.0D);
+        border.setSize(62_720.0D);
     }
 }

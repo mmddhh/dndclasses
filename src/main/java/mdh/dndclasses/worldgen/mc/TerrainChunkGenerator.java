@@ -143,9 +143,6 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     }
 
     private static BlockState surfaceState(TerrainModel.Biome biome, int y, int height) {
-        if (height < SEA_LEVEL + 2) {
-            return y == height ? SAND : DIRT;
-        }
         if (biome == TerrainModel.Biome.DESERT || biome == TerrainModel.Biome.BEACH) {
             return y == height ? SAND : SAND;
         }

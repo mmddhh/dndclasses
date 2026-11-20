@@ -18,6 +18,8 @@ public final class TerrainModel {
     private final TileableNoise superContinent;
     private final TileableNoise continentDetail;
     private final TileableNoise detail;
+    private final TileableNoise microDetail;
+    private final TileableNoise roughDetail;
     private final TileableNoise ridgeNoise;
     private final TileableNoise warpNoise;
     private final TileableNoise coastNoise;
@@ -31,6 +33,8 @@ public final class TerrainModel {
         this.superContinent = new TileableNoise(seed ^ 0x9999L, topology, 5);
         this.continentDetail = new TileableNoise(seed ^ 0x7777L, topology, 19);
         this.detail = new TileableNoise(seed ^ 0x2222L, topology, 17);
+        this.microDetail = new TileableNoise(seed ^ 0xAAAAL, topology, 512);
+        this.roughDetail = new TileableNoise(seed ^ 0xBBBBL, topology, 128);
         this.ridgeNoise = new TileableNoise(seed ^ 0x3333L, topology, 37);
         this.warpNoise = new TileableNoise(seed ^ 0x6666L, topology, 5);
         this.coastNoise = new TileableNoise(seed ^ 0x8888L, topology, 53);
@@ -61,6 +65,8 @@ public final class TerrainModel {
                 + continent.sample(sampledX, sampledZ) * 0.42D;
         broad += (continentDetail.sample(sampledX, sampledZ) - 0.5D) * 0.20D;
         double fine = detail.sample(wx, wz);
+        double micro = microDetail.sample(wx, wz);
+        double rough = roughDetail.sample(wx, wz);
         double ridge = 1.0D - Math.abs(ridgeNoise.sample(sampledX, sampledZ) * 2.0D - 1.0D);
 
         double seaThreshold = 0.46D;
@@ -68,12 +74,15 @@ public final class TerrainModel {
             // Ocean floor: shallow shelf near the coast, then a deeper basin.
             double depth = (seaThreshold - broad) * 240.0D
                     + Math.max(0.0D, 0.55D - broad) * 80.0D
-                    + (fine - 0.5D) * 18.0D;
+                    + (fine - 0.5D) * 18.0D
+                    + (micro - 0.5D) * 6.0D;
             return (int) Math.max(MIN_Y + 4, Math.round(SEA_LEVEL - depth));
         }
 
         double base = SEA_LEVEL + (broad - seaThreshold) * 165.0D;
-        double roughness = (fine - 0.5D) * 34.0D;
+        double roughness = (fine - 0.5D) * 34.0D
+                + (micro - 0.5D) * 16.0D
+                + (rough - 0.5D) * 9.0D;
         double coastRoughness = 0.0D;
         if (broad < seaThreshold + 0.08D) {
             coastRoughness = (coastNoise.sample(wx, wz) - 0.5D) * 22.0D;
@@ -124,7 +133,7 @@ public final class TerrainModel {
         if (height <= SEA_LEVEL) {
             return Biome.OCEAN;
         }
-        if (height <= SEA_LEVEL + 2) {
+        if (height <= SEA_LEVEL + 2 && nearWater(x, z)) {
             return Biome.BEACH;
         }
         double temperature = temperature(x, z);
@@ -154,6 +163,18 @@ public final class TerrainModel {
             return Biome.SWAMP;
         }
         return humidity > 0.48D ? Biome.FOREST : Biome.PLAINS;
+    }
+
+    /** True only within a short distance of an actual water body, not every low plain. */
+    private boolean nearWater(int x, int z) {
+        for (int distance : new int[]{16, 32, 64}) {
+            for (int[] dir : new int[][]{{distance, 0}, {-distance, 0}, {0, distance}, {0, -distance}}) {
+                if (height(x + dir[0], z + dir[1]) <= SEA_LEVEL) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Biome-specific contribution to habitability, roughly in [-0.3, 0.25]. */

@@ -1,0 +1,11 @@
+{
+  "type": "dndclasses:dnd_overworld",
+  "generator": {
+    "type": "dndclasses:terrain",
+    "biome_source": {
+      "type": "minecraft:multi_noise",
+      "preset": "minecraft:overworld"
+    },
+    "seed": 12345
+  }
+}

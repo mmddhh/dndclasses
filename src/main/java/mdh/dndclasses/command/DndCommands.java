@@ -186,7 +186,9 @@ public final class DndCommands {
                 .then(Commands.literal("roads")
                         .executes(context -> worldPlanRoads(context.getSource())))
                 .then(Commands.literal("paint")
-                        .executes(context -> worldPlanPaint(context.getSource()))));
+                        .executes(context -> worldPlanPaint(context.getSource())))
+                .then(Commands.literal("dimension")
+                        .executes(context -> worldPlanDimension(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -561,6 +563,26 @@ public final class DndCommands {
         data.replace(adjusted);
         mdh.dndclasses.worldgen.mc.WorldPlanCache.set(adjusted);
         source.sendSuccess(() -> Component.literal("聚落已重新分布到陆地附近并保存。"), false);
+        return 1;
+    }
+
+    private static int worldPlanDimension(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> key =
+                net.minecraft.resources.ResourceKey.create(
+                        net.minecraft.core.registries.Registries.DIMENSION,
+                        new ResourceLocation("dndclasses", "dnd_overworld"));
+        net.minecraft.server.level.ServerLevel level = source.getServer().getLevel(key);
+        if (level == null) {
+            source.sendFailure(Component.literal(
+                    "测试维度未加载：检查 data/dndclasses/dimension/dnd_overworld.json"));
+            return 0;
+        }
+        int y = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                0, 0);
+        player.teleportTo(level, 0.5D, y + 1.0D, 0.5D, player.getYRot(), player.getXRot());
+        source.sendSuccess(() -> Component.literal(
+                "已进入 dndclasses:dnd_overworld 测试地形维度。"), false);
         return 1;
     }
 

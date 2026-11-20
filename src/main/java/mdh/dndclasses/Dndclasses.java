@@ -12,6 +12,7 @@ import mdh.dndclasses.weapon.RemoveForbiddenLootModifier;
 import mdh.dndclasses.weapon.WeaponCreativeTab;
 import mdh.dndclasses.weapon.WeaponEntities;
 import mdh.dndclasses.weapon.WeaponItems;
+import mdh.dndclasses.worldgen.mc.TerrainWorldgen;
 import mdh.dndclasses.worldgen.mc.WorldgenFeatures;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -43,6 +44,7 @@ public class Dndclasses {
         ArmorCreativeTab.register(modEventBus);
         RemoveForbiddenLootModifier.register(modEventBus);
         WorldgenFeatures.register(modEventBus);
+        TerrainWorldgen.register(modEventBus);
 
         modEventBus.addListener(this::commonSetup);
 

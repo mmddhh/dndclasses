@@ -78,10 +78,11 @@ versionRange = "[2001.0.0,)"
 ordering = "AFTER"
 side = "BOTH"
 
-# SpatialLoop is the required finite toroidal world provider.
+# SpatialLoop is optional while its 1.20.1 Forge jar lacks a Mixin refmap.
+# Enable again once the upstream jar is fixed.
 [[dependencies."${mod_id}"]]
 modId = "spatialloop"
-mandatory = true
+mandatory = false
 versionRange = "[0.1.4,)"
 ordering = "AFTER"
 side = "BOTH"

@@ -148,7 +148,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                     top = y;
                 }
                 if (top >= 0) {
-                    TerrainModel.Biome biome = model.biome(x, z);
+                    TerrainModel.Biome biome = model.biome(x, z, top);
                     chunk.setBlockState(new BlockPos(x, top, z),
                             surfaceState(biome, top, top), false);
                 }

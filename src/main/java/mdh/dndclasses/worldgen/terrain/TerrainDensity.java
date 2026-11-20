@@ -107,7 +107,7 @@ public final class TerrainDensity {
         double scale = period / (double) side;
         double u = x * scale;
         double v = z * scale;
-        double w = y * (period / 1_024.0D);
+        double w = y * scale;
         int x0 = (int) Math.floor(u);
         int z0 = (int) Math.floor(v);
         int y0 = (int) Math.floor(w);

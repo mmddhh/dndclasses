@@ -138,7 +138,10 @@ public final class TerrainModel {
     }
 
     public Biome biome(int x, int z) {
-        int height = height(x, z);
+        return biome(x, z, height(x, z));
+    }
+
+    public Biome biome(int x, int z, int height) {
         if (height <= SEA_LEVEL) {
             return Biome.OCEAN;
         }

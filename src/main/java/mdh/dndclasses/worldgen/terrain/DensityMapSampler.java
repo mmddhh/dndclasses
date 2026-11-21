@@ -33,8 +33,8 @@ public final class DensityMapSampler {
                         ? TerrainModel.Biome.OCEAN
                         : climate.biome(worldX, worldZ, surface);
                 biome[index] = (byte) kind.ordinal();
-                temperature[index] = (float) climate.temperature(worldX, worldZ);
-                humidity[index] = (float) climate.humidity(worldX, worldZ);
+                temperature[index] = (float) climate.temperature(worldX, worldZ, surface);
+                humidity[index] = (float) climate.humidity(worldX, worldZ, surface);
                 habitability[index] = water[index] ? 0.0F
                         : (float) Math.max(0.0D, 1.0D - Math.abs(surface - 92.0D) / 180.0D);
             }

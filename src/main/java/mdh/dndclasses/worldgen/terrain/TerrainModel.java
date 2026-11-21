@@ -116,7 +116,10 @@ public final class TerrainModel {
     }
 
     public double temperature(int x, int z) {
-        int height = height(x, z);
+        return temperature(x, z, height(x, z));
+    }
+
+    public double temperature(int x, int z, int height) {
         double latitude = latitude(z);
         double altitude = Math.max(0, height - SEA_LEVEL) * 0.006D;
         double noise = (temperatureNoise.sample(topology.wrap(x), topology.wrap(z)) - 0.5D) * 6.0D;
@@ -124,7 +127,10 @@ public final class TerrainModel {
     }
 
     public double humidity(int x, int z) {
-        int height = height(x, z);
+        return humidity(x, z, height(x, z));
+    }
+
+    public double humidity(int x, int z, int height) {
         double noise = humidityNoise.sample(topology.wrap(x), topology.wrap(z));
         double coast = 0.0D;
         for (int[] dir : new int[][]{{64, 0}, {-64, 0}, {0, 64}, {0, -64}}) {
@@ -148,8 +154,8 @@ public final class TerrainModel {
         if (height <= SEA_LEVEL + 2 && nearWater(x, z)) {
             return Biome.BEACH;
         }
-        double temperature = temperature(x, z);
-        double humidity = humidity(x, z);
+        double temperature = temperature(x, z, height);
+        double humidity = humidity(x, z, height);
         if (height > 180) {
             return Biome.MOUNTAINS;
         }

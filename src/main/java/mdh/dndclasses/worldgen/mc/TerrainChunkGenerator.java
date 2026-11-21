@@ -50,6 +50,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     private static final BlockState SAND = Blocks.SAND.defaultBlockState();
     private static final BlockState GRAVEL = Blocks.GRAVEL.defaultBlockState();
     private static final BlockState SNOW = Blocks.SNOW_BLOCK.defaultBlockState();
+    private static final BlockState ICE = Blocks.ICE.defaultBlockState();
     private static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
 
     private long seed;
@@ -155,20 +156,21 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                     chunk.setBlockState(new BlockPos(x, y, z), state, false);
                 }
                 TerrainModel.Biome biome = model.biome(x, z, top);
+                double temperature = model.temperature(x, z, top);
                 if (top >= SEA_LEVEL) {
                     if (biome == TerrainModel.Biome.OCEAN) {
                         biome = TerrainModel.Biome.PLAINS;
                     }
                     chunk.setBlockState(new BlockPos(x, top, z),
-                            surfaceState(biome, top, top), false);
+                            surfaceState(biome, top, top, temperature), false);
                 } else {
-                    if (biome == TerrainModel.Biome.OCEAN) {
-                        biome = TerrainModel.Biome.PLAINS;
-                    }
                     chunk.setBlockState(new BlockPos(x, top, z),
                             top < SEA_LEVEL - 2 ? GRAVEL : SAND, false);
                     for (int y = top + 1; y <= SEA_LEVEL; y++) {
                         chunk.setBlockState(new BlockPos(x, y, z), WATER, false);
+                    }
+                    if (temperature <= 0.0D) {
+                        chunk.setBlockState(new BlockPos(x, SEA_LEVEL, z), ICE, false);
                     }
                 }
             }
@@ -197,7 +199,11 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         }
     }
 
-    private static BlockState surfaceState(TerrainModel.Biome biome, int y, int height) {
+    private static BlockState surfaceState(TerrainModel.Biome biome, int y, int height,
+                                           double temperature) {
+        if (temperature <= -12.0D) {
+            return y == height ? SNOW : STONE;
+        }
         if (biome == TerrainModel.Biome.DESERT || biome == TerrainModel.Biome.BEACH) {
             return y == height ? SAND : SAND;
         }

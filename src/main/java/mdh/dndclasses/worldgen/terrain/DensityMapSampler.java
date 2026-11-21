@@ -74,6 +74,6 @@ public final class DensityMapSampler {
         }
         return new TerrainGrid(topology, seed, height, biome, temperature, humidity,
                 water, hydrology.lake(), hydrology.river(), hydrology.flow(),
-                List.of(), habitability);
+                hydrology.paths(), habitability);
     }
 }

@@ -1,7 +1,9 @@
 package mdh.dndclasses.worldgen.terrain;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 
 /**
  * Coarse D8 drainage and flow accumulation. Clean-room implementation; it is used as the shared
@@ -9,7 +11,7 @@ import java.util.Comparator;
  */
 public final class D8Hydrology {
 
-    public record Result(boolean[] river, boolean[] lake, int[] flow) {
+    public record Result(boolean[] river, boolean[] lake, int[] flow, List<RiverPath> paths) {
     }
 
     private D8Hydrology() {
@@ -69,13 +71,45 @@ public final class D8Hydrology {
             if (water[i]) {
                 continue;
             }
-            if (flow[i] >= 70) {
+            if (flow[i] >= 40) {
                 river[i] = true;
             }
             if (receiver[i] < 0 && height[i] > 63) {
                 lake[i] = true;
             }
         }
-        return new Result(river, lake, flow);
+        return new Result(river, lake, flow, buildPaths(size, river, receiver, flow));
+    }
+
+    private static List<RiverPath> buildPaths(int size, boolean[] river, int[] receiver, int[] flow) {
+        int count = size * size;
+        boolean[] hasUpstream = new boolean[count];
+        for (int i = 0; i < count; i++) {
+            int next = receiver[i];
+            if (river[i] && next >= 0 && river[next]) {
+                hasUpstream[next] = true;
+            }
+        }
+        boolean[] visited = new boolean[count];
+        List<RiverPath> paths = new ArrayList<>();
+        for (int start = 0; start < count; start++) {
+            if (!river[start] || hasUpstream[start] || visited[start]) {
+                continue;
+            }
+            List<RiverPath.Node> nodes = new ArrayList<>();
+            int current = start;
+            int maxFlow = 0;
+            while (current >= 0 && river[current] && !visited[current]) {
+                visited[current] = true;
+                nodes.add(new RiverPath.Node(current % size, current / size));
+                maxFlow = Math.max(maxFlow, flow[current]);
+                current = receiver[current];
+            }
+            if (nodes.size() >= 2) {
+                int width = 1 + Math.min(5, maxFlow / 220);
+                paths.add(new RiverPath(List.copyOf(nodes), width));
+            }
+        }
+        return paths;
     }
 }

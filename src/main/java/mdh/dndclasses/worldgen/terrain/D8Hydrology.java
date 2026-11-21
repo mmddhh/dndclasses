@@ -145,9 +145,9 @@ public final class D8Hydrology {
                 maxFlow = Math.max(maxFlow, flow[current]);
                 current = receiver[current];
             }
-            if (nodes.size() >= 2) {
-                int width = 1 + Math.min(7, maxFlow / 45);
-                paths.add(new RiverPath(List.copyOf(nodes), width));
+            if (nodes.size() >= 4) {
+                int widthBlocks = 4 + (int) Math.min(236.0D, Math.sqrt(maxFlow) * 2.2D);
+                paths.add(new RiverPath(List.copyOf(nodes), widthBlocks));
             }
         }
         return paths;

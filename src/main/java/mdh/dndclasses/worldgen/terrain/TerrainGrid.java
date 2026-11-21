@@ -89,11 +89,14 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
     private void drawRiverCurves(Graphics2D graphics) {
         graphics.setColor(new Color(45, 120, 190, 230));
         int size = size();
+        int mapSize = size * SCALE;
         for (RiverPath path : riverPaths) {
             if (path.points().size() < 2) {
                 continue;
             }
-            graphics.setStroke(new BasicStroke(Math.min(7f, 1.8f + path.width() * 1.2f),
+            float blocksPerPixel = topology.sideBlocks() / (float) mapSize;
+            float stroke = Math.max(1.0f, path.width() / blocksPerPixel);
+            graphics.setStroke(new BasicStroke(Math.min(6f, stroke),
                     BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             java.awt.geom.Path2D.Double line = null;
             RiverPath.Node previous = null;
@@ -115,11 +118,13 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
             if (line != null) {
                 graphics.draw(line);
             }
-            RiverPath.Node source = path.points().get(0);
-            graphics.setColor(new Color(30, 95, 165));
-            graphics.fillOval((int) ((source.x() + 0.5) * SCALE) - 3,
-                    (int) ((source.z() + 0.5) * SCALE) - 3, 6, 6);
-            graphics.setColor(new Color(45, 120, 190, 230));
+            if (path.points().size() >= 6) {
+                RiverPath.Node source = path.points().get(0);
+                graphics.setColor(new Color(30, 95, 165));
+                graphics.fillOval((int) ((source.x() + 0.5) * SCALE) - 3,
+                        (int) ((source.z() + 0.5) * SCALE) - 3, 6, 6);
+                graphics.setColor(new Color(45, 120, 190, 230));
+            }
         }
     }
 

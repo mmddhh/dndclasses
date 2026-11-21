@@ -73,6 +73,7 @@ public final class DensityMapSampler {
             }
         }
         List<RiverPath> detailedPaths = detailedPaths(topology, size, height, water);
+        RiverField.install(detailedPaths, topology);
         return new TerrainGrid(topology, seed, height, biome, temperature, humidity,
                 water, hydrology.lake(), hydrology.river(), hydrology.flow(),
                 detailedPaths, habitability);

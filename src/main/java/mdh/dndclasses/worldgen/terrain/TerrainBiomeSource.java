@@ -26,6 +26,7 @@ public final class TerrainBiomeSource extends BiomeSource {
 
     private static volatile Map<TerrainModel.Biome, Holder<Biome>> holders = Map.of();
     private static volatile Holder<Biome> fallback;
+    private static volatile Holder<Biome> river;
 
     private long seed;
     private TerrainModel model;
@@ -65,6 +66,7 @@ public final class TerrainBiomeSource extends BiomeSource {
         map.put(TerrainModel.Biome.MOUNTAINS, holder(registry, "jagged_peaks"));
         holders = Map.copyOf(map);
         fallback = holder(registry, "plains");
+        river = holder(registry, "river");
     }
 
     private static Holder<Biome> holder(Registry<Biome> registry, String path) {
@@ -87,6 +89,9 @@ public final class TerrainBiomeSource extends BiomeSource {
                                        Climate.Sampler sampler) {
         int x = quartX << 2;
         int z = quartZ << 2;
+        if (RiverField.hit(x, z) != null) {
+            return river;
+        }
         int surface = density.surfaceHeight(x, z);
         TerrainModel.Biome kind = model.biome(x, z, surface);
         Holder<Biome> holder = holders.get(kind);

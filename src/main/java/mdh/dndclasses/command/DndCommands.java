@@ -190,7 +190,9 @@ public final class DndCommands {
                 .then(Commands.literal("dimension")
                         .executes(context -> worldPlanDimension(context.getSource())))
                 .then(Commands.literal("map")
-                        .executes(context -> worldPlanMap(context.getSource()))));
+                        .executes(context -> worldPlanMap(context.getSource())))
+                .then(Commands.literal("border")
+                        .executes(context -> worldPlanBorder(context.getSource()))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -593,9 +595,25 @@ public final class DndCommands {
         level.getWorldBorder().setSize(62_720.0D);
         player.teleportTo(level, x + 0.5D, landY + 1.0D, z + 0.5D,
                 player.getYRot(), player.getXRot());
+        applyTerrainBorder(level);
         source.sendSuccess(() -> Component.literal(
                 "已进入 dndclasses:dnd_overworld，落点 " + x + ", " + z + "。"), false);
         return 1;
+    }
+
+    private static int worldPlanBorder(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        applyTerrainBorder((net.minecraft.server.level.ServerLevel) player.level());
+        double size = player.level().getWorldBorder().getSize();
+        source.sendSuccess(() -> Component.literal(
+                "边界已设置：中心 0,0，尺寸 " + (int) size), false);
+        return 1;
+    }
+
+    private static void applyTerrainBorder(net.minecraft.server.level.ServerLevel level) {
+        net.minecraft.world.level.border.WorldBorder border = level.getWorldBorder();
+        border.setCenter(0.0D, 0.0D);
+        border.setSize(62_720.0D);
     }
 
     private static int worldPlanMap(CommandSourceStack source) {

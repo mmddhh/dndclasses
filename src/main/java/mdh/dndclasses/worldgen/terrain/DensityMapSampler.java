@@ -26,8 +26,34 @@ public final class DensityMapSampler {
                 int index = z * size + x;
                 int worldX = topology.cellCenter(x);
                 int worldZ = topology.cellCenter(z);
-                int surface = density.surfaceHeight(worldX, worldZ);
-                height[index] = (short) surface;
+                height[index] = (short) density.surfaceHeight(worldX, worldZ);
+            }
+        }
+        for (int pass = 0; pass < 2; pass++) {
+            short[] copy = height.clone();
+            for (int z = 0; z < size; z++) {
+                for (int x = 0; x < size; x++) {
+                    int total = 0;
+                    int count = 0;
+                    for (int dz = -1; dz <= 1; dz++) {
+                        for (int dx = -1; dx <= 1; dx++) {
+                            int sx = Math.max(0, Math.min(size - 1, x + dx));
+                            int sz = Math.max(0, Math.min(size - 1, z + dz));
+                            total += copy[sz * size + sx];
+                            count++;
+                        }
+                    }
+                    height[z * size + x] = (short) Math.round(total / (float) count);
+                }
+            }
+        }
+
+        for (int z = 0; z < size; z++) {
+            for (int x = 0; x < size; x++) {
+                int index = z * size + x;
+                int worldX = topology.cellCenter(x);
+                int worldZ = topology.cellCenter(z);
+                int surface = height[index];
                 water[index] = surface < SEA_LEVEL;
                 TerrainModel.Biome kind = water[index]
                         ? TerrainModel.Biome.OCEAN

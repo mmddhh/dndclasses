@@ -139,8 +139,13 @@ public final class TerrainModel {
                 break;
             }
         }
+        // Prevailing westerlies: a high ridge upwind strips moisture downwind.
+        int upwind = height(x - 96, z);
+        int downwind = height(x + 96, z);
+        double rainShadow = clamp((upwind - height) / 320.0D, 0.0D, 0.30D);
+        double windward = clamp((height - downwind) / 420.0D, 0.0D, 0.10D);
         double altitudeDry = Math.max(0, height - SEA_LEVEL) * 0.0015D;
-        return clamp(noise + coast - altitudeDry, 0.0D, 1.0D);
+        return clamp(noise + coast + windward - rainShadow - altitudeDry, 0.0D, 1.0D);
     }
 
     public Biome biome(int x, int z) {

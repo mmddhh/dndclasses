@@ -665,39 +665,65 @@ function bindAbilityRow(body, a, remaining, primary) {
   var isPrimary = primary.indexOf(a.key) >= 0;
 
   var row = make("div", "ability-row" + (isPrimary ? " primary" : ""));
-  var minus = make("button", "pip-btn", "-");
-  minus.setAttribute("type", "button");
-  if (!canMinus) minus.setAttribute("disabled", "disabled");
+  var slider = document.createElement("input");
+  slider.setAttribute("type", "range");
+  slider.setAttribute("class", "ability-slider");
+  slider.setAttribute("min", String(MIN_SCORE));
+  slider.setAttribute("max", String(MAX_SCORE));
+  slider.setAttribute("step", "1");
+  slider.value = String(sc);
   var score = make("span", "ability-score", bonus
     ? String(finalScore) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
     : String(finalScore));
-  var plus = make("button", "pip-btn", "+");
-  plus.setAttribute("type", "button");
-  if (!canPlus) plus.setAttribute("disabled", "disabled");
-  row.appendChild(minus);
+  row.appendChild(slider);
   row.appendChild(score);
-  row.appendChild(plus);
 
   var abName = make("span", "ability-name", null);
   abName.innerHTML = abilName(a.key);
   row.appendChild(abName);
   row.appendChild(make("span", "ability-mod", (mod >= 0 ? "+" : "") + mod));
 
-  minus.addEventListener("click", function () { changeAbility(a.key, -1); });
-  plus.addEventListener("click", function () { changeAbility(a.key, 1); });
+  slider.addEventListener("change", function () {
+    setAbilityTarget(a.key, parseInt(this.value, 10));
+  });
+  slider.addEventListener("input", function () {
+    var value = parseInt(this.value, 10);
+    var shown = Math.min(20, value + bonus);
+    score.textContent = bonus
+      ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
+      : String(shown);
+  });
   body.appendChild(row);
 }
 
-function changeAbility(key, delta) {
+function applyAbilityDelta(key, delta) {
   var sc = state.abilities[key];
   if (delta > 0) {
-    if (sc >= MAX_SCORE) return;
-    if (totalCost() + (scoreCost(sc + 1) - scoreCost(sc)) > BUDGET) return;
+    if (sc >= MAX_SCORE) return false;
+    if (totalCost() + (scoreCost(sc + 1) - scoreCost(sc)) > BUDGET) return false;
     state.abilities[key] = sc + 1;
-  } else {
-    if (sc <= MIN_SCORE) return;
-    state.abilities[key] = sc - 1;
+    return true;
   }
+  if (sc <= MIN_SCORE) return false;
+  state.abilities[key] = sc - 1;
+  return true;
+}
+
+function setAbilityTarget(key, target) {
+  while (state.abilities[key] < target) {
+    if (!applyAbilityDelta(key, 1)) break;
+  }
+  while (state.abilities[key] > target) {
+    if (!applyAbilityDelta(key, -1)) break;
+  }
+  renderAbility();
+  updateFooterSummary();
+  refreshConfirmState();
+  setMsg("", false);
+}
+
+function changeAbility(key, delta) {
+  if (!applyAbilityDelta(key, delta)) return;
   renderAbility();
   updateFooterSummary();
   refreshConfirmState();

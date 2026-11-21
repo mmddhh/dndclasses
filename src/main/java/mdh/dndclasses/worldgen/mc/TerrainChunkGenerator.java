@@ -129,11 +129,11 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     private void fill(ChunkAccess chunk) {
         int minX = chunk.getPos().getMinBlockX();
         int minZ = chunk.getPos().getMinBlockZ();
-        int[][] heights = new int[16][16];
-        for (int localX = 0; localX < 16; localX++) {
-            for (int localZ = 0; localZ < 16; localZ++) {
-                heights[localX][localZ] = Math.max(MIN_Y + 3, Math.min(MIN_Y + HEIGHT - 1,
-                        density.surfaceHeight(minX + localX, minZ + localZ)));
+        int[][] heights = new int[18][18];
+        for (int gx = 0; gx < 18; gx++) {
+            for (int gz = 0; gz < 18; gz++) {
+                heights[gx][gz] = Math.max(MIN_Y + 3, Math.min(MIN_Y + HEIGHT - 1,
+                        density.surfaceHeight(minX + gx - 1, minZ + gz - 1)));
             }
         }
         smoothHeights(heights);
@@ -143,7 +143,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
             for (int localZ = 0; localZ < 16; localZ++) {
                 int x = minX + localX;
                 int z = minZ + localZ;
-                int top = heights[localX][localZ];
+                int top = heights[localX + 1][localZ + 1];
                 for (int y = MIN_Y; y <= top; y++) {
                     BlockState state;
                     if (y == MIN_Y) {
@@ -160,8 +160,8 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 int minNeighbor = top;
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
-                        int sx = Math.max(0, Math.min(15, localX + dx));
-                        int sz = Math.max(0, Math.min(15, localZ + dz));
+                        int sx = Math.max(0, Math.min(17, localX + 1 + dx));
+                        int sz = Math.max(0, Math.min(17, localZ + 1 + dz));
                         minNeighbor = Math.min(minNeighbor, heights[sx][sz]);
                     }
                 }
@@ -187,24 +187,24 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     }
 
     private static void smoothHeights(int[][] heights) {
-        int[][] copy = new int[16][16];
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
+        int size = heights.length;
+        int[][] copy = new int[size][size];
+        for (int x = 0; x < size; x++) {
+            copy[x] = heights[x].clone();
+        }
+        for (int x = 1; x < size - 1; x++) {
+            for (int z = 1; z < size - 1; z++) {
                 int total = 0;
-                int count = 0;
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
-                        int sx = Math.max(0, Math.min(15, x + dx));
-                        int sz = Math.max(0, Math.min(15, z + dz));
-                        total += heights[sx][sz];
-                        count++;
+                        total += heights[x + dx][z + dz];
                     }
                 }
-                copy[x][z] = Math.round(total / (float) count);
+                copy[x][z] = Math.round(total / 9.0F);
             }
         }
-        for (int x = 0; x < 16; x++) {
-            System.arraycopy(copy[x], 0, heights[x], 0, 16);
+        for (int x = 0; x < size; x++) {
+            heights[x] = copy[x];
         }
     }
 

@@ -85,9 +85,13 @@ public final class TerrainDensity {
 
     /** Highest solid block at a column, used by the adapter and by land-spawn selection. */
     public int surfaceHeight(int x, int z) {
-        for (int y = MAX_Y; y >= MIN_Y; y--) {
+        for (int y = MAX_Y; y >= MIN_Y; y -= 4) {
             if (density(x, y, z) > 0.0D) {
-                return y;
+                for (int yy = Math.min(MAX_Y, y + 3); yy >= y; yy--) {
+                    if (density(x, yy, z) > 0.0D) {
+                        return yy;
+                    }
+                }
             }
         }
         return MIN_Y;

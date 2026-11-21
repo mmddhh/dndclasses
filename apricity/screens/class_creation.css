@@ -634,6 +634,13 @@
   font-size: 17px;
 }
 
+.ability-slider {
+  flex: 1 1 140px;
+  min-width: 80px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
 .ability-row.primary .ability-name { color: var(--gold); }
 
 .ability-score {

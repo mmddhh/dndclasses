@@ -132,7 +132,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         int[][] heights = new int[16][16];
         for (int localX = 0; localX < 16; localX++) {
             for (int localZ = 0; localZ < 16; localZ++) {
-                heights[localX][localZ] = Math.max(MIN_Y + 3, Math.min(MIN_Y + HEIGHT - 8,
+                heights[localX][localZ] = Math.max(MIN_Y + 3, Math.min(MIN_Y + HEIGHT - 1,
                         density.surfaceHeight(minX + localX, minZ + localZ)));
             }
         }
@@ -231,7 +231,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     @Override
     public int getBaseHeight(int x, int z, Heightmap.Types type,
                              LevelHeightAccessor level, RandomState randomState) {
-        return Math.max(MIN_Y + 5, Math.min(MIN_Y + HEIGHT - 10, density.surfaceHeight(x, z)));
+        return Math.max(MIN_Y + 5, Math.min(MIN_Y + HEIGHT - 1, density.surfaceHeight(x, z)));
     }
 
     @Override

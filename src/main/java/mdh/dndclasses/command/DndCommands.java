@@ -195,6 +195,13 @@ public final class DndCommands {
                         .executes(context -> worldPlanBorder(context.getSource())))
                 .then(Commands.literal("biome")
                         .then(Commands.argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                .suggests((context, builder) -> {
+                                    for (mdh.dndclasses.worldgen.terrain.TerrainModel.Biome biome
+                                            : mdh.dndclasses.worldgen.terrain.TerrainModel.Biome.values()) {
+                                        builder.suggest(biome.name().toLowerCase(java.util.Locale.ROOT));
+                                    }
+                                    return builder.buildFuture();
+                                })
                                 .executes(context -> worldPlanBiome(context.getSource(),
                                         com.mojang.brigadier.arguments.StringArgumentType.getString(
                                                 context, "name"))))));

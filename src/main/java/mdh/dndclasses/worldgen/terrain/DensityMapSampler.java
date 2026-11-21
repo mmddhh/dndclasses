@@ -72,8 +72,55 @@ public final class DensityMapSampler {
                 biome[i] = (byte) TerrainModel.Biome.OCEAN.ordinal();
             }
         }
+        List<RiverPath> detailedPaths = detailedPaths(topology, size, height, water);
         return new TerrainGrid(topology, seed, height, biome, temperature, humidity,
                 water, hydrology.lake(), hydrology.river(), hydrology.flow(),
-                hydrology.paths(), habitability);
+                detailedPaths, habitability);
+    }
+
+    /** Four times the map resolution: 64 blocks per hydrology cell. */
+    private static List<RiverPath> detailedPaths(WorldTopology topology, int baseSize,
+                                                 short[] baseHeight, boolean[] baseWater) {
+        int factor = 4;
+        int size = baseSize * factor;
+        short[] height = new short[size * size];
+        boolean[] water = new boolean[size * size];
+        for (int z = 0; z < size; z++) {
+            for (int x = 0; x < size; x++) {
+                double gx = x / (double) factor;
+                double gz = z / (double) factor;
+                int x0 = Math.min(baseSize - 1, (int) Math.floor(gx));
+                int z0 = Math.min(baseSize - 1, (int) Math.floor(gz));
+                int x1 = Math.min(baseSize - 1, x0 + 1);
+                int z1 = Math.min(baseSize - 1, z0 + 1);
+                double tx = gx - x0;
+                double tz = gz - z0;
+                double a = baseHeight[z0 * baseSize + x0];
+                double b = baseHeight[z0 * baseSize + x1];
+                double c = baseHeight[z1 * baseSize + x0];
+                double d = baseHeight[z1 * baseSize + x1];
+                double h = (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
+                int index = z * size + x;
+                height[index] = (short) Math.round(h);
+                water[index] = h < SEA_LEVEL;
+            }
+        }
+        D8Hydrology.Result result = D8Hydrology.compute(size, height, water);
+        List<RiverPath> paths = new java.util.ArrayList<>();
+        for (RiverPath path : result.paths()) {
+            java.util.List<RiverPath.Node> nodes = new java.util.ArrayList<>();
+            RiverPath.Node previous = null;
+            for (RiverPath.Node node : path.points()) {
+                RiverPath.Node mapped = new RiverPath.Node(node.x() / factor, node.z() / factor);
+                if (previous == null || mapped.x() != previous.x() || mapped.z() != previous.z()) {
+                    nodes.add(mapped);
+                    previous = mapped;
+                }
+            }
+            if (nodes.size() >= 2) {
+                paths.add(new RiverPath(java.util.List.copyOf(nodes), path.width()));
+            }
+        }
+        return paths;
     }
 }

@@ -276,7 +276,7 @@ public record TerrainGrid(WorldTopology topology, long seed, short[] height, byt
     }
 
     private Color terrainColor(int index) {
-        if (river[index]) {
+        if (river[index] && riverPaths.isEmpty()) {
             return new Color(45, 120, 190);
         }
         if (lake[index]) {

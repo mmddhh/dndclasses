@@ -18,7 +18,10 @@ public final class D8Hydrology {
     }
 
     public static Result compute(WorldTopology topology, short[] height, boolean[] water) {
-        int size = topology.gridSize();
+        return compute(topology.gridSize(), height, water);
+    }
+
+    public static Result compute(int size, short[] height, boolean[] water) {
         int count = size * size;
         int[] filled = priorityFlood(size, height, water);
         int[] receiver = new int[count];

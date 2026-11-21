@@ -49,12 +49,33 @@ public final class TerrainDensity {
         double detail = (fbm3(px + 1_219, y * 1.35D, pz - 2_731, 96, 4, 0x85A308D3L) - 0.5D) * 2.0D;
         double ridge = ridged3(px, y, pz, 220, 3, 0x13198A2EL);
 
+        // A long, warped ridge belt gives mountains a main direction instead of isolated domes.
+        double belt = ridge2(px, pz, 18, 0x9E3779B1L);
+        double mountain = smoothstep(0.80D, 0.96D, belt) * (0.45D + ridge * 0.55D);
+
+        // A second, finer ridge network is subtracted to cut V-shaped tributary valleys.
+        double tributary = ridge2(px + 2_113, pz - 4_127, 64, 0x7F4A7C15L);
+        double valley = smoothstep(0.78D, 0.97D, tributary);
+
         double vertical = (SEA_LEVEL - y) / 96.0D;
         return vertical
                 + mask * 1.35D
                 + broad * 0.85D
                 + detail * 0.30D
-                + ridge * ridge * 0.55D * (0.45D + 0.55D * (detail * 0.5D + 0.5D));
+                + ridge * ridge * 0.55D * (0.45D + 0.55D * (detail * 0.5D + 0.5D))
+                + mountain * 0.75D
+                - valley * 0.42D;
+    }
+
+    private double ridge2(double x, double z, int period, long salt) {
+        double n = Math.max(-1.0D, Math.min(1.0D, gradient2((int) Math.round(x),
+                (int) Math.round(z), period, salt)));
+        return 1.0D - Math.abs(n);
+    }
+
+    private static double smoothstep(double edge0, double edge1, double value) {
+        double t = clamp((value - edge0) / (edge1 - edge0), 0.0D, 1.0D);
+        return t * t * (3.0D - 2.0D * t);
     }
 
     /** Highest solid block at a column, used by the adapter and by land-spawn selection. */

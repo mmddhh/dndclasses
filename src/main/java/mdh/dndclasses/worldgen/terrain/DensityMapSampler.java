@@ -65,8 +65,15 @@ public final class DensityMapSampler {
                         : (float) Math.max(0.0D, 1.0D - Math.abs(surface - 92.0D) / 180.0D);
             }
         }
+        D8Hydrology.Result hydrology = D8Hydrology.compute(topology, height, water);
+        for (int i = 0; i < water.length; i++) {
+            if (hydrology.lake()[i]) {
+                water[i] = true;
+                biome[i] = (byte) TerrainModel.Biome.OCEAN.ordinal();
+            }
+        }
         return new TerrainGrid(topology, seed, height, biome, temperature, humidity,
-                water, new boolean[size * size], new boolean[size * size], new int[size * size],
+                water, hydrology.lake(), hydrology.river(), hydrology.flow(),
                 List.of(), habitability);
     }
 }

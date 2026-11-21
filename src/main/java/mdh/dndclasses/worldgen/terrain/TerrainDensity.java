@@ -42,19 +42,25 @@ public final class TerrainDensity {
 
         double warpX = gradient2(wx, wz, 48, 0x51ED270BL) * 260.0D;
         double warpZ = gradient2(wx + 3_177, wz - 7_133, 48, 0x6A09E667L) * 260.0D;
+        double warpY = gradient3(wx, y, wz, 64, 0xBB67AE85L) * 36.0D;
         double px = wx + warpX;
+        double py = y + warpY;
         double pz = wz + warpZ;
 
-        double broad = (fbm3(px, y, pz, 24, 4, 0x243F6A88L) - 0.5D) * 2.0D;
-        double detail = (fbm3(px + 1_219, y * 1.35D, pz - 2_731, 96, 4, 0x85A308D3L) - 0.5D) * 2.0D;
-        double ridge = ridged3(px, y, pz, 220, 3, 0x13198A2EL);
+        double broad = (fbm3(px, py, pz, 24, 4, 0x243F6A88L) - 0.5D) * 2.0D;
+        double detail = (fbm3(px + 1_219, py * 1.35D, pz - 2_731, 96, 4, 0x85A308D3L) - 0.5D) * 2.0D;
+        double ridge = ridged3(px, py, pz, 220, 3, 0x13198A2EL);
 
-        // A long, warped ridge belt gives mountains a main direction instead of isolated domes.
-        double belt = ridge2(px, pz, 18, 0x9E3779B1L);
-        double mountain = smoothstep(0.80D, 0.96D, belt) * (0.45D + ridge * 0.55D);
+        // The mountain field gets its own warp, otherwise high peaks fall back to closed rings.
+        double mountainWarpX = gradient2(px, pz, 32, 0x3C6EF372L) * 150.0D;
+        double mountainWarpZ = gradient2(px + 4_091, pz - 2_237, 32, 0xA54FF53AL) * 150.0D;
+        double mx = px + mountainWarpX;
+        double mz = pz + mountainWarpZ;
+        double belt = ridge2(mx, mz, 18, 0x9E3779B1L);
+        double mountain = smoothstep(0.38D, 0.72D, belt) * (0.35D + ridge * 0.65D);
 
         // A second, finer ridge network is subtracted to cut V-shaped tributary valleys.
-        double tributary = ridge2(px + 2_113, pz - 4_127, 64, 0x7F4A7C15L);
+        double tributary = ridge2(mx + 2_113, mz - 4_127, 64, 0x7F4A7C15L);
         double valley = smoothstep(0.78D, 0.97D, tributary);
 
         double vertical = (SEA_LEVEL - y) / 96.0D;
@@ -63,13 +69,12 @@ public final class TerrainDensity {
                 + broad * 0.85D
                 + detail * 0.30D
                 + ridge * ridge * 0.55D * (0.45D + 0.55D * (detail * 0.5D + 0.5D))
-                + mountain * 0.75D
+                + mountain * 0.55D
                 - valley * 0.42D;
     }
 
     private double ridge2(double x, double z, int period, long salt) {
-        double n = Math.max(-1.0D, Math.min(1.0D, gradient2((int) Math.round(x),
-                (int) Math.round(z), period, salt)));
+        double n = Math.max(-1.0D, Math.min(1.0D, gradient2(x, z, period, salt)));
         return 1.0D - Math.abs(n);
     }
 
@@ -123,6 +128,10 @@ public final class TerrainDensity {
     }
 
     private double gradient2(int x, int z, int period, long salt) {
+        return gradient2((double) x, (double) z, period, salt);
+    }
+
+    private double gradient2(double x, double z, int period, long salt) {
         double scale = period / (double) side;
         double u = x * scale;
         double v = z * scale;

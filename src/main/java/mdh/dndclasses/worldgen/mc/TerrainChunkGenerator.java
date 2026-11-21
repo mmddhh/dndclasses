@@ -157,12 +157,21 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 }
                 TerrainModel.Biome biome = model.biome(x, z, top);
                 double temperature = model.temperature(x, z, top);
+                int minNeighbor = top;
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        int sx = Math.max(0, Math.min(15, localX + dx));
+                        int sz = Math.max(0, Math.min(15, localZ + dz));
+                        minNeighbor = Math.min(minNeighbor, heights[sx][sz]);
+                    }
+                }
+                boolean snowEligible = top >= 135 && minNeighbor >= 112;
                 if (top >= SEA_LEVEL) {
                     if (biome == TerrainModel.Biome.OCEAN) {
                         biome = TerrainModel.Biome.PLAINS;
                     }
                     chunk.setBlockState(new BlockPos(x, top, z),
-                            surfaceState(biome, top, top, temperature), false);
+                            surfaceState(biome, top, top, temperature, snowEligible), false);
                 } else {
                     chunk.setBlockState(new BlockPos(x, top, z),
                             top < SEA_LEVEL - 2 ? GRAVEL : SAND, false);
@@ -200,8 +209,8 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     }
 
     private static BlockState surfaceState(TerrainModel.Biome biome, int y, int height,
-                                           double temperature) {
-        if (temperature <= -12.0D || height >= 135) {
+                                           double temperature, boolean snowEligible) {
+        if (temperature <= 0.0D || snowEligible) {
             return y == height ? SNOW : STONE;
         }
         if (biome == TerrainModel.Biome.DESERT || biome == TerrainModel.Biome.BEACH) {

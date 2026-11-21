@@ -125,17 +125,22 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     private void fill(ChunkAccess chunk) {
         int minX = chunk.getPos().getMinBlockX();
         int minZ = chunk.getPos().getMinBlockZ();
+        int[][] heights = new int[16][16];
+        for (int localX = 0; localX < 16; localX++) {
+            for (int localZ = 0; localZ < 16; localZ++) {
+                heights[localX][localZ] = Math.max(MIN_Y + 3, Math.min(MIN_Y + HEIGHT - 8,
+                        density.surfaceHeight(minX + localX, minZ + localZ)));
+            }
+        }
+        smoothHeights(heights);
+        smoothHeights(heights);
+
         for (int localX = 0; localX < 16; localX++) {
             for (int localZ = 0; localZ < 16; localZ++) {
                 int x = minX + localX;
                 int z = minZ + localZ;
-                int top = -1;
-                int maxY = MIN_Y + HEIGHT - 1;
-                for (int y = MIN_Y; y <= maxY; y++) {
-                    boolean solid = y <= MIN_Y + 1 || density.density(x, y, z) > 0.0D;
-                    if (!solid) {
-                        continue;
-                    }
+                int top = heights[localX][localZ];
+                for (int y = MIN_Y; y <= top; y++) {
                     BlockState state;
                     if (y == MIN_Y) {
                         state = BEDROCK;
@@ -145,27 +150,47 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                         state = STONE;
                     }
                     chunk.setBlockState(new BlockPos(x, y, z), state, false);
-                    top = y;
                 }
-                if (top >= 0) {
-                    TerrainModel.Biome biome = model.biome(x, z, top);
+                TerrainModel.Biome biome = model.biome(x, z, top);
+                if (top >= SEA_LEVEL) {
                     if (biome == TerrainModel.Biome.OCEAN) {
-                        // Density says this column is above sea level; never paint dry ocean gravel.
                         biome = TerrainModel.Biome.PLAINS;
                     }
                     chunk.setBlockState(new BlockPos(x, top, z),
                             surfaceState(biome, top, top), false);
-                }
-                if (top < SEA_LEVEL) {
-                    for (int y = Math.max(MIN_Y + 1, top + 1); y <= SEA_LEVEL; y++) {
-                        chunk.setBlockState(new BlockPos(x, y, z), WATER, false);
+                } else {
+                    if (biome == TerrainModel.Biome.OCEAN) {
+                        biome = TerrainModel.Biome.PLAINS;
                     }
-                    if (top >= 0) {
-                        chunk.setBlockState(new BlockPos(x, top, z),
-                                top < SEA_LEVEL - 2 ? GRAVEL : SAND, false);
+                    chunk.setBlockState(new BlockPos(x, top, z),
+                            top < SEA_LEVEL - 2 ? GRAVEL : SAND, false);
+                    for (int y = top + 1; y <= SEA_LEVEL; y++) {
+                        chunk.setBlockState(new BlockPos(x, y, z), WATER, false);
                     }
                 }
             }
+        }
+    }
+
+    private static void smoothHeights(int[][] heights) {
+        int[][] copy = new int[16][16];
+        for (int x = 0; x < 16; x++) {
+            for (int z = 0; z < 16; z++) {
+                int total = 0;
+                int count = 0;
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        int sx = Math.max(0, Math.min(15, x + dx));
+                        int sz = Math.max(0, Math.min(15, z + dz));
+                        total += heights[sx][sz];
+                        count++;
+                    }
+                }
+                copy[x][z] = Math.round(total / (float) count);
+            }
+        }
+        for (int x = 0; x < 16; x++) {
+            System.arraycopy(copy[x], 0, heights[x], 0, 16);
         }
     }
 

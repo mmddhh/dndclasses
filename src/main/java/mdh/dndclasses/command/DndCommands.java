@@ -192,7 +192,12 @@ public final class DndCommands {
                 .then(Commands.literal("map")
                         .executes(context -> worldPlanMap(context.getSource())))
                 .then(Commands.literal("border")
-                        .executes(context -> worldPlanBorder(context.getSource()))));
+                        .executes(context -> worldPlanBorder(context.getSource())))
+                .then(Commands.literal("biome")
+                        .then(Commands.argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
+                                .executes(context -> worldPlanBiome(context.getSource(),
+                                        com.mojang.brigadier.arguments.StringArgumentType.getString(
+                                                context, "name"))))));
 
         dispatcher.register(Commands.literal("npc")
                 .requires(source -> source.hasPermission(2))
@@ -589,8 +594,7 @@ public final class DndCommands {
         int[] land = findLand(density, 0, 0, 12_000, 256);
         int x = land[0];
         int z = land[1];
-        int landY = level.getHeight(
-                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int landY = density.surfaceHeight(x, z) + 2;
         level.getWorldBorder().setCenter(0.0D, 0.0D);
         level.getWorldBorder().setSize(62_720.0D);
         player.teleportTo(level, x + 0.5D, landY + 1.0D, z + 0.5D,
@@ -631,6 +635,67 @@ public final class DndCommands {
         source.sendSuccess(() -> Component.literal("地形图已写入 " + directory
                 + "（seed=" + seed + "）"), false);
         return 1;
+    }
+
+    private static int worldPlanBiome(CommandSourceStack source, String name)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        net.minecraft.server.level.ServerLevel level =
+                (net.minecraft.server.level.ServerLevel) player.level();
+        mdh.dndclasses.worldgen.terrain.TerrainModel.Biome target = null;
+        String key = name.toLowerCase(java.util.Locale.ROOT).replace("minecraft:", "");
+        for (mdh.dndclasses.worldgen.terrain.TerrainModel.Biome biome
+                : mdh.dndclasses.worldgen.terrain.TerrainModel.Biome.values()) {
+            if (biome.name().toLowerCase(java.util.Locale.ROOT).equals(key)) {
+                target = biome;
+                break;
+            }
+        }
+        if (target == null) {
+            source.sendFailure(Component.literal("未知群系: " + name));
+            return 0;
+        }
+        mdh.dndclasses.worldgen.terrain.TerrainModel model =
+                new mdh.dndclasses.worldgen.terrain.TerrainModel(
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), level.getSeed());
+        mdh.dndclasses.worldgen.terrain.TerrainDensity density =
+                new mdh.dndclasses.worldgen.terrain.TerrainDensity(
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), level.getSeed());
+        int[] spot = findBiome(model, density, target, 12_000, 256);
+        if (spot == null) {
+            source.sendFailure(Component.literal("附近找不到群系: " + target));
+            return 0;
+        }
+        int y = density.surfaceHeight(spot[0], spot[1]) + 2;
+        applyTerrainBorder(level);
+        player.teleportTo(level, spot[0] + 0.5D, y, spot[1] + 0.5D,
+                player.getYRot(), player.getXRot());
+        final mdh.dndclasses.worldgen.terrain.TerrainModel.Biome found = target;
+        source.sendSuccess(() -> Component.literal("已传送到 " + found + " @ "
+                + spot[0] + ", " + spot[1]), false);
+        return 1;
+    }
+
+    private static int[] findBiome(mdh.dndclasses.worldgen.terrain.TerrainModel model,
+                                   mdh.dndclasses.worldgen.terrain.TerrainDensity density,
+                                   mdh.dndclasses.worldgen.terrain.TerrainModel.Biome target,
+                                   int maxRadius, int step) {
+        for (int radius = 0; radius <= maxRadius; radius += step) {
+            for (int dx = -radius; dx <= radius; dx += step) {
+                for (int dz = -radius; dz <= radius; dz += step) {
+                    if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+                    int x = dx;
+                    int z = dz;
+                    int surface = density.surfaceHeight(x, z);
+                    if (surface > 73 && model.biome(x, z, surface) == target) {
+                        return new int[]{x, z};
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static int[] findLand(mdh.dndclasses.worldgen.terrain.TerrainDensity density,

@@ -121,7 +121,7 @@ public final class TerrainModel {
 
     public double temperature(int x, int z, int height) {
         double latitude = latitude(z);
-        double altitude = Math.max(0, height - SEA_LEVEL) * 0.006D;
+        double altitude = Math.max(0, height - SEA_LEVEL) * 0.018D;
         double noise = (temperatureNoise.sample(topology.wrap(x), topology.wrap(z)) - 0.5D) * 6.0D;
         return -8.0D + 32.0D * latitude - altitude + noise;
     }

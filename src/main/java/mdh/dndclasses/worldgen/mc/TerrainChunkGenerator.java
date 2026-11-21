@@ -201,7 +201,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
 
     private static BlockState surfaceState(TerrainModel.Biome biome, int y, int height,
                                            double temperature) {
-        if (temperature <= -12.0D) {
+        if (temperature <= -12.0D || height >= 135) {
             return y == height ? SNOW : STONE;
         }
         if (biome == TerrainModel.Biome.DESERT || biome == TerrainModel.Biome.BEACH) {

@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -23,12 +24,20 @@ public final class WorldPlanEvents {
     }
 
     @SubscribeEvent
+    public static void onServerAboutToStart(ServerAboutToStartEvent event) {
+        mdh.dndclasses.worldgen.terrain.TerrainBiomeSource.install(
+                event.getServer().registryAccess());
+    }
+
+    @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         WorldPlanCache.clear();
     }
 
     @SubscribeEvent
     public static void onLevelLoad(LevelEvent.Load event) {
+        mdh.dndclasses.worldgen.terrain.TerrainBiomeSource.install(
+                event.getLevel().registryAccess());
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }

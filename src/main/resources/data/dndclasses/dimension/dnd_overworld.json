@@ -3,8 +3,8 @@
   "generator": {
     "type": "dndclasses:terrain",
     "biome_source": {
-      "type": "minecraft:multi_noise",
-      "preset": "minecraft:overworld"
+      "type": "dndclasses:terrain_biomes",
+      "seed": 12345
     },
     "seed": 12345
   }

@@ -68,6 +68,9 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
             this.seed = worldSeed;
             this.model = new TerrainModel(WorldTopology.standard(), worldSeed);
             this.density = new TerrainDensity(WorldTopology.standard(), worldSeed);
+            if (biomeSource instanceof mdh.dndclasses.worldgen.terrain.TerrainBiomeSource biomes) {
+                biomes.setSeed(worldSeed);
+            }
         }
     }
 

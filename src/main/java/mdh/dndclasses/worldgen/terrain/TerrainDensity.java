@@ -34,11 +34,27 @@ public final class TerrainDensity {
 
     /** Positive is solid, negative is air or water. */
     public double density(int x, int y, int z) {
-        int base = continent.height(x, z);
-        double vertical = (base - y) / 8.0D;
-        double rough = gradient3(x, y, z, 320, 0x243F6A88L) * 1.8D
-                + gradient3(x + 1_219, y * 1.3D, z - 2_731, 128, 0x85A308D3L) * 0.8D;
-        return vertical + rough;
+        int wx = topology.wrap(x);
+        int wz = topology.wrap(z);
+
+        // 2D continental mask only biases land vs. ocean; it is not used as the surface height.
+        double mask = clamp((continent.height(x, z) - SEA_LEVEL) / 95.0D, -1.7D, 1.7D);
+
+        double warpX = gradient2(wx, wz, 48, 0x51ED270BL) * 260.0D;
+        double warpZ = gradient2(wx + 3_177, wz - 7_133, 48, 0x6A09E667L) * 260.0D;
+        double px = wx + warpX;
+        double pz = wz + warpZ;
+
+        double broad = (fbm3(px, y, pz, 24, 4, 0x243F6A88L) - 0.5D) * 2.0D;
+        double detail = (fbm3(px + 1_219, y * 1.35D, pz - 2_731, 96, 4, 0x85A308D3L) - 0.5D) * 2.0D;
+        double ridge = ridged3(px, y, pz, 220, 3, 0x13198A2EL);
+
+        double vertical = (SEA_LEVEL - y) / 96.0D;
+        return vertical
+                + mask * 1.35D
+                + broad * 0.85D
+                + detail * 0.30D
+                + ridge * ridge * 0.55D * (0.45D + 0.55D * (detail * 0.5D + 0.5D));
     }
 
     /** Highest solid block at a column, used by the adapter and by land-spawn selection. */
@@ -153,6 +169,10 @@ public final class TerrainDensity {
 
     private static double fade(double t) {
         return t * t * t * (t * (t * 6.0D - 15.0D) + 10.0D);
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static double lerp(double a, double b, double t) {

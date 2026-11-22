@@ -1,10 +1,10 @@
 package mdh.dndclasses.worldgen.terrain;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
- * Deterministic hydrology for a world seed. Both chunk generation and the offline map read this
- * service; the map never installs river data into the generator.
+ * Legacy global hydrology entry point retained for the offline map command.
+ *
+ * <p>Chunk generation now uses {@link RegionalHydrology}; the global service is only a view helper
+ * and must not be treated as the source of river data for the generator.
  */
 public final class HydrologyService {
 
@@ -12,7 +12,6 @@ public final class HydrologyService {
     }
 
     private static volatile State current;
-    private static volatile CompletableFuture<State> pending;
 
     private HydrologyService() {
     }
@@ -21,7 +20,6 @@ public final class HydrologyService {
         return current;
     }
 
-    /** Synchronous use for the map command and tests. */
     public static State ensure(long seed) {
         State state = current;
         if (state != null && state.seed() == seed) {
@@ -32,31 +30,13 @@ public final class HydrologyService {
         return computed;
     }
 
-    /** Server startup path: compute off-thread, so chunk generation can run without rivers until ready. */
-    public static void ensureAsync(long seed) {
-        State state = current;
-        if (state != null && state.seed() == seed) {
-            return;
-        }
-        CompletableFuture<State> existing = pending;
-        if (existing != null && !existing.isDone()) {
-            return;
-        }
-        pending = CompletableFuture.supplyAsync(() -> compute(seed))
-                .thenApply(computed -> {
-                    current = computed;
-                    return computed;
-                });
-    }
-
     public static void clear() {
         current = null;
-        pending = null;
+        RegionalHydrology.clear();
     }
 
     private static State compute(long seed) {
         TerrainGrid grid = DensityMapSampler.sample(WorldTopology.standard(), seed);
-        RiverField.install(grid.riverPaths(), grid.topology());
         return new State(seed, grid);
     }
 }

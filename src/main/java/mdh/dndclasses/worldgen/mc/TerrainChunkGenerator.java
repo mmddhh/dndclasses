@@ -144,8 +144,8 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 int x = minX + localX;
                 int z = minZ + localZ;
                 int top = heights[localX + 1][localZ + 1];
-                mdh.dndclasses.worldgen.terrain.RiverField.Hit river =
-                        mdh.dndclasses.worldgen.terrain.RiverField.hit(x, z);
+                mdh.dndclasses.worldgen.terrain.RegionalHydrology.Hit river =
+                        mdh.dndclasses.worldgen.terrain.RegionalHydrology.hit(x, z, seed);
                 if (river != null && top >= SEA_LEVEL) {
                     int depth = Math.min(7, 2 + river.widthBlocks() / 24);
                     int bed = Math.max(MIN_Y + 4, top - depth);

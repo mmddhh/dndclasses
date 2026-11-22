@@ -89,7 +89,7 @@ public final class TerrainBiomeSource extends BiomeSource {
                                        Climate.Sampler sampler) {
         int x = quartX << 2;
         int z = quartZ << 2;
-        if (RiverField.hit(x, z) != null) {
+        if (RegionalHydrology.hit(x, z, seed) != null) {
             return river;
         }
         int surface = density.surfaceHeight(x, z);

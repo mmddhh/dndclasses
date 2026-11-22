@@ -21,8 +21,6 @@ public final class WorldPlanEvents {
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
         WorldPlanCache.set(WorldPlanSavedData.get(event.getServer().overworld()).plan());
-        mdh.dndclasses.worldgen.terrain.HydrologyService.ensureAsync(
-                event.getServer().overworld().getSeed());
     }
 
     @SubscribeEvent

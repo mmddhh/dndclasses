@@ -1,0 +1,124 @@
+package mdh.dndclasses.worldgen.terrain;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * TFC-style lazy regional hydrology: a 4096-block region is sampled, drained and cached on demand.
+ * The chunk generator never needs a globally baked river network.
+ */
+public final class RegionalHydrology {
+
+    private static final int REGION_BLOCKS = 4_096;
+    private static final int CELL_BLOCKS = 64;
+    private static final int GRID = REGION_BLOCKS / CELL_BLOCKS;
+    private static final int CACHE_SIZE = 64;
+
+    public record Hit(int widthBlocks, double distance) {
+    }
+
+    private record Segment(double x1, double z1, double x2, double z2, int width) {
+    }
+
+    private record Region(List<Segment> segments) {
+    }
+
+    private static final Map<Long, Region> CACHE = new LinkedHashMap<>(CACHE_SIZE, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Long, Region> eldest) {
+            return size() > CACHE_SIZE;
+        }
+    };
+
+    private static long cachedSeed = Long.MIN_VALUE;
+
+    private RegionalHydrology() {
+    }
+
+    public static Hit hit(int x, int z, long seed) {
+        if (seed != cachedSeed) {
+            synchronized (CACHE) {
+                CACHE.clear();
+                cachedSeed = seed;
+            }
+        }
+        int regionX = Math.floorDiv(Math.floorMod(x, 62_720), REGION_BLOCKS);
+        int regionZ = Math.floorDiv(Math.floorMod(z, 62_720), REGION_BLOCKS);
+        Region region;
+        synchronized (CACHE) {
+            region = CACHE.computeIfAbsent(key(regionX, regionZ),
+                    ignored -> build(regionX, regionZ, seed));
+        }
+        Hit best = null;
+        for (Segment segment : region.segments()) {
+            double distance = distanceToSegmentSq(x, z, segment);
+            double radius = segment.width() * 0.5D;
+            if (distance <= radius * radius) {
+                if (best == null || distance < best.distance()) {
+                    best = new Hit(segment.width(), Math.sqrt(distance));
+                }
+            }
+        }
+        return best;
+    }
+
+    private static Region build(int regionX, int regionZ, long seed) {
+        WorldTopology topology = WorldTopology.standard();
+        TerrainDensity density = new TerrainDensity(topology, seed);
+        int expanded = GRID + 2;
+        short[] heights = new short[expanded * expanded];
+        boolean[] water = new boolean[expanded * expanded];
+        int baseX = regionX * REGION_BLOCKS;
+        int baseZ = regionZ * REGION_BLOCKS;
+        for (int gz = 0; gz < expanded; gz++) {
+            for (int gx = 0; gx < expanded; gx++) {
+                int x = baseX + (gx - 1) * CELL_BLOCKS + CELL_BLOCKS / 2;
+                int z = baseZ + (gz - 1) * CELL_BLOCKS + CELL_BLOCKS / 2;
+                int height = density.surfaceHeight(x, z);
+                int index = gz * expanded + gx;
+                heights[index] = (short) height;
+                water[index] = height < TerrainModel.SEA_LEVEL;
+            }
+        }
+        D8Hydrology.Result result = D8Hydrology.compute(expanded, heights, water);
+        List<Segment> segments = new ArrayList<>();
+        for (RiverPath path : result.paths()) {
+            for (int i = 1; i < path.points().size(); i++) {
+                RiverPath.Node a = path.points().get(i - 1);
+                RiverPath.Node b = path.points().get(i);
+                segments.add(new Segment(
+                        baseX + (a.x() - 1 + 0.5D) * CELL_BLOCKS,
+                        baseZ + (a.z() - 1 + 0.5D) * CELL_BLOCKS,
+                        baseX + (b.x() - 1 + 0.5D) * CELL_BLOCKS,
+                        baseZ + (b.z() - 1 + 0.5D) * CELL_BLOCKS,
+                        path.width()));
+            }
+        }
+        return new Region(List.copyOf(segments));
+    }
+
+    private static double distanceToSegmentSq(int px, int pz, Segment segment) {
+        double dx = segment.x2() - segment.x1();
+        double dz = segment.z2() - segment.z1();
+        double lengthSq = dx * dx + dz * dz;
+        double t = lengthSq == 0.0D ? 0.0D
+                : (((px - segment.x1()) * dx + (pz - segment.z1()) * dz) / lengthSq);
+        t = Math.max(0.0D, Math.min(1.0D, t));
+        double x = segment.x1() + t * dx;
+        double z = segment.z1() + t * dz;
+        return (px - x) * (px - x) + (pz - z) * (pz - z);
+    }
+
+    private static long key(int x, int z) {
+        return ((long) x << 32) ^ (z & 0xFFFFFFFFL);
+    }
+
+    public static void clear() {
+        synchronized (CACHE) {
+            CACHE.clear();
+            cachedSeed = Long.MIN_VALUE;
+        }
+    }
+}

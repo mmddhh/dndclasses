@@ -24,12 +24,14 @@ public final class TerrainDensity {
     private final long seed;
     private final int side;
     private final TerrainModel continent;
+    private final TerrainLandform landform;
 
     public TerrainDensity(WorldTopology topology, long seed) {
         this.topology = topology;
         this.seed = seed;
         this.side = topology.sideBlocks();
         this.continent = new TerrainModel(topology, seed);
+        this.landform = new TerrainLandform(continent);
     }
 
     /** Positive is solid, negative is air or water. */
@@ -37,8 +39,8 @@ public final class TerrainDensity {
         int wx = topology.wrap(x);
         int wz = topology.wrap(z);
 
-        // 2D continental mask only biases land vs. ocean; it is not used as the surface height.
-        double mask = clamp((continent.height(x, z) - SEA_LEVEL) / 95.0D, -1.7D, 1.7D);
+        // 2D landform target biases the density; the actual surface still comes from 3D noise.
+        double mask = clamp((landform.targetHeight(x, z) - SEA_LEVEL) / 95.0D, -1.7D, 1.7D);
 
         double warpX = gradient2(wx, wz, 48, 0x51ED270BL) * 260.0D;
         double warpZ = gradient2(wx + 3_177, wz - 7_133, 48, 0x6A09E667L) * 260.0D;

@@ -180,7 +180,8 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                     }
                 }
                 boolean snowEligible = top >= 135 && minNeighbor >= 112;
-                if (riverSurface >= SEA_LEVEL && temperature <= 0.0D) {
+                if (riverSurface >= SEA_LEVEL
+                        && model.temperature(x, z, riverSurface) <= 0.0D) {
                     chunk.setBlockState(new BlockPos(x, riverSurface, z), ICE, false);
                 }
                 if (top >= SEA_LEVEL) {

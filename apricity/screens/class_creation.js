@@ -694,6 +694,23 @@ function bindAbilityRow(body, a, remaining, primary) {
       ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
       : String(shown);
   });
+  slider.addEventListener("mouseup", function () {
+    setAbilityTarget(a.key, parseInt(slider.value, 10), true);
+  });
+  var poll = setInterval(function () {
+    if (!slider.parentNode) {
+      clearInterval(poll);
+      return;
+    }
+    var value = parseInt(slider.value, 10);
+    if (!isNaN(value) && value !== state.abilities[a.key]) {
+      setAbilityTarget(a.key, value, false);
+      var shown = Math.min(20, state.abilities[a.key] + bonus);
+      score.textContent = bonus
+        ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
+        : String(shown);
+    }
+  }, 120);
   body.appendChild(row);
 }
 

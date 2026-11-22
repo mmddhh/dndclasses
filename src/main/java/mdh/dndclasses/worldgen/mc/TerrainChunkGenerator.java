@@ -145,9 +145,11 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 int x = minX + localX;
                 int z = minZ + localZ;
                 int top = heights[localX + 1][localZ + 1];
+                int riverSurface = -1;
                 mdh.dndclasses.worldgen.terrain.RegionalHydrology.Hit river =
                         mdh.dndclasses.worldgen.terrain.RegionalHydrology.hit(x, z, seed);
                 if (river != null && top >= SEA_LEVEL) {
+                    riverSurface = top;
                     int depth = Math.min(7, 2 + river.widthBlocks() / 24);
                     int bed = Math.max(MIN_Y + 4, top - depth);
                     for (int y = bed + 1; y <= top; y++) {
@@ -178,6 +180,9 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                     }
                 }
                 boolean snowEligible = top >= 135 && minNeighbor >= 112;
+                if (riverSurface >= SEA_LEVEL && temperature <= 0.0D) {
+                    chunk.setBlockState(new BlockPos(x, riverSurface, z), ICE, false);
+                }
                 if (top >= SEA_LEVEL) {
                     if (biome == TerrainModel.Biome.OCEAN) {
                         biome = TerrainModel.Biome.PLAINS;

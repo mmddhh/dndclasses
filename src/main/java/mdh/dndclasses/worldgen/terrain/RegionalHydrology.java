@@ -16,10 +16,11 @@ public final class RegionalHydrology {
     private static final int GRID = REGION_BLOCKS / CELL_BLOCKS;
     private static final int CACHE_SIZE = 64;
 
-    public record Hit(int widthBlocks, double distance) {
+    public record Hit(int widthBlocks, double distance, int waterLevel) {
     }
 
-    private record Segment(double x1, double z1, double x2, double z2, int width) {
+    private record Segment(double x1, double z1, double x2, double z2, int width,
+                           int waterLevel) {
     }
 
     private record Region(List<Segment> segments) {
@@ -72,7 +73,8 @@ public final class RegionalHydrology {
                     double radius = segment.width() * 0.5D;
                     if (distance <= radius * radius) {
                         if (best == null || distance < best.distance()) {
-                            best = new Hit(segment.width(), Math.sqrt(distance));
+                            best = new Hit(segment.width(), Math.sqrt(distance),
+                                    segment.waterLevel());
                         }
                     }
                 }
@@ -102,15 +104,22 @@ public final class RegionalHydrology {
         D8Hydrology.Result result = D8Hydrology.compute(expanded, heights, water);
         List<Segment> segments = new ArrayList<>();
         for (RiverPath path : result.paths()) {
+            int waterLevel = TerrainModel.MAX_Y;
             for (int i = 1; i < path.points().size(); i++) {
                 RiverPath.Node a = path.points().get(i - 1);
                 RiverPath.Node b = path.points().get(i);
+                int surface = Math.min(
+                        heights[Math.max(0, Math.min(expanded - 1, a.z()))
+                                * expanded + Math.max(0, Math.min(expanded - 1, a.x()))],
+                        heights[Math.max(0, Math.min(expanded - 1, b.z()))
+                                * expanded + Math.max(0, Math.min(expanded - 1, b.x()))]);
+                waterLevel = Math.min(waterLevel, surface);
                 segments.add(new Segment(
                         baseX + (a.x() - 1 + 0.5D) * CELL_BLOCKS,
                         baseZ + (a.z() - 1 + 0.5D) * CELL_BLOCKS,
                         baseX + (b.x() - 1 + 0.5D) * CELL_BLOCKS,
                         baseZ + (b.z() - 1 + 0.5D) * CELL_BLOCKS,
-                        path.width()));
+                        path.width(), waterLevel));
             }
         }
         return new Region(List.copyOf(segments));

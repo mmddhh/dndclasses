@@ -148,14 +148,17 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 mdh.dndclasses.worldgen.terrain.RegionalHydrology.Hit river =
                         mdh.dndclasses.worldgen.terrain.RegionalHydrology.hit(x, z, seed);
                 if (river != null && top >= SEA_LEVEL) {
-                    riverSurface = top;
-                    int depth = Math.min(7, 2 + river.widthBlocks() / 24);
-                    int bed = Math.max(MIN_Y + 4, top - depth);
-                    for (int y = bed + 1; y <= top; y++) {
-                        chunk.setBlockState(new BlockPos(x, y, z), WATER, false);
+                    int surface = Math.min(top, river.waterLevel());
+                    if (surface > SEA_LEVEL) {
+                        int depth = Math.min(7, 2 + river.widthBlocks() / 24);
+                        int bed = Math.max(MIN_Y + 4, Math.min(top - depth, surface - 2));
+                        for (int y = bed + 1; y <= surface; y++) {
+                            chunk.setBlockState(new BlockPos(x, y, z), WATER, false);
+                        }
+                        chunk.setBlockState(new BlockPos(x, bed, z), GRAVEL, false);
+                        riverSurface = surface;
+                        top = bed;
                     }
-                    chunk.setBlockState(new BlockPos(x, bed, z), GRAVEL, false);
-                    top = bed;
                 }
                 for (int y = MIN_Y; y <= top; y++) {
                     BlockState state;

@@ -694,8 +694,32 @@ function bindAbilityRow(body, a, remaining, primary) {
       ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
       : String(shown);
   });
-  slider.addEventListener("mouseup", function () {
-    setAbilityTarget(a.key, parseInt(slider.value, 10), true);
+  var dragging = false;
+  function applyPointer(event) {
+    var rect = slider.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return;
+    var ratio = (event.clientX - rect.left) / rect.width;
+    ratio = Math.max(0, Math.min(1, ratio));
+    var value = Math.round(MIN_SCORE + ratio * (MAX_SCORE - MIN_SCORE));
+    slider.value = String(value);
+    setAbilityTarget(a.key, value, false);
+    var shown = Math.min(20, state.abilities[a.key] + bonus);
+    score.textContent = bonus
+      ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
+      : String(shown);
+  }
+  slider.addEventListener("mousedown", function (event) {
+    dragging = true;
+    applyPointer(event);
+  });
+  slider.addEventListener("mousemove", function (event) {
+    if (dragging) applyPointer(event);
+  });
+  slider.addEventListener("mouseup", function (event) {
+    if (!dragging) return;
+    dragging = false;
+    applyPointer(event);
+    renderAbility();
   });
   var poll = setInterval(function () {
     if (!slider.parentNode) {

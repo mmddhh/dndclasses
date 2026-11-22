@@ -683,18 +683,17 @@ function bindAbilityRow(body, a, remaining, primary) {
   row.appendChild(abName);
   row.appendChild(make("span", "ability-mod", (mod >= 0 ? "+" : "") + mod));
 
-  slider.onchange = function () {
+  slider.addEventListener("change", function () {
     setAbilityTarget(a.key, parseInt(this.value, 10), true);
-  };
-  slider.oninput = function () {
+  });
+  slider.addEventListener("input", function () {
     var value = parseInt(this.value, 10);
     setAbilityTarget(a.key, value, false);
     var shown = Math.min(20, state.abilities[a.key] + bonus);
     score.textContent = bonus
       ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
       : String(shown);
-  };
-  slider.onpointerup = slider.onchange;
+  });
   body.appendChild(row);
 }
 

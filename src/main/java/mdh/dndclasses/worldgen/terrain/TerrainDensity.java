@@ -8,7 +8,7 @@ public final class TerrainDensity {
 
     private static final int SEA_LEVEL = 63;
     private static final int MIN_Y = -64;
-    private static final int MAX_Y = 319;
+    private static final int MAX_Y = 447;
 
     private static final int[][] GRADIENTS_2 = {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1},

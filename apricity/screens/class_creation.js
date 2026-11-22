@@ -683,16 +683,18 @@ function bindAbilityRow(body, a, remaining, primary) {
   row.appendChild(abName);
   row.appendChild(make("span", "ability-mod", (mod >= 0 ? "+" : "") + mod));
 
-  slider.addEventListener("change", function () {
-    setAbilityTarget(a.key, parseInt(this.value, 10));
-  });
-  slider.addEventListener("input", function () {
+  slider.onchange = function () {
+    setAbilityTarget(a.key, parseInt(this.value, 10), true);
+  };
+  slider.oninput = function () {
     var value = parseInt(this.value, 10);
-    var shown = Math.min(20, value + bonus);
+    setAbilityTarget(a.key, value, false);
+    var shown = Math.min(20, state.abilities[a.key] + bonus);
     score.textContent = bonus
       ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
       : String(shown);
-  });
+  };
+  slider.onpointerup = slider.onchange;
   body.appendChild(row);
 }
 
@@ -709,14 +711,16 @@ function applyAbilityDelta(key, delta) {
   return true;
 }
 
-function setAbilityTarget(key, target) {
+function setAbilityTarget(key, target, render) {
   while (state.abilities[key] < target) {
     if (!applyAbilityDelta(key, 1)) break;
   }
   while (state.abilities[key] > target) {
     if (!applyAbilityDelta(key, -1)) break;
   }
-  renderAbility();
+  if (render !== false) {
+    renderAbility();
+  }
   updateFooterSummary();
   refreshConfirmState();
   setMsg("", false);

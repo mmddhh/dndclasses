@@ -196,6 +196,7 @@ public final class DndCommands {
                 .then(Commands.literal("biome")
                         .then(Commands.argument("name", com.mojang.brigadier.arguments.StringArgumentType.word())
                                 .suggests((context, builder) -> {
+                                    builder.suggest("river");
                                     for (mdh.dndclasses.worldgen.terrain.TerrainModel.Biome biome
                                             : mdh.dndclasses.worldgen.terrain.TerrainModel.Biome.values()) {
                                         builder.suggest(biome.name().toLowerCase(java.util.Locale.ROOT));
@@ -650,6 +651,9 @@ public final class DndCommands {
                 (net.minecraft.server.level.ServerLevel) player.level();
         mdh.dndclasses.worldgen.terrain.TerrainModel.Biome target = null;
         String key = name.toLowerCase(java.util.Locale.ROOT).replace("minecraft:", "");
+        if ("river".equals(key)) {
+            return worldPlanRiver(source, level);
+        }
         for (mdh.dndclasses.worldgen.terrain.TerrainModel.Biome biome
                 : mdh.dndclasses.worldgen.terrain.TerrainModel.Biome.values()) {
             if (biome.name().toLowerCase(java.util.Locale.ROOT).equals(key)) {
@@ -667,7 +671,7 @@ public final class DndCommands {
         mdh.dndclasses.worldgen.terrain.TerrainDensity density =
                 new mdh.dndclasses.worldgen.terrain.TerrainDensity(
                         mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), level.getSeed());
-        int[] spot = findBiome(model, density, target, 12_000, 256);
+        int[] spot = findBiome(model, density, target, 30_000, 256);
         if (spot == null) {
             source.sendFailure(Component.literal("附近找不到群系: " + target));
             return 0;
@@ -680,6 +684,44 @@ public final class DndCommands {
         source.sendSuccess(() -> Component.literal("已传送到 " + found + " @ "
                 + spot[0] + ", " + spot[1]), false);
         return 1;
+    }
+
+    private static int worldPlanRiver(CommandSourceStack source,
+                                      net.minecraft.server.level.ServerLevel level)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        long seed = level.getSeed();
+        int[] spot = findRiver(seed, 30_000, 256);
+        if (spot == null) {
+            source.sendFailure(Component.literal("附近找不到河道"));
+            return 0;
+        }
+        int y = new mdh.dndclasses.worldgen.terrain.TerrainDensity(
+                mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), seed)
+                .surfaceHeight(spot[0], spot[1]) + 3;
+        applyTerrainBorder(level);
+        player.teleportTo(level, spot[0] + 0.5D, y, spot[1] + 0.5D,
+                player.getYRot(), player.getXRot());
+        source.sendSuccess(() -> Component.literal("已传送到河道 @ "
+                + spot[0] + ", " + spot[1]), false);
+        return 1;
+    }
+
+    private static int[] findRiver(long seed, int maxRadius, int step) {
+        for (int radius = 0; radius <= maxRadius; radius += step) {
+            for (int dx = -radius; dx <= radius; dx += step) {
+                for (int dz = -radius; dz <= radius; dz += step) {
+                    if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+                    if (mdh.dndclasses.worldgen.terrain.RegionalHydrology.hit(
+                            dx, dz, seed) != null) {
+                        return new int[]{dx, dz};
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static int[] findBiome(mdh.dndclasses.worldgen.terrain.TerrainModel model,

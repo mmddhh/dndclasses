@@ -10,7 +10,7 @@ public final class TerrainModel {
 
     public static final int SEA_LEVEL = 63;
     public static final int MIN_Y = -64;
-    public static final int MAX_Y = 320;
+    public static final int MAX_Y = 448;
 
     private final WorldTopology topology;
     private final long seed;
@@ -139,13 +139,17 @@ public final class TerrainModel {
                 break;
             }
         }
-        // Prevailing westerlies: a high ridge upwind strips moisture downwind.
-        int upwind = height(x - 96, z);
-        int downwind = height(x + 96, z);
+        // Prevailing wind belts: tropical easterlies, mid-latitude westerlies, polar easterlies.
+        boolean easterly = latitude(z) > 0.72D || latitude(z) < 0.28D;
+        int windSign = easterly ? 1 : -1;
+        int upwind = height(x + windSign * 96, z);
+        int downwind = height(x - windSign * 96, z);
         double rainShadow = clamp((upwind - height) / 320.0D, 0.0D, 0.30D);
         double windward = clamp((height - downwind) / 420.0D, 0.0D, 0.10D);
+        // The tropical monsoon adds moisture on the summer hemisphere side of the equator.
+        double monsoon = latitude(z) > 0.55D ? 0.05D : 0.0D;
         double altitudeDry = Math.max(0, height - SEA_LEVEL) * 0.0015D;
-        return clamp(noise + coast + windward - rainShadow - altitudeDry, 0.0D, 1.0D);
+        return clamp(noise + coast + windward + monsoon - rainShadow - altitudeDry, 0.0D, 1.0D);
     }
 
     public Biome biome(int x, int z) {
@@ -170,7 +174,7 @@ public final class TerrainModel {
         if (temperature < -5.0D) {
             return Biome.TUNDRA;
         }
-        if (temperature > 26.0D && humidity < 0.30D) {
+        if (temperature > 20.0D && humidity < 0.28D) {
             return Biome.DESERT;
         }
         if (temperature > 22.0D && humidity > 0.65D) {

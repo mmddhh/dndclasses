@@ -16,6 +16,7 @@ import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -40,7 +41,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
             ).apply(instance, TerrainChunkGenerator::new));
 
     private static final int MIN_Y = -64;
-    private static final int HEIGHT = 384;
+    private static final int HEIGHT = 512;
     private static final int SEA_LEVEL = 63;
     private static final BlockState STONE = Blocks.STONE.defaultBlockState();
     private static final BlockState DEEPSLATE = Blocks.DEEPSLATE.defaultBlockState();
@@ -223,6 +224,12 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                                            double temperature, boolean snowEligible) {
         if (temperature <= 0.0D || snowEligible) {
             return y == height ? SNOW : STONE;
+        }
+        if (temperature <= 3.0D && height >= 118) {
+            int layers = Math.max(1, Math.min(3, (int) Math.ceil(3.0D - temperature)));
+            return y == height
+                    ? Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, layers)
+                    : STONE;
         }
         if (biome == TerrainModel.Biome.DESERT || biome == TerrainModel.Biome.BEACH) {
             return y == height ? SAND : SAND;

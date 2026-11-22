@@ -1,9 +1,8 @@
 package mdh.dndclasses.worldgen.terrain;
 
 /**
- * Landform classification independent from biome. It turns the broad continental height into a
- * target elevation for plains, plateaus, basins, hills and mountains so each landform can use a
- * different surface function.
+ * Regional landform zoning. Zone boundaries use the low-frequency regional height, then blend
+ * continuously so plains, plateaus, basins, hills and mountains do not switch per column.
  */
 public final class TerrainLandform {
 
@@ -18,40 +17,54 @@ public final class TerrainLandform {
     }
 
     public Type type(int x, int z) {
-        int height = model.height(x, z);
-        if (height <= TerrainModel.SEA_LEVEL) {
+        int regional = model.regionalHeight(x, z);
+        if (regional <= TerrainModel.SEA_LEVEL) {
             return Type.OCEAN;
         }
-        int relief = height - TerrainModel.SEA_LEVEL;
-        if (relief < 14) {
-            return Type.PLAINS;
-        }
-        if (relief < 45) {
-            return Type.HILLS;
-        }
-        if (relief < 105) {
-            return Type.PLATEAU;
-        }
-        if (relief < 145) {
-            return Type.BASIN;
-        }
+        int relief = regional - TerrainModel.SEA_LEVEL;
+        if (relief < 24) return Type.PLAINS;
+        if (relief < 62) return Type.HILLS;
+        if (relief < 118) return Type.PLATEAU;
+        if (relief < 150) return Type.BASIN;
         return Type.MOUNTAINS;
     }
 
-    /**
-     * Target surface height. Plains are nearly flat, plateaus are high and flat, basins are
-     * shallow bowls, hills retain medium relief, mountains keep the ridged base.
-     */
+    /** Continuous target elevation, blended between landform bands. */
     public int targetHeight(int x, int z) {
-        int base = model.height(x, z);
-        int relief = Math.max(0, base - TerrainModel.SEA_LEVEL);
+        int regional = model.regionalHeight(x, z);
+        if (regional <= TerrainModel.SEA_LEVEL) {
+            return regional;
+        }
+        double relief = regional - TerrainModel.SEA_LEVEL;
+        double plains = 1.0D - smoothstep(18.0D, 48.0D, relief);
+        double hills = smoothstep(18.0D, 48.0D, relief) * (1.0D - smoothstep(70.0D, 115.0D, relief));
+        double plateau = smoothstep(70.0D, 115.0D, relief) * (1.0D - smoothstep(135.0D, 175.0D, relief));
+        double mountains = smoothstep(135.0D, 175.0D, relief);
+        double basin = smoothstep(20.0D, 45.0D, relief) * (1.0D - smoothstep(55.0D, 80.0D, relief));
+        double weight = Math.max(0.0001D, plains + hills + plateau + mountains + basin);
+
+        double target = 0.0D;
+        target += plains * (TerrainModel.SEA_LEVEL + 4.0D + relief * 0.06D);
+        target += hills * (TerrainModel.SEA_LEVEL + 10.0D + relief * 0.45D);
+        target += plateau * (TerrainModel.SEA_LEVEL + 74.0D + relief * 0.12D);
+        target += basin * (TerrainModel.SEA_LEVEL + 20.0D - Math.min(10.0D, relief * 0.10D));
+        target += mountains * (TerrainModel.SEA_LEVEL + 105.0D + (relief - 135.0D) * 0.55D);
+        return (int) Math.round(target / weight);
+    }
+
+    public double roughness(int x, int z) {
         return switch (type(x, z)) {
-            case OCEAN -> base;
-            case PLAINS -> TerrainModel.SEA_LEVEL + 4 + (relief / 6);
-            case HILLS -> TerrainModel.SEA_LEVEL + 8 + (relief / 2);
-            case PLATEAU -> TerrainModel.SEA_LEVEL + 86 + (relief / 8);
-            case BASIN -> TerrainModel.SEA_LEVEL + 22 - Math.min(14, relief / 10);
-            case MOUNTAINS -> TerrainModel.SEA_LEVEL + 120 + (relief * 2 / 3);
+            case OCEAN -> 0.7D;
+            case PLAINS -> 0.20D;
+            case HILLS -> 0.65D;
+            case PLATEAU -> 0.30D;
+            case BASIN -> 0.25D;
+            case MOUNTAINS -> 1.0D;
         };
+    }
+
+    private static double smoothstep(double edge0, double edge1, double value) {
+        double t = Math.max(0.0D, Math.min(1.0D, (value - edge0) / (edge1 - edge0)));
+        return t * t * (3.0D - 2.0D * t);
     }
 }

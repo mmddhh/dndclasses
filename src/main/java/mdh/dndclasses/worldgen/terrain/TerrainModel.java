@@ -106,6 +106,27 @@ public final class TerrainModel {
         return height(x, z) <= SEA_LEVEL;
     }
 
+    /** Low-frequency continental height, without local detail or ridges. Used for landform zoning. */
+    public int regionalHeight(int x, int z) {
+        int wx = topology.wrap(x);
+        int wz = topology.wrap(z);
+        double warpX = (warpNoise.sample(wx, wz) - 0.5D) * 900.0D
+                + (coastNoise.sample(wx, wz) - 0.5D) * 900.0D;
+        double warpZ = (warpNoise.sample(wx + 3_731, wz - 1_919) - 0.5D) * 900.0D
+                + (coastNoise.sample(wx - 2_111, wz + 4_013) - 0.5D) * 900.0D;
+        int sampledX = topology.wrap((int) Math.round(wx + warpX));
+        int sampledZ = topology.wrap((int) Math.round(wz + warpZ));
+        double broad = superContinent.sample(sampledX, sampledZ) * 0.58D
+                + continent.sample(sampledX, sampledZ) * 0.42D;
+        broad += (continentDetail.sample(sampledX, sampledZ) - 0.5D) * 0.20D;
+        double seaThreshold = 0.46D;
+        if (broad < seaThreshold) {
+            return SEA_LEVEL - 1;
+        }
+        return (int) Math.max(SEA_LEVEL + 1,
+                Math.min(MAX_Y - 8, Math.round(SEA_LEVEL + (broad - seaThreshold) * 165.0D)));
+    }
+
     /**
      * Folded latitude in centered coordinates: 0 at (0,0) south pole and at the z=±half seam
      * north pole, 1 at the two symmetric equators z=±half/2.

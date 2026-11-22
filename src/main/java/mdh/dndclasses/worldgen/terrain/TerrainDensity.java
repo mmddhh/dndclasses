@@ -68,15 +68,17 @@ public final class TerrainDensity {
         double valley = smoothstep(0.78D, 0.97D, tributary);
 
         double vertical = (SEA_LEVEL - y) / 96.0D;
+        double formRoughness = landform.roughness(x, z);
         return vertical
                 + mask * 1.35D
-                + broad * 0.85D
-                + detail * 0.30D
-                + fine * 0.38D
-                + micro * 0.12D
+                + broad * 0.85D * formRoughness
+                + detail * 0.30D * formRoughness
+                + fine * 0.38D * formRoughness
+                + micro * 0.12D * formRoughness
                 + ridge * ridge * 0.55D * (0.45D + 0.55D * (detail * 0.5D + 0.5D))
-                + mountain * 0.55D
-                - valley * 0.42D;
+                        * formRoughness
+                + mountain * 0.55D * formRoughness
+                - valley * 0.42D * formRoughness;
     }
 
     private double ridge2(double x, double z, int period, long salt) {

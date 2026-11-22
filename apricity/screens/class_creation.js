@@ -697,8 +697,13 @@ function bindAbilityRow(body, a, remaining, primary) {
   var dragging = false;
   function applyPointer(event) {
     var rect = slider.getBoundingClientRect();
-    if (!rect || rect.width <= 0) return;
-    var ratio = (event.clientX - rect.left) / rect.width;
+    var width = rect && rect.width > 0 ? rect.width : slider.offsetWidth;
+    if (!width || width <= 0) return;
+    var clientX = event.clientX;
+    if (!clientX) clientX = event.offsetX;
+    if (!clientX) clientX = event.pageX;
+    var left = rect ? rect.left : 0;
+    var ratio = (clientX - left) / width;
     ratio = Math.max(0, Math.min(1, ratio));
     var value = Math.round(MIN_SCORE + ratio * (MAX_SCORE - MIN_SCORE));
     slider.value = String(value);
@@ -712,6 +717,10 @@ function bindAbilityRow(body, a, remaining, primary) {
     dragging = true;
     applyPointer(event);
   });
+  slider.addEventListener("click", function (event) {
+    applyPointer(event);
+    renderAbility();
+  });
   slider.addEventListener("mousemove", function (event) {
     if (dragging) applyPointer(event);
   });
@@ -722,10 +731,6 @@ function bindAbilityRow(body, a, remaining, primary) {
     renderAbility();
   });
   var poll = setInterval(function () {
-    if (!slider.parentNode) {
-      clearInterval(poll);
-      return;
-    }
     var value = parseInt(slider.value, 10);
     if (!isNaN(value) && value !== state.abilities[a.key]) {
       setAbilityTarget(a.key, value, false);

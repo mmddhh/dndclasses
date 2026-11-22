@@ -46,18 +46,35 @@ public final class RegionalHydrology {
         }
         int regionX = Math.floorDiv(Math.floorMod(x, 62_720), REGION_BLOCKS);
         int regionZ = Math.floorDiv(Math.floorMod(z, 62_720), REGION_BLOCKS);
-        Region region;
-        synchronized (CACHE) {
-            region = CACHE.computeIfAbsent(key(regionX, regionZ),
-                    ignored -> build(regionX, regionZ, seed));
-        }
         Hit best = null;
-        for (Segment segment : region.segments()) {
-            double distance = distanceToSegmentSq(x, z, segment);
-            double radius = segment.width() * 0.5D;
-            if (distance <= radius * radius) {
-                if (best == null || distance < best.distance()) {
-                    best = new Hit(segment.width(), Math.sqrt(distance));
+        // Build only the current region. Neighbouring regions are used only if already cached,
+        // otherwise the first chunk would build nine 4096-block regions synchronously.
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int rx = Math.floorMod(regionX + dx, 16);
+                int rz = Math.floorMod(regionZ + dz, 16);
+                Region region;
+                if (dx == 0 && dz == 0) {
+                    synchronized (CACHE) {
+                        region = CACHE.computeIfAbsent(key(rx, rz),
+                                ignored -> build(rx, rz, seed));
+                    }
+                } else {
+                    synchronized (CACHE) {
+                        region = CACHE.get(key(rx, rz));
+                    }
+                }
+                if (region == null) {
+                    continue;
+                }
+                for (Segment segment : region.segments()) {
+                    double distance = distanceToSegmentSq(x, z, segment);
+                    double radius = segment.width() * 0.5D;
+                    if (distance <= radius * radius) {
+                        if (best == null || distance < best.distance()) {
+                            best = new Hit(segment.width(), Math.sqrt(distance));
+                        }
+                    }
                 }
             }
         }

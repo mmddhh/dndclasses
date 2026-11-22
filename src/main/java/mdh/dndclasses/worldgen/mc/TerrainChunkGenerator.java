@@ -138,7 +138,6 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
             }
         }
         smoothHeights(heights);
-        smoothHeights(heights);
 
         for (int localX = 0; localX < 16; localX++) {
             for (int localZ = 0; localZ < 16; localZ++) {

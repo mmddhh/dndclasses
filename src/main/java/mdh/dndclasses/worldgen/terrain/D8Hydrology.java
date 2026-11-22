@@ -147,9 +147,30 @@ public final class D8Hydrology {
             }
             if (nodes.size() >= 4) {
                 int widthBlocks = 4 + (int) Math.min(236.0D, Math.sqrt(maxFlow) * 2.2D);
-                paths.add(new RiverPath(List.copyOf(nodes), widthBlocks));
+                paths.add(new RiverPath(smooth(nodes), widthBlocks));
             }
         }
         return paths;
+    }
+
+    private static List<RiverPath.Node> smooth(List<RiverPath.Node> input) {
+        List<RiverPath.Node> points = input;
+        for (int pass = 0; pass < 2; pass++) {
+            List<RiverPath.Node> next = new ArrayList<>();
+            next.add(points.get(0));
+            for (int i = 1; i < points.size(); i++) {
+                RiverPath.Node a = points.get(i - 1);
+                RiverPath.Node b = points.get(i);
+                next.add(new RiverPath.Node(
+                        (int) Math.round(a.x() * 0.75D + b.x() * 0.25D),
+                        (int) Math.round(a.z() * 0.75D + b.z() * 0.25D)));
+                next.add(new RiverPath.Node(
+                        (int) Math.round(a.x() * 0.25D + b.x() * 0.75D),
+                        (int) Math.round(a.z() * 0.25D + b.z() * 0.75D)));
+            }
+            next.add(points.get(points.size() - 1));
+            points = next;
+        }
+        return List.copyOf(points);
     }
 }

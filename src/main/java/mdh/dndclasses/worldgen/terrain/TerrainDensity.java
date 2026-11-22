@@ -49,6 +49,8 @@ public final class TerrainDensity {
 
         double broad = (fbm3(px, py, pz, 24, 4, 0x243F6A88L) - 0.5D) * 2.0D;
         double detail = (fbm3(px + 1_219, py * 1.35D, pz - 2_731, 96, 4, 0x85A308D3L) - 0.5D) * 2.0D;
+        double fine = (fbm3(px - 7_133, py * 1.8D, pz + 3_177, 512, 3, 0x9B05688CL) - 0.5D) * 2.0D;
+        double micro = gradient3(px + 5_003, py * 2.1D, pz - 6_007, 2048, 0x1F83D9ABL);
         double ridge = ridged3(px, py, pz, 220, 3, 0x13198A2EL);
 
         // The mountain field gets its own warp, otherwise high peaks fall back to closed rings.
@@ -68,6 +70,8 @@ public final class TerrainDensity {
                 + mask * 1.35D
                 + broad * 0.85D
                 + detail * 0.30D
+                + fine * 0.38D
+                + micro * 0.12D
                 + ridge * ridge * 0.55D * (0.45D + 0.55D * (detail * 0.5D + 0.5D))
                 + mountain * 0.55D
                 - valley * 0.42D;
@@ -85,9 +89,9 @@ public final class TerrainDensity {
 
     /** Highest solid block at a column, used by the adapter and by land-spawn selection. */
     public int surfaceHeight(int x, int z) {
-        for (int y = MAX_Y; y >= MIN_Y; y -= 4) {
+        for (int y = MAX_Y; y >= MIN_Y; y -= 2) {
             if (density(x, y, z) > 0.0D) {
-                for (int yy = Math.min(MAX_Y, y + 3); yy >= y; yy--) {
+                for (int yy = Math.min(MAX_Y, y + 1); yy >= y; yy--) {
                     if (density(x, yy, z) > 0.0D) {
                         return yy;
                     }

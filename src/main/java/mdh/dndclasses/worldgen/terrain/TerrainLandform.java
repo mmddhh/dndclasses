@@ -82,7 +82,8 @@ public final class TerrainLandform {
         double plateau = plateauMask(x, z);
         double basin = basinMask(x, z);
         double hillWeight = smoothstep(0.48D, 0.62D, hill);
-        return Math.min(1.0D, hillWeight * 0.55D + mountain * 0.90D
+        double floor = plates.isLand(x, z) ? 0.055D : 0.12D;
+        return Math.min(1.0D, floor + hillWeight * 0.55D + mountain * 0.90D
                 + plateau * 0.08D + basin * 0.10D);
     }
 

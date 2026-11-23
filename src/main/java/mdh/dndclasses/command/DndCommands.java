@@ -710,11 +710,17 @@ public final class DndCommands {
         ServerPlayer player = source.getPlayerOrException();
         net.minecraft.server.level.ServerLevel level =
                 (net.minecraft.server.level.ServerLevel) player.level();
-        mdh.dndclasses.worldgen.terrain.TerrainModel.Biome target = null;
         String key = name.toLowerCase(java.util.Locale.ROOT).replace("minecraft:", "");
         if ("river".equals(key)) {
             return worldPlanRiver(source, level);
         }
+        for (mdh.dndclasses.worldgen.terrain.TerrainLandform.Type type
+                : mdh.dndclasses.worldgen.terrain.TerrainLandform.Type.values()) {
+            if (type.name().toLowerCase(java.util.Locale.ROOT).equals(key)) {
+                return worldPlanLandform(source, level, type);
+            }
+        }
+        mdh.dndclasses.worldgen.terrain.TerrainModel.Biome target = null;
         for (mdh.dndclasses.worldgen.terrain.TerrainModel.Biome biome
                 : mdh.dndclasses.worldgen.terrain.TerrainModel.Biome.values()) {
             if (biome.name().toLowerCase(java.util.Locale.ROOT).equals(key)) {
@@ -745,6 +751,47 @@ public final class DndCommands {
         source.sendSuccess(() -> Component.literal("已传送到 " + found + " @ "
                 + spot[0] + ", " + spot[1]), false);
         return 1;
+    }
+
+    private static int worldPlanLandform(CommandSourceStack source,
+                                         net.minecraft.server.level.ServerLevel level,
+                                         mdh.dndclasses.worldgen.terrain.TerrainLandform.Type type)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        mdh.dndclasses.worldgen.terrain.TerrainDensity density =
+                new mdh.dndclasses.worldgen.terrain.TerrainDensity(
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), level.getSeed());
+        int[] spot = findLandform(density, type, 30_000, 256);
+        if (spot == null) {
+            source.sendFailure(Component.literal("附近找不到地形类型: " + type));
+            return 0;
+        }
+        int y = density.surfaceHeight(spot[0], spot[1]) + 2;
+        applyTerrainBorder(level);
+        player.teleportTo(level, spot[0] + 0.5D, y, spot[1] + 0.5D,
+                player.getYRot(), player.getXRot());
+        source.sendSuccess(() -> Component.literal("已传送到 " + type + " @ "
+                + spot[0] + ", " + spot[1]), false);
+        return 1;
+    }
+
+    private static int[] findLandform(mdh.dndclasses.worldgen.terrain.TerrainDensity density,
+                                      mdh.dndclasses.worldgen.terrain.TerrainLandform.Type target,
+                                      int maxRadius, int step) {
+        for (int radius = 0; radius <= maxRadius; radius += step) {
+            for (int dx = -radius; dx <= radius; dx += step) {
+                for (int dz = -radius; dz <= radius; dz += step) {
+                    if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+                    int surface = density.surfaceHeight(dx, dz);
+                    if (density.landform().typeAtSurface(dx, dz, surface) == target) {
+                        return new int[]{dx, dz};
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static int worldPlanRiver(CommandSourceStack source,

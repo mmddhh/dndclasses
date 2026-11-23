@@ -17,13 +17,15 @@ public final class PlateModel {
     }
 
     private final WorldTopology topology;
+    private final long seed;
     private final Plate[] plates;
     private final float[] base;
     private final float[] uplift;
-    private final boolean[] land;
+    private final float[] land;
 
     public PlateModel(WorldTopology topology, long seed) {
         this.topology = topology;
+        this.seed = seed;
         this.plates = new Plate[PLATE_COUNT];
         Random random = new Random(seed ^ 0x5DEECE66DL);
         for (int i = 0; i < PLATE_COUNT; i++) {
@@ -36,12 +38,13 @@ public final class PlateModel {
         }
         this.base = new float[GRID * GRID];
         this.uplift = new float[GRID * GRID];
-        this.land = new boolean[GRID * GRID];
+        this.land = new float[GRID * GRID];
         build();
     }
 
     public boolean isLand(int x, int z) {
-        return sample(land, x, z) > 0.45D;
+        double coast = (noise(x, z, 96, 0x3C6EF372L) - 0.5D) * 0.22D;
+        return sample(land, x, z) + coast > 0.5D;
     }
 
     public double oceanDepth(int x, int z) {
@@ -80,7 +83,7 @@ public final class PlateModel {
                 int index = gz * GRID + gx;
                 base[index] = (float) h;
                 uplift[index] = (float) up;
-                land[index] = continental;
+                land[index] = continental ? 1.0F : 0.0F;
             }
         }
     }
@@ -121,8 +124,12 @@ public final class PlateModel {
     }
 
     private double sample(float[] values, int x, int z) {
-        double gx = topology.wrap(x) / (double) CELL;
-        double gz = topology.wrap(z) / (double) CELL;
+        int warpedX = topology.wrap(x + (int) Math.round(
+                (noise(x, z, 48, 0x51ED270BL) - 0.5D) * 260.0D));
+        int warpedZ = topology.wrap(z + (int) Math.round(
+                (noise(x + 7_133, z - 3_177, 48, 0x6A09E667L) - 0.5D) * 260.0D));
+        double gx = warpedX / (double) CELL;
+        double gz = warpedZ / (double) CELL;
         int x0 = (int) Math.floor(gx);
         int z0 = (int) Math.floor(gz);
         int x1 = Math.floorMod(x0 + 1, GRID);
@@ -136,11 +143,36 @@ public final class PlateModel {
         return (a + (b - a) * tx) + ((c + (d - c) * tx) - (a + (b - a) * tx)) * tz;
     }
 
-    private double sample(boolean[] values, int x, int z) {
-        double gx = topology.wrap(x) / (double) CELL;
-        double gz = topology.wrap(z) / (double) CELL;
-        int x0 = Math.floorMod((int) Math.floor(gx), GRID);
-        int z0 = Math.floorMod((int) Math.floor(gz), GRID);
-        return values[z0 * GRID + x0] ? 1.0D : 0.0D;
+    private double noise(int x, int z, int period, long salt) {
+        double scale = period / (double) topology.sideBlocks();
+        double u = x * scale;
+        double v = z * scale;
+        int x0 = (int) Math.floor(u);
+        int z0 = (int) Math.floor(v);
+        double tx = smooth(u - x0);
+        double tz = smooth(v - z0);
+        double a = value(x0, z0, period, salt);
+        double b = value(x0 + 1, z0, period, salt);
+        double c = value(x0, z0 + 1, period, salt);
+        double d = value(x0 + 1, z0 + 1, period, salt);
+        return lerp(lerp(a, b, tx), lerp(c, d, tx), tz);
+    }
+
+    private double value(int x, int z, int period, long salt) {
+        long hash = seed ^ salt;
+        hash ^= (long) Math.floorMod(x, period) * 0x9E3779B97F4A7C15L;
+        hash ^= (long) Math.floorMod(z, period) * 0xC2B2AE3D27D4EB4FL;
+        hash = (hash ^ (hash >>> 30)) * 0xBF58476D1CE4E5B9L;
+        hash = (hash ^ (hash >>> 27)) * 0x94D049BB133111EBL;
+        hash ^= hash >>> 31;
+        return (hash >>> 11) * 0x1.0p-53;
+    }
+
+    private static double smooth(double t) {
+        return t * t * (3.0D - 2.0D * t);
+    }
+
+    private static double lerp(double a, double b, double t) {
+        return a + (b - a) * t;
     }
 }

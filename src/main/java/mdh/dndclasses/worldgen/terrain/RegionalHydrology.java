@@ -114,12 +114,19 @@ public final class RegionalHydrology {
                         heights[Math.max(0, Math.min(expanded - 1, b.z()))
                                 * expanded + Math.max(0, Math.min(expanded - 1, b.x()))]);
                 waterLevel = Math.min(waterLevel, surface);
-                segments.add(new Segment(
-                        baseX + (a.x() - 1 + 0.5D) * CELL_BLOCKS,
-                        baseZ + (a.z() - 1 + 0.5D) * CELL_BLOCKS,
-                        baseX + (b.x() - 1 + 0.5D) * CELL_BLOCKS,
-                        baseZ + (b.z() - 1 + 0.5D) * CELL_BLOCKS,
-                        path.width(), waterLevel));
+                double x1 = baseX + (a.x() - 1 + 0.5D) * CELL_BLOCKS;
+                double z1 = baseZ + (a.z() - 1 + 0.5D) * CELL_BLOCKS;
+                double x2 = baseX + (b.x() - 1 + 0.5D) * CELL_BLOCKS;
+                double z2 = baseZ + (b.z() - 1 + 0.5D) * CELL_BLOCKS;
+                double dx = x2 - x1;
+                double dz = z2 - z1;
+                double length = Math.sqrt(dx * dx + dz * dz);
+                double meander = Math.sin(i * 0.83D + path.points().get(0).x() * 0.11D)
+                        * Math.min(26.0D, length * 0.18D);
+                double mx = (x1 + x2) * 0.5D - dz / Math.max(1.0D, length) * meander;
+                double mz = (z1 + z2) * 0.5D + dx / Math.max(1.0D, length) * meander;
+                segments.add(new Segment(x1, z1, mx, mz, path.width(), waterLevel));
+                segments.add(new Segment(mx, mz, x2, z2, path.width(), waterLevel));
             }
         }
         return new Region(List.copyOf(segments));

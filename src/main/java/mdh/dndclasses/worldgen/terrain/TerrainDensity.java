@@ -129,6 +129,10 @@ public final class TerrainDensity {
         return landform;
     }
 
+    public TerrainLandform.Type landformType(int x, int z) {
+        return landform.typeAtSurface(x, z, surfaceHeight(x, z));
+    }
+
     private double fbm3(double x, double y, double z, int period, int octaves, long salt) {
         double total = 0.0D;
         double amplitude = 1.0D;

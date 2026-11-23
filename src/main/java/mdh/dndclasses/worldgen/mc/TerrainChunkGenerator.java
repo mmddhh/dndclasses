@@ -268,7 +268,6 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     public void addDebugScreenInfo(java.util.List<String> lines, RandomState randomState,
                                    BlockPos pos) {
         lines.add("dndclasses terrain seed=" + seed);
-        lines.add("dndclasses landform=" + new mdh.dndclasses.worldgen.terrain.TerrainLandform(model)
-                .type(pos.getX(), pos.getZ()));
+        lines.add("dndclasses landform=" + density.landformType(pos.getX(), pos.getZ()));
     }
 }

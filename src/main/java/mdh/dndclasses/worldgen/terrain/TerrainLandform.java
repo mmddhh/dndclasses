@@ -24,6 +24,18 @@ public final class TerrainLandform {
         if (regional <= TerrainModel.SEA_LEVEL) {
             return Type.OCEAN;
         }
+        return typeForRelief(x, z, regional - TerrainModel.SEA_LEVEL);
+    }
+
+    /** Classifies the actual generated surface, not the coarse regional mask. */
+    public Type typeAtSurface(int x, int z, int surface) {
+        if (surface <= TerrainModel.SEA_LEVEL) {
+            return Type.OCEAN;
+        }
+        return typeForRelief(x, z, surface - TerrainModel.SEA_LEVEL);
+    }
+
+    private Type typeForRelief(int x, int z, int relief) {
         double hill = hillMask(x, z);
         double mountain = mountainMask(x, z);
         double plateau = plateauMask(x, z);

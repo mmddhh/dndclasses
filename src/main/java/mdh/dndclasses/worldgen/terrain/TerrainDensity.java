@@ -109,6 +109,10 @@ public final class TerrainDensity {
         return surfaceHeight(x, z) >= SEA_LEVEL + 2;
     }
 
+    public TerrainLandform landform() {
+        return landform;
+    }
+
     private double fbm3(double x, double y, double z, int period, int octaves, long salt) {
         double total = 0.0D;
         double amplitude = 1.0D;

@@ -44,23 +44,22 @@ public final class TerrainLandform {
         double weight = Math.max(0.0001D, plains + hills + plateau + mountains + basin);
 
         double target = 0.0D;
-        target += plains * (TerrainModel.SEA_LEVEL + 4.0D + relief * 0.06D);
-        target += hills * (TerrainModel.SEA_LEVEL + 10.0D + relief * 0.45D);
-        target += plateau * (TerrainModel.SEA_LEVEL + 74.0D + relief * 0.12D);
-        target += basin * (TerrainModel.SEA_LEVEL + 20.0D - Math.min(10.0D, relief * 0.10D));
-        target += mountains * (TerrainModel.SEA_LEVEL + 105.0D + (relief - 135.0D) * 0.55D);
+        target += plains * (TerrainModel.SEA_LEVEL + 4.0D);
+        target += hills * (TerrainModel.SEA_LEVEL + 8.0D + relief * 0.35D);
+        target += plateau * (TerrainModel.SEA_LEVEL + 64.0D + relief * 0.18D);
+        target += basin * (TerrainModel.SEA_LEVEL + 20.0D - Math.min(8.0D, relief * 0.08D));
+        target += mountains * (TerrainModel.SEA_LEVEL + 90.0D + (relief - 135.0D) * 0.50D);
         return (int) Math.round(target / weight);
     }
 
+    /** Continuous roughness; no hard switch at a landform boundary. */
     public double roughness(int x, int z) {
-        return switch (type(x, z)) {
-            case OCEAN -> 0.7D;
-            case PLAINS -> 0.20D;
-            case HILLS -> 0.65D;
-            case PLATEAU -> 0.30D;
-            case BASIN -> 0.25D;
-            case MOUNTAINS -> 1.0D;
-        };
+        int regional = model.regionalHeight(x, z);
+        double relief = Math.max(0.0D, regional - TerrainModel.SEA_LEVEL);
+        double hills = smoothstep(18.0D, 48.0D, relief);
+        double plateau = smoothstep(70.0D, 115.0D, relief);
+        double mountains = smoothstep(120.0D, 170.0D, relief);
+        return Math.min(1.0D, 0.08D + hills * 0.48D + plateau * 0.18D + mountains * 0.40D);
     }
 
     private static double smoothstep(double edge0, double edge1, double value) {

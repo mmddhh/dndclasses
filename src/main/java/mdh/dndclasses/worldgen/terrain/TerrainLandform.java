@@ -14,17 +14,18 @@ public final class TerrainLandform {
     }
 
     private final TerrainModel model;
+    private final PlateModel plates;
 
     public TerrainLandform(TerrainModel model) {
         this.model = model;
+        this.plates = new PlateModel(model.topology(), model.seed());
     }
 
     public Type type(int x, int z) {
-        int regional = model.regionalHeight(x, z);
-        if (regional <= TerrainModel.SEA_LEVEL) {
+        if (!plates.isLand(x, z)) {
             return Type.OCEAN;
         }
-        return typeForRelief(x, z, regional - TerrainModel.SEA_LEVEL);
+        return typeForRelief(x, z, 0);
     }
 
     /** Classifies the actual generated surface, not the coarse regional mask. */
@@ -48,9 +49,8 @@ public final class TerrainLandform {
     }
 
     public int targetHeight(int x, int z) {
-        int regional = model.regionalHeight(x, z);
-        if (regional <= TerrainModel.SEA_LEVEL) {
-            return regional;
+        if (!plates.isLand(x, z)) {
+            return (int) Math.round(TerrainModel.SEA_LEVEL - plates.oceanDepth(x, z));
         }
         double hill = hillMask(x, z);
         double mountain = mountainMask(x, z);
@@ -67,6 +67,7 @@ public final class TerrainLandform {
         double plains = Math.max(0.0D, 1.0D - hillWeight - mountain - plateau - basin);
 
         double height = TerrainModel.SEA_LEVEL + 4.0D;
+        height += plates.uplift(x, z);
         height += hillWeight * (10.0D + fbm(x, z, 96, 0x9E3779B1L) * 18.0D);
         height += mountain * (85.0D + ridged(x, z, 28, 0x7F4A7C15L) * 165.0D);
         height += plateau * (58.0D + fbm(x, z, 128, 0x243F6A88L) * 4.0D);

@@ -684,16 +684,21 @@ function bindAbilityRow(body, a, remaining, primary) {
   row.appendChild(make("span", "ability-mod", (mod >= 0 ? "+" : "") + mod));
 
   slider.addEventListener("change", function () {
-    setAbilityTarget(a.key, parseInt(this.value, 10), true);
+    setAbilityTarget(a.key, readSlider(), true);
   });
   slider.addEventListener("input", function () {
-    var value = parseInt(this.value, 10);
+    var value = readSlider();
     setAbilityTarget(a.key, value, false);
     var shown = Math.min(20, state.abilities[a.key] + bonus);
     score.textContent = bonus
       ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
       : String(shown);
   });
+  function readSlider() {
+    var numeric = slider.valueAsNumber;
+    if (typeof numeric === "number" && !isNaN(numeric)) return numeric;
+    return parseInt(slider.value, 10);
+  }
   var dragging = false;
   function applyPointer(event) {
     var rect = slider.getBoundingClientRect();
@@ -707,6 +712,7 @@ function bindAbilityRow(body, a, remaining, primary) {
     ratio = Math.max(0, Math.min(1, ratio));
     var value = Math.round(MIN_SCORE + ratio * (MAX_SCORE - MIN_SCORE));
     slider.value = String(value);
+    slider.valueAsNumber = value;
     setAbilityTarget(a.key, value, false);
     var shown = Math.min(20, state.abilities[a.key] + bonus);
     score.textContent = bonus
@@ -731,7 +737,7 @@ function bindAbilityRow(body, a, remaining, primary) {
     renderAbility();
   });
   var poll = setInterval(function () {
-    var value = parseInt(slider.value, 10);
+    var value = readSlider();
     if (!isNaN(value) && value !== state.abilities[a.key]) {
       setAbilityTarget(a.key, value, false);
       var shown = Math.min(20, state.abilities[a.key] + bonus);

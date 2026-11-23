@@ -25,6 +25,14 @@ public final class TerrainDensity {
     private final int side;
     private final TerrainModel continent;
     private final TerrainLandform landform;
+    private final ThreadLocal<ColumnCache> columnCache = ThreadLocal.withInitial(ColumnCache::new);
+
+    private static final class ColumnCache {
+        int x = Integer.MIN_VALUE;
+        int z = Integer.MIN_VALUE;
+        double mask;
+        double roughness;
+    }
 
     public TerrainDensity(WorldTopology topology, long seed) {
         this.topology = topology;
@@ -40,7 +48,16 @@ public final class TerrainDensity {
         int wz = topology.wrap(z);
 
         // 2D landform target biases the density; the actual surface still comes from 3D noise.
-        double mask = clamp((landform.targetHeight(x, z) - SEA_LEVEL) / 95.0D, -1.7D, 1.7D);
+        ColumnCache column = columnCache.get();
+        if (column.x != x || column.z != z) {
+            column.x = x;
+            column.z = z;
+            column.mask = clamp((landform.targetHeight(x, z) - SEA_LEVEL) / 95.0D,
+                    -1.7D, 1.7D);
+            column.roughness = landform.roughness(x, z);
+        }
+        double mask = column.mask;
+        double formRoughness = column.roughness;
 
         double warpX = gradient2(wx, wz, 48, 0x51ED270BL) * 260.0D;
         double warpZ = gradient2(wx + 3_177, wz - 7_133, 48, 0x6A09E667L) * 260.0D;
@@ -68,7 +85,6 @@ public final class TerrainDensity {
         double valley = smoothstep(0.78D, 0.97D, tributary);
 
         double vertical = (SEA_LEVEL - y) / 96.0D;
-        double formRoughness = landform.roughness(x, z);
         return vertical
                 + mask * 1.35D
                 + broad * 0.85D * formRoughness

@@ -719,16 +719,17 @@ function bindAbilityRow(body, a, remaining, primary) {
     if (!dragging) return;
     dragging = false;
     applyPointer(event);
-    document.removeEventListener("pointermove", onMove);
-    document.removeEventListener("pointerup", onUp);
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
     renderAbility();
   }
-  slider.addEventListener("pointerdown", function (event) {
+  function startDrag(event) {
     dragging = true;
     applyPointer(event);
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
-  });
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }
+  slider.addEventListener("mousedown", startDrag);
   slider.addEventListener("click", function (event) {
     applyPointer(event);
     renderAbility();

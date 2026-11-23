@@ -645,6 +645,12 @@
 }
 
 .ability-slider-track,
+.ability-slider-fill,
+.ability-slider-thumb {
+  pointer-events: none;
+}
+
+.ability-slider-track,
 .ability-slider-fill {
   position: absolute;
   left: 0;

@@ -191,6 +191,11 @@ public final class DndCommands {
                         .executes(context -> worldPlanDimension(context.getSource())))
                 .then(Commands.literal("map")
                         .executes(context -> worldPlanMap(context.getSource())))
+                .then(Commands.literal("metrics")
+                        .executes(context -> worldPlanMetrics(context.getSource(), 128))
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(32, 1024))
+                                .executes(context -> worldPlanMetrics(context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "radius")))))
                 .then(Commands.literal("border")
                         .executes(context -> worldPlanBorder(context.getSource())))
                 .then(Commands.literal("biome")
@@ -626,6 +631,62 @@ public final class DndCommands {
         net.minecraft.world.level.border.WorldBorder border = level.getWorldBorder();
         border.setCenter(0.0D, 0.0D);
         border.setSize(62_720.0D);
+    }
+
+    private static int worldPlanMetrics(CommandSourceStack source, int radius)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        long seed = source.getLevel().getSeed();
+        mdh.dndclasses.worldgen.terrain.TerrainDensity density =
+                new mdh.dndclasses.worldgen.terrain.TerrainDensity(
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), seed);
+        int centerX = player.blockPosition().getX();
+        int centerZ = player.blockPosition().getZ();
+        java.util.EnumMap<mdh.dndclasses.worldgen.terrain.TerrainLandform.Type,
+                int[]> stats = new java.util.EnumMap<>(
+                mdh.dndclasses.worldgen.terrain.TerrainLandform.Type.class);
+        int oceanMin = Integer.MAX_VALUE;
+        int oceanMax = 0;
+        for (int dz = -radius; dz <= radius; dz += 4) {
+            for (int dx = -radius; dx <= radius; dx += 4) {
+                int x = centerX + dx;
+                int z = centerZ + dz;
+                int surface = density.surfaceHeight(x, z);
+                mdh.dndclasses.worldgen.terrain.TerrainLandform.Type type =
+                        density.landform().typeAtSurface(x, z, surface);
+                int[] entry = stats.computeIfAbsent(type, ignored -> new int[]{
+                        Integer.MAX_VALUE, Integer.MIN_VALUE, 0});
+                entry[0] = Math.min(entry[0], surface);
+                entry[1] = Math.max(entry[1], surface);
+                entry[2]++;
+                if (type == mdh.dndclasses.worldgen.terrain.TerrainLandform.Type.OCEAN) {
+                    int depth = 63 - surface;
+                    oceanMin = Math.min(oceanMin, depth);
+                    oceanMax = Math.max(oceanMax, depth);
+                }
+            }
+        }
+        source.sendSuccess(() -> Component.literal(
+                "地形验收 seed=" + seed + " 中心=" + centerX + "," + centerZ
+                        + " 半径=" + radius), false);
+        for (mdh.dndclasses.worldgen.terrain.TerrainLandform.Type type
+                : mdh.dndclasses.worldgen.terrain.TerrainLandform.Type.values()) {
+            int[] entry = stats.get(type);
+            if (entry == null) continue;
+            int low = entry[0];
+            int high = entry[1];
+            int count = entry[2];
+            source.sendSuccess(() -> Component.literal(
+                    type + ": n=" + count + " h=" + low + ".." + high
+                            + " diff=" + (high - low)), false);
+        }
+        if (oceanMin != Integer.MAX_VALUE) {
+            int min = oceanMin;
+            int max = oceanMax;
+            source.sendSuccess(() -> Component.literal(
+                    "OCEAN depth=" + min + ".." + max), false);
+        }
+        return 1;
     }
 
     private static int worldPlanMap(CommandSourceStack source) {

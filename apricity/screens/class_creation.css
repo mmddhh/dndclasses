@@ -641,6 +641,9 @@
   min-width: 150px;
   height: 28px;
   cursor: pointer;
+  border: 0;
+  padding: 0;
+  background: transparent;
   user-select: none;
 }
 

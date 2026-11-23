@@ -68,7 +68,7 @@ public final class TerrainLandform {
 
         double height = TerrainModel.SEA_LEVEL + 4.0D;
         height += hillWeight * (10.0D + fbm(x, z, 96, 0x9E3779B1L) * 18.0D);
-        height += mountain * (85.0D + ridged(x, z, 28, 0x7F4A7C15L) * 165.0D);
+        height += mountain * (85.0D + mountainRidge(x, z) * 165.0D);
         height += plateau * (58.0D + fbm(x, z, 128, 0x243F6A88L) * 4.0D);
         height -= basin * (10.0D + fbm(x, z, 80, 0x85A308D3L) * 8.0D);
         return (int) Math.round(Math.max(TerrainModel.SEA_LEVEL + 1,
@@ -106,9 +106,16 @@ public final class TerrainLandform {
         return chainMask * region;
     }
 
+    private double mountainRidge(int x, int z) {
+        double first = ridged(x, z, 28, 0x7F4A7C15L);
+        double second = ridged(x + z / 2, z - x / 3, 37, 0x9B05688CL);
+        double third = ridged(x - z / 4, z + x / 2, 44, 0x1F83D9ABL);
+        return Math.max(first, Math.max(second, third));
+    }
+
     private double plateauMask(int x, int z) {
         double n = noise(x, z, 3, 0xA54FF53AL);
-        return smoothstep(0.74D, 0.86D, n) * (1.0D - hillMask(x, z))
+        return smoothstep(0.68D, 0.82D, n) * (1.0D - hillMask(x, z))
                 * (1.0D - mountainMask(x, z));
     }
 

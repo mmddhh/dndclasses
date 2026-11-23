@@ -47,11 +47,14 @@ public final class RegionalHydrology {
         }
         int regionX = Math.floorDiv(Math.floorMod(x, 62_720), REGION_BLOCKS);
         int regionZ = Math.floorDiv(Math.floorMod(z, 62_720), REGION_BLOCKS);
+        int localX = Math.floorMod(x, REGION_BLOCKS);
+        int localZ = Math.floorMod(z, REGION_BLOCKS);
+        boolean nearEdge = localX < CELL_BLOCKS * 4 || localX > REGION_BLOCKS - CELL_BLOCKS * 4
+                || localZ < CELL_BLOCKS * 4 || localZ > REGION_BLOCKS - CELL_BLOCKS * 4;
+        int range = nearEdge ? 1 : 0;
         Hit best = null;
-        // Build only the current region. Neighbouring regions are used only if already cached,
-        // otherwise the first chunk would build nine 4096-block regions synchronously.
-        for (int dz = -1; dz <= 1; dz++) {
-            for (int dx = -1; dx <= 1; dx++) {
+        for (int dz = -range; dz <= range; dz++) {
+            for (int dx = -range; dx <= range; dx++) {
                 int rx = Math.floorMod(regionX + dx, 16);
                 int rz = Math.floorMod(regionZ + dz, 16);
                 Region region;

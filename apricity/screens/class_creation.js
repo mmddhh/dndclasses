@@ -665,7 +665,8 @@ function bindAbilityRow(body, a, remaining, primary) {
   var isPrimary = primary.indexOf(a.key) >= 0;
 
   var row = make("div", "ability-row" + (isPrimary ? " primary" : ""));
-  var slider = make("div", "ability-slider");
+  var slider = make("button", "ability-slider");
+  slider.setAttribute("type", "button");
   var track = make("div", "ability-slider-track");
   var fill = make("div", "ability-slider-fill");
   var thumb = make("div", "ability-slider-thumb");

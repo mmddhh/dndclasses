@@ -38,7 +38,7 @@ public final class TerrainLandform {
 
     private Type typeForRelief(int x, int z, int relief) {
         double hill = hillMask(x, z);
-        double mountain = mountainMask(x, z);
+        double mountain = mountainWeight(x, z);
         double plateau = plateauMask(x, z);
         double basin = basinMask(x, z);
         if (mountain > 0.45D) return Type.MOUNTAINS;
@@ -53,7 +53,7 @@ public final class TerrainLandform {
             return (int) Math.round(TerrainModel.SEA_LEVEL - plates.oceanDepth(x, z));
         }
         double hill = hillMask(x, z);
-        double mountain = mountainMask(x, z);
+        double mountain = mountainWeight(x, z);
         double plateau = plateauMask(x, z);
         double basin = basinMask(x, z);
         double hillWeight = smoothstep(0.48D, 0.62D, hill);
@@ -67,7 +67,6 @@ public final class TerrainLandform {
         double plains = Math.max(0.0D, 1.0D - hillWeight - mountain - plateau - basin);
 
         double height = TerrainModel.SEA_LEVEL + 4.0D;
-        height += plates.uplift(x, z);
         height += hillWeight * (10.0D + fbm(x, z, 96, 0x9E3779B1L) * 18.0D);
         height += mountain * (85.0D + ridged(x, z, 28, 0x7F4A7C15L) * 165.0D);
         height += plateau * (58.0D + fbm(x, z, 128, 0x243F6A88L) * 4.0D);
@@ -79,12 +78,17 @@ public final class TerrainLandform {
     /** 0 = perfectly flat plains core, 1 = fully rugged mountains. */
     public double roughness(int x, int z) {
         double hill = hillMask(x, z);
-        double mountain = mountainMask(x, z);
+        double mountain = mountainWeight(x, z);
         double plateau = plateauMask(x, z);
         double basin = basinMask(x, z);
         double hillWeight = smoothstep(0.48D, 0.62D, hill);
         return Math.min(1.0D, hillWeight * 0.55D + mountain * 0.90D
                 + plateau * 0.08D + basin * 0.10D);
+    }
+
+    private double mountainWeight(int x, int z) {
+        double plateBelt = smoothstep(35.0D, 130.0D, plates.uplift(x, z));
+        return Math.max(mountainMask(x, z), plateBelt * 0.95D);
     }
 
     private double hillMask(int x, int z) {

@@ -665,13 +665,13 @@ function bindAbilityRow(body, a, remaining, primary) {
   var isPrimary = primary.indexOf(a.key) >= 0;
 
   var row = make("div", "ability-row" + (isPrimary ? " primary" : ""));
-  var slider = document.createElement("input");
-  slider.setAttribute("type", "range");
-  slider.setAttribute("class", "ability-slider");
-  slider.setAttribute("min", String(MIN_SCORE));
-  slider.setAttribute("max", String(MAX_SCORE));
-  slider.setAttribute("step", "1");
-  slider.value = String(sc);
+  var slider = make("div", "ability-slider");
+  var track = make("div", "ability-slider-track");
+  var fill = make("div", "ability-slider-fill");
+  var thumb = make("div", "ability-slider-thumb");
+  slider.appendChild(track);
+  slider.appendChild(fill);
+  slider.appendChild(thumb);
   var score = make("span", "ability-score", bonus
     ? String(finalScore) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
     : String(finalScore));
@@ -683,69 +683,57 @@ function bindAbilityRow(body, a, remaining, primary) {
   row.appendChild(abName);
   row.appendChild(make("span", "ability-mod", (mod >= 0 ? "+" : "") + mod));
 
-  slider.addEventListener("change", function () {
-    setAbilityTarget(a.key, readSlider(), true);
-  });
-  slider.addEventListener("input", function () {
-    var value = readSlider();
-    setAbilityTarget(a.key, value, false);
+  function setSliderVisual(value) {
+    var ratio = (value - MIN_SCORE) / (MAX_SCORE - MIN_SCORE);
+    ratio = Math.max(0, Math.min(1, ratio));
+    fill.style.width = Math.round(ratio * 100) + "%";
+    thumb.style.left = Math.round(ratio * 100) + "%";
+  }
+  function updateScore() {
     var shown = Math.min(20, state.abilities[a.key] + bonus);
     score.textContent = bonus
       ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
       : String(shown);
-  });
-  function readSlider() {
-    var numeric = slider.valueAsNumber;
-    if (typeof numeric === "number" && !isNaN(numeric)) return numeric;
-    return parseInt(slider.value, 10);
+    setSliderVisual(state.abilities[a.key]);
   }
-  var dragging = false;
   function applyPointer(event) {
     var rect = slider.getBoundingClientRect();
     var width = rect && rect.width > 0 ? rect.width : slider.offsetWidth;
     if (!width || width <= 0) return;
     var clientX = event.clientX;
-    if (!clientX) clientX = event.offsetX;
-    if (!clientX) clientX = event.pageX;
+    if (clientX === undefined || clientX === null) clientX = event.offsetX;
+    if (clientX === undefined || clientX === null) clientX = event.pageX;
     var left = rect ? rect.left : 0;
     var ratio = (clientX - left) / width;
     ratio = Math.max(0, Math.min(1, ratio));
     var value = Math.round(MIN_SCORE + ratio * (MAX_SCORE - MIN_SCORE));
-    slider.value = String(value);
-    slider.valueAsNumber = value;
     setAbilityTarget(a.key, value, false);
-    var shown = Math.min(20, state.abilities[a.key] + bonus);
-    score.textContent = bonus
-      ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
-      : String(shown);
+    updateScore();
   }
-  slider.addEventListener("mousedown", function (event) {
+  var dragging = false;
+  function onMove(event) {
+    if (!dragging) return;
+    applyPointer(event);
+  }
+  function onUp(event) {
+    if (!dragging) return;
+    dragging = false;
+    applyPointer(event);
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    renderAbility();
+  }
+  slider.addEventListener("pointerdown", function (event) {
     dragging = true;
     applyPointer(event);
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
   });
   slider.addEventListener("click", function (event) {
     applyPointer(event);
     renderAbility();
   });
-  slider.addEventListener("mousemove", function (event) {
-    if (dragging) applyPointer(event);
-  });
-  slider.addEventListener("mouseup", function (event) {
-    if (!dragging) return;
-    dragging = false;
-    applyPointer(event);
-    renderAbility();
-  });
-  var poll = setInterval(function () {
-    var value = readSlider();
-    if (!isNaN(value) && value !== state.abilities[a.key]) {
-      setAbilityTarget(a.key, value, false);
-      var shown = Math.min(20, state.abilities[a.key] + bonus);
-      score.textContent = bonus
-        ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
-        : String(shown);
-    }
-  }, 120);
+  updateScore();
   body.appendChild(row);
 }
 

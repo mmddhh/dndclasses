@@ -635,12 +635,46 @@
 }
 
 .ability-slider {
+  position: relative;
   flex: 1 1 auto;
   width: 100%;
   min-width: 150px;
-  height: 24px;
-  accent-color: var(--gold);
+  height: 28px;
   cursor: pointer;
+  user-select: none;
+}
+
+.ability-slider-track,
+.ability-slider-fill {
+  position: absolute;
+  left: 0;
+  top: 11px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.ability-slider-track {
+  width: 100%;
+  background: #2a2116;
+  border: 1px solid #120d07;
+}
+
+.ability-slider-fill {
+  width: 0;
+  background: var(--gold);
+}
+
+.ability-slider-thumb {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  border-radius: 50%;
+  background: #f0d27a;
+  border: 2px solid #5b431d;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
 .ability-row.primary .ability-name { color: var(--gold); }

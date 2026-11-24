@@ -107,16 +107,13 @@ public final class RegionalHydrology {
         D8Hydrology.Result result = D8Hydrology.compute(expanded, heights, water);
         List<Segment> segments = new ArrayList<>();
         for (RiverPath path : result.paths()) {
-            int waterLevel = TerrainModel.MAX_Y;
+            RiverPath.Node source = path.points().get(0);
+            int sourceIndex = Math.max(0, Math.min(expanded - 1, source.z())) * expanded
+                    + Math.max(0, Math.min(expanded - 1, source.x()));
+            int waterLevel = heights[sourceIndex];
             for (int i = 1; i < path.points().size(); i++) {
                 RiverPath.Node a = path.points().get(i - 1);
                 RiverPath.Node b = path.points().get(i);
-                int surface = Math.min(
-                        heights[Math.max(0, Math.min(expanded - 1, a.z()))
-                                * expanded + Math.max(0, Math.min(expanded - 1, a.x()))],
-                        heights[Math.max(0, Math.min(expanded - 1, b.z()))
-                                * expanded + Math.max(0, Math.min(expanded - 1, b.x()))]);
-                waterLevel = Math.min(waterLevel, surface);
                 double x1 = baseX + (a.x() - 1 + 0.5D) * CELL_BLOCKS;
                 double z1 = baseZ + (a.z() - 1 + 0.5D) * CELL_BLOCKS;
                 double x2 = baseX + (b.x() - 1 + 0.5D) * CELL_BLOCKS;
@@ -124,6 +121,9 @@ public final class RegionalHydrology {
                 double dx = x2 - x1;
                 double dz = z2 - z1;
                 double length = Math.sqrt(dx * dx + dz * dz);
+                // A river has a downstream water-surface gradient, not a copy of the local bed.
+                waterLevel = Math.max(TerrainModel.SEA_LEVEL,
+                        waterLevel - Math.max(1, (int) Math.round(length * 0.025D)));
                 double meander = Math.sin(i * 0.83D + path.points().get(0).x() * 0.11D)
                         * Math.min(26.0D, length * 0.18D);
                 double mx = (x1 + x2) * 0.5D - dz / Math.max(1.0D, length) * meander;

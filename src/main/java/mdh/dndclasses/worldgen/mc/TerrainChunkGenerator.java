@@ -173,6 +173,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 }
                 TerrainModel.Biome biome = model.biome(x, z, top);
                 double temperature = model.temperature(x, z, top);
+                double snowTemperature = temperature + snowJitter(x, z) * 3.5D;
                 boolean snowEligible = false;
                 if (riverSurface >= SEA_LEVEL
                         && model.temperature(x, z, riverSurface) <= 0.0D) {
@@ -183,7 +184,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                         biome = TerrainModel.Biome.PLAINS;
                     }
                     chunk.setBlockState(new BlockPos(x, top, z),
-                            surfaceState(biome, top, top, temperature, snowEligible), false);
+                            surfaceState(biome, top, top, snowTemperature, snowEligible), false);
                 } else {
                     chunk.setBlockState(new BlockPos(x, top, z),
                             top < SEA_LEVEL - 2 ? GRAVEL : SAND, false);
@@ -218,6 +219,31 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         for (int x = 0; x < size; x++) {
             heights[x] = copy[x];
         }
+    }
+
+    private static double snowJitter(int x, int z) {
+        double scale = 1.0D / 96.0D;
+        double u = x * scale;
+        double v = z * scale;
+        int x0 = (int) Math.floor(u);
+        int z0 = (int) Math.floor(v);
+        double tx = u - x0;
+        double tz = v - z0;
+        double a = snowNoise(x0, z0);
+        double b = snowNoise(x0 + 1, z0);
+        double c = snowNoise(x0, z0 + 1);
+        double d = snowNoise(x0 + 1, z0 + 1);
+        double lower = a + (b - a) * tx;
+        double upper = c + (d - c) * tx;
+        return (lower + (upper - lower) * tz) * 2.0D - 1.0D;
+    }
+
+    private static double snowNoise(int x, int z) {
+        long h = (long) x * 0x9E3779B97F4A7C15L ^ (long) z * 0xC2B2AE3D27D4EB4FL;
+        h = (h ^ (h >>> 30)) * 0xBF58476D1CE4E5B9L;
+        h = (h ^ (h >>> 27)) * 0x94D049BB133111EBL;
+        h ^= h >>> 31;
+        return (h >>> 11) * 0x1.0p-53;
     }
 
     private static BlockState surfaceState(TerrainModel.Biome biome, int y, int height,

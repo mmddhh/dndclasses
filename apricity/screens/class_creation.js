@@ -632,11 +632,14 @@ function renderAbility() {
 
   var line = make("div", "points-line");
   line.appendChild(mk("span", "points-label", "screen.dndclasses.creation.points_spent"));
-  line.appendChild(make("span", "points-value", spent + " / " + BUDGET));
+  var pointsValue = make("span", "points-value", spent + " / " + BUDGET);
+  pointsValue.id = "ability-points-value";
+  line.appendChild(pointsValue);
   body.appendChild(line);
 
   var progress = make("div", "progress");
   var bar = make("div", "progress-bar");
+  bar.id = "ability-progress-bar";
   bar.setAttribute("style", "width:" + Math.round(spent * 100 / BUDGET) + "%");
   progress.appendChild(bar);
   body.appendChild(progress);
@@ -698,8 +701,8 @@ function bindAbilityRow(body, a, remaining, primary) {
     setSliderVisual(state.abilities[a.key]);
   }
   function applyPointer(event) {
-    var rect = slider.getBoundingClientRect();
-    var width = rect && rect.width > 0 ? rect.width : slider.offsetWidth;
+    var rect = track.getBoundingClientRect();
+    var width = rect && rect.width > 0 ? rect.width : track.offsetWidth;
     if (!width || width <= 0) return;
     var clientX = event.clientX;
     if (clientX === undefined || clientX === null) clientX = event.offsetX;
@@ -710,6 +713,7 @@ function bindAbilityRow(body, a, remaining, primary) {
     var value = Math.round(MIN_SCORE + ratio * (MAX_SCORE - MIN_SCORE));
     setAbilityTarget(a.key, value, false);
     updateScore();
+    refreshAbilitySummary();
   }
   var dragging = false;
   function onMove(event) {
@@ -722,7 +726,6 @@ function bindAbilityRow(body, a, remaining, primary) {
     applyPointer(event);
     document.removeEventListener("mousemove", onMove);
     document.removeEventListener("mouseup", onUp);
-    renderAbility();
   }
   function startDrag(event) {
     dragging = true;
@@ -733,10 +736,16 @@ function bindAbilityRow(body, a, remaining, primary) {
   slider.addEventListener("mousedown", startDrag);
   slider.addEventListener("click", function (event) {
     applyPointer(event);
-    renderAbility();
   });
   updateScore();
   body.appendChild(row);
+}
+
+function refreshAbilitySummary() {
+  var value = byId("ability-points-value");
+  var bar = byId("ability-progress-bar");
+  if (value) value.textContent = totalCost() + " / " + BUDGET;
+  if (bar) bar.style.width = Math.round(totalCost() * 100 / BUDGET) + "%";
 }
 
 function applyAbilityDelta(key, delta) {

@@ -107,11 +107,22 @@ public final class RegionalHydrology {
         D8Hydrology.Result result = D8Hydrology.compute(expanded, heights, water);
         List<Segment> segments = new ArrayList<>();
         for (RiverPath path : result.paths()) {
-            RiverPath.Node source = path.points().get(0);
-            int sourceIndex = Math.max(0, Math.min(expanded - 1, source.z())) * expanded
-                    + Math.max(0, Math.min(expanded - 1, source.x()));
-            int waterLevel = heights[sourceIndex];
-            for (int i = 1; i < path.points().size(); i++) {
+            int count = path.points().size();
+            int[] terrain = new int[count];
+            int[] levels = new int[count];
+            for (int i = 0; i < count; i++) {
+                RiverPath.Node node = path.points().get(i);
+                int index = Math.max(0, Math.min(expanded - 1, node.z())) * expanded
+                        + Math.max(0, Math.min(expanded - 1, node.x()));
+                terrain[i] = heights[index];
+            }
+            // Backward water profile: a local pit fills to the downstream spill level, while the
+            // surface still follows the general terrain slope instead of an artificial constant drop.
+            levels[count - 1] = Math.max(TerrainModel.SEA_LEVEL, terrain[count - 1]);
+            for (int i = count - 2; i >= 0; i--) {
+                levels[i] = Math.max(TerrainModel.SEA_LEVEL, Math.max(terrain[i], levels[i + 1]));
+            }
+            for (int i = 1; i < count; i++) {
                 RiverPath.Node a = path.points().get(i - 1);
                 RiverPath.Node b = path.points().get(i);
                 double x1 = baseX + (a.x() - 1 + 0.5D) * CELL_BLOCKS;
@@ -121,9 +132,7 @@ public final class RegionalHydrology {
                 double dx = x2 - x1;
                 double dz = z2 - z1;
                 double length = Math.sqrt(dx * dx + dz * dz);
-                // A river has a downstream water-surface gradient, not a copy of the local bed.
-                waterLevel = Math.max(TerrainModel.SEA_LEVEL,
-                        waterLevel - Math.max(1, (int) Math.round(length * 0.025D)));
+                int waterLevel = levels[i];
                 double meander = Math.sin(i * 0.83D + path.points().get(0).x() * 0.11D)
                         * Math.min(26.0D, length * 0.18D);
                 double mx = (x1 + x2) * 0.5D - dz / Math.max(1.0D, length) * meander;

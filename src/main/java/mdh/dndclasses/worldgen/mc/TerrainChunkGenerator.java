@@ -130,21 +130,45 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     private void fill(ChunkAccess chunk) {
         int minX = chunk.getPos().getMinBlockX();
         int minZ = chunk.getPos().getMinBlockZ();
-        int[][] heights = new int[18][18];
-        for (int gx = 0; gx < 18; gx++) {
-            for (int gz = 0; gz < 18; gz++) {
-                heights[gx][gz] = Math.max(MIN_Y + 3, Math.min(MIN_Y + HEIGHT - 1,
-                        density.surfaceHeight(minX + gx - 1, minZ + gz - 1)));
+        final int cell = 4;
+        final int gridX = 5;
+        final int gridZ = 5;
+        final int gridY = HEIGHT / cell + 1;
+        double[][][] grid = new double[gridX][gridZ][gridY];
+        for (int gx = 0; gx < gridX; gx++) {
+            for (int gz = 0; gz < gridZ; gz++) {
+                for (int gy = 0; gy < gridY; gy++) {
+                    int x = minX + gx * cell;
+                    int z = minZ + gz * cell;
+                    int y = Math.min(MIN_Y + HEIGHT - 1, MIN_Y + gy * cell);
+                    grid[gx][gz][gy] = density.density(x, y, z);
+                }
             }
         }
-        smoothHeights(heights);
 
         for (int localX = 0; localX < 16; localX++) {
             for (int localZ = 0; localZ < 16; localZ++) {
                 int x = minX + localX;
                 int z = minZ + localZ;
-                int top = heights[localX + 1][localZ + 1];
+                int top = MIN_Y;
+                for (int y = MIN_Y; y < MIN_Y + HEIGHT; y++) {
+                    double d = sampleGrid(grid, localX, y, localZ);
+                    if (d > 0.0D || y == MIN_Y) {
+                        BlockState state;
+                        if (y == MIN_Y) {
+                            state = BEDROCK;
+                        } else if (y < 0) {
+                            state = DEEPSLATE;
+                        } else {
+                            state = STONE;
+                        }
+                        chunk.setBlockState(new BlockPos(x, y, z), state, false);
+                        top = y;
+                    }
+                }
+
                 int riverSurface = -1;
+                boolean riverCarved = false;
                 mdh.dndclasses.worldgen.terrain.RegionalHydrology.Hit river =
                         mdh.dndclasses.worldgen.terrain.RegionalHydrology.hit(x, z, seed);
                 if (river != null && top >= SEA_LEVEL) {
@@ -158,33 +182,25 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                         chunk.setBlockState(new BlockPos(x, bed, z), GRAVEL, false);
                         riverSurface = surface;
                         top = bed;
+                        riverCarved = true;
                     }
                 }
-                for (int y = MIN_Y; y <= top; y++) {
-                    BlockState state;
-                    if (y == MIN_Y) {
-                        state = BEDROCK;
-                    } else if (y < 0) {
-                        state = DEEPSLATE;
-                    } else {
-                        state = STONE;
-                    }
-                    chunk.setBlockState(new BlockPos(x, y, z), state, false);
-                }
+
                 TerrainModel.Biome biome = model.biome(x, z, top);
                 double temperature = model.temperature(x, z, top);
                 double snowTemperature = temperature + snowJitter(x, z) * 3.5D;
-                boolean snowEligible = false;
                 if (riverSurface >= SEA_LEVEL
                         && model.temperature(x, z, riverSurface) <= 0.0D) {
                     chunk.setBlockState(new BlockPos(x, riverSurface, z), ICE, false);
                 }
                 if (top >= SEA_LEVEL) {
-                    if (biome == TerrainModel.Biome.OCEAN) {
-                        biome = TerrainModel.Biome.PLAINS;
+                    if (!riverCarved) {
+                        if (biome == TerrainModel.Biome.OCEAN) {
+                            biome = TerrainModel.Biome.PLAINS;
+                        }
+                        chunk.setBlockState(new BlockPos(x, top, z),
+                                surfaceState(biome, top, top, snowTemperature, false), false);
                     }
-                    chunk.setBlockState(new BlockPos(x, top, z),
-                            surfaceState(biome, top, top, snowTemperature, snowEligible), false);
                 } else {
                     chunk.setBlockState(new BlockPos(x, top, z),
                             top < SEA_LEVEL - 2 ? GRAVEL : SAND, false);
@@ -199,28 +215,29 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         }
     }
 
-    private static void smoothHeights(int[][] heights) {
-        int size = heights.length;
-        int[][] copy = new int[size][size];
-        for (int x = 0; x < size; x++) {
-            copy[x] = heights[x].clone();
-        }
-        for (int x = 1; x < size - 1; x++) {
-            for (int z = 1; z < size - 1; z++) {
-                int total = 0;
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        total += heights[x + dx][z + dz];
-                    }
-                }
-                copy[x][z] = Math.round(total / 9.0F);
-            }
-        }
-        for (int x = 0; x < size; x++) {
-            heights[x] = copy[x];
-        }
+    private static double sampleGrid(double[][][] grid, int localX, int y, int localZ) {
+        double fx = localX / 4.0D;
+        double fy = (y - MIN_Y) / 4.0D;
+        double fz = localZ / 4.0D;
+        int x0 = (int) Math.floor(fx);
+        int y0 = (int) Math.floor(fy);
+        int z0 = (int) Math.floor(fz);
+        int x1 = Math.min(4, x0 + 1);
+        int y1 = Math.min(grid[0][0].length - 1, y0 + 1);
+        int z1 = Math.min(4, z0 + 1);
+        double tx = fx - x0;
+        double ty = fy - y0;
+        double tz = fz - z0;
+        double a = lerp(grid[x0][z0][y0], grid[x1][z0][y0], tx);
+        double b = lerp(grid[x0][z1][y0], grid[x1][z1][y0], tx);
+        double c = lerp(grid[x0][z0][y1], grid[x1][z0][y1], tx);
+        double d = lerp(grid[x0][z1][y1], grid[x1][z1][y1], tx);
+        return lerp(lerp(a, b, tz), lerp(c, d, tz), ty);
     }
 
+    private static double lerp(double a, double b, double t) {
+        return a + (b - a) * t;
+    }
     private static double snowJitter(int x, int z) {
         double scale = 1.0D / 96.0D;
         double u = x * scale;
@@ -297,3 +314,4 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         lines.add("dndclasses landform=" + density.landformType(pos.getX(), pos.getZ()));
     }
 }
+

@@ -191,6 +191,8 @@ public final class DndCommands {
                         .executes(context -> worldPlanDimension(context.getSource())))
                 .then(Commands.literal("map")
                         .executes(context -> worldPlanMap(context.getSource())))
+                .then(Commands.literal("climate")
+                        .executes(context -> worldPlanClimate(context.getSource())))
                 .then(Commands.literal("metrics")
                         .executes(context -> worldPlanMetrics(context.getSource(), 128))
                         .then(Commands.argument("radius", IntegerArgumentType.integer(32, 1024))
@@ -631,6 +633,33 @@ public final class DndCommands {
         net.minecraft.world.level.border.WorldBorder border = level.getWorldBorder();
         border.setCenter(0.0D, 0.0D);
         border.setSize(62_720.0D);
+    }
+
+    private static int worldPlanClimate(CommandSourceStack source)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        long seed = source.getLevel().getSeed();
+        mdh.dndclasses.worldgen.terrain.TerrainModel model =
+                new mdh.dndclasses.worldgen.terrain.TerrainModel(
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), seed);
+        mdh.dndclasses.worldgen.terrain.TerrainDensity density =
+                new mdh.dndclasses.worldgen.terrain.TerrainDensity(
+                        mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), seed);
+        int x = player.blockPosition().getX();
+        int z = player.blockPosition().getZ();
+        int surface = density.surfaceHeight(x, z);
+        double temperature = model.temperature(x, z, surface);
+        double humidity = model.humidity(x, z, surface);
+        mdh.dndclasses.worldgen.terrain.TerrainLandform.Type landform =
+                density.landform().typeAtSurface(x, z, surface);
+        mdh.dndclasses.worldgen.terrain.TerrainModel.Biome biome =
+                model.biome(x, z, surface);
+        source.sendSuccess(() -> Component.literal(
+                "climate x=" + x + " z=" + z + " surfaceY=" + surface
+                        + " temp=" + String.format(java.util.Locale.ROOT, "%.2f", temperature)
+                        + " humidity=" + String.format(java.util.Locale.ROOT, "%.2f", humidity)
+                        + " landform=" + landform + " biome=" + biome), false);
+        return 1;
     }
 
     private static int worldPlanMetrics(CommandSourceStack source, int radius)

@@ -15,10 +15,12 @@ public final class TerrainLandform {
 
     private final TerrainModel model;
     private final PlateModel plates;
+    private final RidgeNetwork ridges;
 
     public TerrainLandform(TerrainModel model) {
         this.model = model;
         this.plates = new PlateModel(model.topology(), model.seed());
+        this.ridges = new RidgeNetwork(model.topology(), model.seed());
     }
 
     public Type type(int x, int z) {
@@ -67,8 +69,8 @@ public final class TerrainLandform {
         double plains = Math.max(0.0D, 1.0D - hillWeight - mountain - plateau - basin);
 
         double height = TerrainModel.SEA_LEVEL + 4.0D;
+        height += ridges.sample(x, z).height();
         height += hillWeight * (10.0D + fbm(x, z, 96, 0x9E3779B1L) * 18.0D);
-        height += mountain * (85.0D + mountainRidge(x, z) * 165.0D);
         height += plateau * (58.0D + fbm(x, z, 128, 0x243F6A88L) * 4.0D);
         height -= basin * (10.0D + fbm(x, z, 80, 0x85A308D3L) * 8.0D);
         return (int) Math.round(Math.max(TerrainModel.SEA_LEVEL + 1,
@@ -89,7 +91,8 @@ public final class TerrainLandform {
 
     private double mountainWeight(int x, int z) {
         double plateBelt = smoothstep(35.0D, 130.0D, plates.uplift(x, z));
-        return Math.max(mountainMask(x, z), plateBelt * 0.95D);
+        double ridge = ridges.sample(x, z).weight();
+        return Math.max(mountainMask(x, z), Math.max(plateBelt * 0.95D, ridge));
     }
 
     private double hillMask(int x, int z) {

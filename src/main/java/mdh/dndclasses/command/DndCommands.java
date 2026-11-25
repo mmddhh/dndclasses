@@ -645,15 +645,17 @@ public final class DndCommands {
         mdh.dndclasses.worldgen.terrain.TerrainDensity density =
                 new mdh.dndclasses.worldgen.terrain.TerrainDensity(
                         mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), seed);
+        mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver resolver =
+                new mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver(model, density);
         int x = player.blockPosition().getX();
         int z = player.blockPosition().getZ();
-        int surface = density.surfaceHeight(x, z);
-        double temperature = model.temperature(x, z, surface);
-        double humidity = model.humidity(x, z, surface);
-        mdh.dndclasses.worldgen.terrain.TerrainLandform.Type landform =
-                density.landform().typeAtSurface(x, z, surface);
-        mdh.dndclasses.worldgen.terrain.TerrainModel.Biome biome =
-                model.biome(x, z, surface);
+        mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver.Sample sample =
+                resolver.sample(x, z);
+        int surface = sample.surface();
+        double temperature = sample.temperature();
+        double humidity = sample.humidity();
+        mdh.dndclasses.worldgen.terrain.TerrainLandform.Type landform = sample.landform();
+        mdh.dndclasses.worldgen.terrain.TerrainModel.Biome biome = sample.biome();
         source.sendSuccess(() -> Component.literal(
                 "climate x=" + x + " z=" + z + " surfaceY=" + surface
                         + " temp=" + String.format(java.util.Locale.ROOT, "%.2f", temperature)
@@ -767,7 +769,9 @@ public final class DndCommands {
         mdh.dndclasses.worldgen.terrain.TerrainDensity density =
                 new mdh.dndclasses.worldgen.terrain.TerrainDensity(
                         mdh.dndclasses.worldgen.terrain.WorldTopology.standard(), level.getSeed());
-        int[] spot = findBiome(model, density, target, 30_000, 256);
+        mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver resolver =
+                new mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver(model, density);
+        int[] spot = findBiome(resolver, target, 30_000, 256);
         if (spot == null) {
             source.sendFailure(Component.literal("附近找不到群系: " + target));
             return 0;
@@ -861,10 +865,10 @@ public final class DndCommands {
         return null;
     }
 
-    private static int[] findBiome(mdh.dndclasses.worldgen.terrain.TerrainModel model,
-                                   mdh.dndclasses.worldgen.terrain.TerrainDensity density,
-                                   mdh.dndclasses.worldgen.terrain.TerrainModel.Biome target,
-                                   int maxRadius, int step) {
+    private static int[] findBiome(
+            mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver resolver,
+            mdh.dndclasses.worldgen.terrain.TerrainModel.Biome target,
+            int maxRadius, int step) {
         for (int radius = 0; radius <= maxRadius; radius += step) {
             for (int dx = -radius; dx <= radius; dx += step) {
                 for (int dz = -radius; dz <= radius; dz += step) {
@@ -873,8 +877,9 @@ public final class DndCommands {
                     }
                     int x = dx;
                     int z = dz;
-                    int surface = density.surfaceHeight(x, z);
-                    if (surface > 73 && model.biome(x, z, surface) == target) {
+                    mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver.Sample sample =
+                            resolver.sample(x, z);
+                    if (sample.surface() > 73 && sample.biome() == target) {
                         return new int[]{x, z};
                     }
                 }

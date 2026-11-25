@@ -174,24 +174,32 @@ public final class TerrainModel {
     }
 
     public Biome biome(int x, int z) {
-        return biome(x, z, height(x, z));
+        return biome(x, z, height(x, z), TerrainLandform.Type.PLAINS);
     }
 
     public Biome biome(int x, int z, int height) {
-        if (height <= SEA_LEVEL) {
+        return biome(x, z, height, TerrainLandform.Type.PLAINS);
+    }
+
+    /**
+     * Biome is an ecological classification, not an elevation band. The landform decides whether
+     * this is a mountain/hill, while climate decides the vegetation on plains, plateaus and basins.
+     */
+    public Biome biome(int x, int z, int height, TerrainLandform.Type landform) {
+        if (height <= SEA_LEVEL || landform == TerrainLandform.Type.OCEAN) {
             return Biome.OCEAN;
         }
         if (height <= SEA_LEVEL + 2 && nearWater(x, z)) {
             return Biome.BEACH;
         }
-        double temperature = temperature(x, z, height);
-        double humidity = humidity(x, z, height);
-        if (height > 180) {
+        if (landform == TerrainLandform.Type.MOUNTAINS) {
             return Biome.MOUNTAINS;
         }
-        if (height > 120) {
+        if (landform == TerrainLandform.Type.HILLS) {
             return Biome.HILLS;
         }
+        double temperature = temperature(x, z, height);
+        double humidity = humidity(x, z, height);
         if (temperature < -5.0D) {
             return Biome.TUNDRA;
         }
@@ -207,7 +215,8 @@ public final class TerrainModel {
         if (temperature < 8.0D) {
             return Biome.TAIGA;
         }
-        if (humidity > 0.72D && height < SEA_LEVEL + 12) {
+        if (landform == TerrainLandform.Type.BASIN
+                && humidity > 0.62D && height < SEA_LEVEL + 24) {
             return Biome.SWAMP;
         }
         return humidity > 0.48D ? Biome.FOREST : Biome.PLAINS;

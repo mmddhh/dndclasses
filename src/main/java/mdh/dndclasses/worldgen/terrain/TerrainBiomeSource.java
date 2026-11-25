@@ -31,6 +31,7 @@ public final class TerrainBiomeSource extends BiomeSource {
     private long seed;
     private TerrainModel model;
     private TerrainDensity density;
+    private TerrainBiomeResolver resolver;
 
     public TerrainBiomeSource(long seed) {
         this.seed = seed;
@@ -47,6 +48,7 @@ public final class TerrainBiomeSource extends BiomeSource {
     private void rebuild() {
         this.model = new TerrainModel(WorldTopology.standard(), seed);
         this.density = new TerrainDensity(WorldTopology.standard(), seed);
+        this.resolver = new TerrainBiomeResolver(model, density);
     }
 
     public static void install(RegistryAccess access) {
@@ -92,8 +94,7 @@ public final class TerrainBiomeSource extends BiomeSource {
         if (RegionalHydrology.hit(x, z, seed) != null) {
             return river;
         }
-        int surface = density.surfaceHeight(x, z);
-        TerrainModel.Biome kind = model.biome(x, z, surface);
+        TerrainModel.Biome kind = resolver.sample(x, z).biome();
         Holder<Biome> holder = holders.get(kind);
         return holder != null ? holder : fallback;
     }

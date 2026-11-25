@@ -57,12 +57,14 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     private long seed;
     private TerrainModel model;
     private TerrainDensity density;
+    private mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver resolver;
 
     public TerrainChunkGenerator(BiomeSource biomeSource, long seed) {
         super(biomeSource);
         this.seed = seed;
         this.model = new TerrainModel(WorldTopology.standard(), seed);
         this.density = new TerrainDensity(WorldTopology.standard(), seed);
+        this.resolver = new mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver(model, density);
     }
 
     public void setWorldSeed(long worldSeed) {
@@ -70,6 +72,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
             this.seed = worldSeed;
             this.model = new TerrainModel(WorldTopology.standard(), worldSeed);
             this.density = new TerrainDensity(WorldTopology.standard(), worldSeed);
+            this.resolver = new mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver(model, density);
             if (biomeSource instanceof mdh.dndclasses.worldgen.terrain.TerrainBiomeSource biomes) {
                 biomes.setSeed(worldSeed);
             }
@@ -186,7 +189,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                     }
                 }
 
-                TerrainModel.Biome biome = model.biome(x, z, top);
+                TerrainModel.Biome biome = resolver.biomeAt(x, z, top);
                 double temperature = model.temperature(x, z, top);
                 double snowTemperature = temperature + snowJitter(x, z) * 3.5D;
                 if (riverSurface >= SEA_LEVEL

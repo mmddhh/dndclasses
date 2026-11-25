@@ -686,6 +686,13 @@
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
 }
 
+.ability-slider-debug {
+  display: none;
+  width: 100%;
+  color: #d8b45a;
+  font-size: 10px;
+}
+
 .ability-row.primary .ability-name { color: var(--gold); }
 
 .ability-score {

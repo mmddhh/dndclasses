@@ -154,20 +154,24 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 int x = minX + localX;
                 int z = minZ + localZ;
                 int top = MIN_Y;
-                for (int y = MIN_Y; y < MIN_Y + HEIGHT; y++) {
-                    double d = sampleGrid(grid, localX, y, localZ);
-                    if (d > 0.0D || y == MIN_Y) {
-                        BlockState state;
-                        if (y == MIN_Y) {
-                            state = BEDROCK;
-                        } else if (y < 0) {
-                            state = DEEPSLATE;
-                        } else {
-                            state = STONE;
-                        }
-                        chunk.setBlockState(new BlockPos(x, y, z), state, false);
+                for (int y = MIN_Y + HEIGHT - 1; y >= MIN_Y; y--) {
+                    if (sampleGrid(grid, localX, y, localZ) > 0.0D) {
                         top = y;
+                        break;
                     }
+                }
+                // Temporary continuous-terrain rule: keep one solid column from bedrock to the
+                // highest density surface. Overhangs and caves return in a later pass.
+                for (int y = MIN_Y; y <= top; y++) {
+                    BlockState state;
+                    if (y == MIN_Y) {
+                        state = BEDROCK;
+                    } else if (y < 0) {
+                        state = DEEPSLATE;
+                    } else {
+                        state = STONE;
+                    }
+                    chunk.setBlockState(new BlockPos(x, y, z), state, false);
                 }
 
                 int riverSurface = -1;

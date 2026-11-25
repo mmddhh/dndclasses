@@ -686,6 +686,9 @@ function bindAbilityRow(body, a, remaining, primary) {
   abName.innerHTML = abilName(a.key);
   row.appendChild(abName);
   row.appendChild(make("span", "ability-mod", (mod >= 0 ? "+" : "") + mod));
+  var sliderDebug = make("span", "ability-slider-debug", "");
+  sliderDebug.id = "ability-slider-debug";
+  row.appendChild(sliderDebug);
 
   function setSliderVisual(value) {
     var ratio = (value - MIN_SCORE) / (MAX_SCORE - MIN_SCORE);
@@ -700,17 +703,30 @@ function bindAbilityRow(body, a, remaining, primary) {
       : String(shown);
     setSliderVisual(state.abilities[a.key]);
   }
+  function logSlider(stage, event, value) {
+    var rect = track.getBoundingClientRect();
+    var text = "[slider] " + stage + " key=" + a.key
+      + " clientX=" + event.clientX
+      + " offsetX=" + event.offsetX
+      + " pageX=" + event.pageX
+      + " left=" + (rect ? rect.left : "null")
+      + " width=" + (rect ? rect.width : "null")
+      + " value=" + value
+      + " state=" + state.abilities[a.key];
+    console.log(text);
+    sliderDebug.textContent = text;
+  }
   function applyPointer(event) {
     var rect = track.getBoundingClientRect();
     var width = rect && rect.width > 0 ? rect.width : track.offsetWidth;
     if (!width || width <= 0) return;
-    var clientX = event.clientX;
-    if (clientX === undefined || clientX === null) clientX = event.offsetX;
-    if (clientX === undefined || clientX === null) clientX = event.pageX;
+    var clientX = Number(event.clientX);
+    if (!isFinite(clientX)) clientX = Number(event.pageX);
     var left = rect ? rect.left : 0;
     var ratio = (clientX - left) / width;
     ratio = Math.max(0, Math.min(1, ratio));
     var value = Math.round(MIN_SCORE + ratio * (MAX_SCORE - MIN_SCORE));
+    logSlider("apply", event, value);
     setAbilityTarget(a.key, value, false);
     updateScore();
     refreshAbilitySummary();
@@ -724,19 +740,18 @@ function bindAbilityRow(body, a, remaining, primary) {
     if (!dragging) return;
     dragging = false;
     applyPointer(event);
+    logSlider("up", event, state.abilities[a.key]);
     document.removeEventListener("mousemove", onMove);
     document.removeEventListener("mouseup", onUp);
   }
   function startDrag(event) {
     dragging = true;
+    logSlider("down", event, state.abilities[a.key]);
     applyPointer(event);
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }
   slider.addEventListener("mousedown", startDrag);
-  slider.addEventListener("click", function (event) {
-    applyPointer(event);
-  });
   updateScore();
   body.appendChild(row);
 }

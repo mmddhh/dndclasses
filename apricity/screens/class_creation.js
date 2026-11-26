@@ -646,6 +646,7 @@ function renderAbility() {
 
   var costRow = make("div", "cost-row rune-row");
   var remainRune = make("span", "rune", null);
+  remainRune.id = "ability-points-remaining";
   remainRune.innerHTML = t("screen.dndclasses.creation.points_remaining") + remaining;
   costRow.appendChild(remainRune);
   costRow.appendChild(mk("span", "rune", "screen.dndclasses.creation.points_range"));
@@ -656,102 +657,67 @@ function renderAbility() {
   }
 
   body.appendChild(mk("div", "ability-caption", "screen.dndclasses.creation.ability_caption"));
+  console.log("[ability-slider] ready rows=" + ABILITIES.length);
 }
 
 function bindAbilityRow(body, a, remaining, primary) {
   var sc = state.abilities[a.key];
   var bonus = (DND_RACE && DND_RACE.bonuses) ? (DND_RACE.bonuses[a.key] || 0) : 0;
   var finalScore = Math.min(20, sc + bonus);
-  var mod = Math.floor((finalScore - 10) / 2);
-  var canPlus = sc < MAX_SCORE && remaining >= (scoreCost(sc + 1) - scoreCost(sc));
-  var canMinus = sc > MIN_SCORE;
   var isPrimary = primary.indexOf(a.key) >= 0;
 
   var row = make("div", "ability-row" + (isPrimary ? " primary" : ""));
-  var slider = make("button", "ability-slider");
-  slider.setAttribute("type", "button");
-  var track = make("div", "ability-slider-track");
-  var fill = make("div", "ability-slider-fill");
-  var thumb = make("div", "ability-slider-thumb");
-  slider.appendChild(track);
-  slider.appendChild(fill);
-  slider.appendChild(thumb);
+  var slider = make("input", "ability-slider");
+  slider.setAttribute("type", "range");
+  slider.setAttribute("min", String(MIN_SCORE));
+  slider.setAttribute("max", String(MAX_SCORE));
+  slider.setAttribute("step", "1");
+  slider.setAttribute("aria-label", abilName(a.key));
   var score = make("span", "ability-score", bonus
     ? String(finalScore) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
     : String(finalScore));
+  var minus = make("button", "button", "−");
+  var plus = make("button", "button", "+");
+  minus.setAttribute("type", "button");
+  plus.setAttribute("type", "button");
+  minus.addEventListener("click", function () { changeAbility(a.key, -1); });
+  plus.addEventListener("click", function () { changeAbility(a.key, 1); });
+  row.appendChild(minus);
   row.appendChild(slider);
+  row.appendChild(plus);
   row.appendChild(score);
 
   var abName = make("span", "ability-name", null);
   abName.innerHTML = abilName(a.key);
   row.appendChild(abName);
-  row.appendChild(make("span", "ability-mod", (mod >= 0 ? "+" : "") + mod));
-  var sliderDebug = make("span", "ability-slider-debug", "");
-  sliderDebug.id = "ability-slider-debug";
-  row.appendChild(sliderDebug);
-
-  function setSliderVisual(value) {
-    var ratio = (value - MIN_SCORE) / (MAX_SCORE - MIN_SCORE);
-    ratio = Math.max(0, Math.min(1, ratio));
-    fill.style.width = Math.round(ratio * 100) + "%";
-    thumb.style.left = Math.round(ratio * 100) + "%";
-  }
+  var modifier = make("span", "ability-mod");
+  row.appendChild(modifier);
   function updateScore() {
     var shown = Math.min(20, state.abilities[a.key] + bonus);
     score.textContent = bonus
       ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
       : String(shown);
-    setSliderVisual(state.abilities[a.key]);
+    var shownMod = Math.floor((shown - 10) / 2);
+    modifier.textContent = (shownMod >= 0 ? "+" : "") + shownMod;
+    var accepted = String(state.abilities[a.key]);
+    if (String(slider.value) !== accepted) slider.value = accepted;
   }
-  function logSlider(stage, event, value) {
-    var rect = track.getBoundingClientRect();
-    var text = "[slider] " + stage + " key=" + a.key
-      + " clientX=" + event.clientX
-      + " offsetX=" + event.offsetX
-      + " pageX=" + event.pageX
-      + " left=" + (rect ? rect.left : "null")
-      + " width=" + (rect ? rect.width : "null")
-      + " value=" + value
-      + " state=" + state.abilities[a.key];
-    console.log(text);
-    sliderDebug.textContent = text;
-  }
-  function applyPointer(event) {
-    var rect = track.getBoundingClientRect();
-    var width = rect && rect.width > 0 ? rect.width : track.offsetWidth;
-    if (!width || width <= 0) return;
-    var clientX = Number(event.clientX);
-    if (!isFinite(clientX)) clientX = Number(event.pageX);
-    var left = rect ? rect.left : 0;
-    var ratio = (clientX - left) / width;
-    ratio = Math.max(0, Math.min(1, ratio));
-    var value = Math.round(MIN_SCORE + ratio * (MAX_SCORE - MIN_SCORE));
-    logSlider("apply", event, value);
-    setAbilityTarget(a.key, value, false);
+  function applySliderValue() {
+    var requested = Number(slider.value);
+    if (!isFinite(requested) || requested < MIN_SCORE || requested > MAX_SCORE || Math.floor(requested) !== requested) return;
+    var before = state.abilities[a.key];
+    if (requested === before) return;
+    var beforeBudget = BUDGET - totalCost();
+    setAbilityTarget(a.key, requested, false);
     updateScore();
     refreshAbilitySummary();
+    console.log("[ability-slider] input key=" + a.key + " requested=" + requested
+      + " before=" + before + " after=" + state.abilities[a.key]
+      + " budgetBefore=" + beforeBudget + " budgetAfter=" + (BUDGET - totalCost()));
+
   }
-  var dragging = false;
-  function onMove(event) {
-    if (!dragging) return;
-    applyPointer(event);
-  }
-  function onUp(event) {
-    if (!dragging) return;
-    dragging = false;
-    applyPointer(event);
-    logSlider("up", event, state.abilities[a.key]);
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("mouseup", onUp);
-  }
-  function startDrag(event) {
-    dragging = true;
-    logSlider("down", event, state.abilities[a.key]);
-    applyPointer(event);
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }
-  slider.addEventListener("mousedown", startDrag);
+  slider.addEventListener("input", applySliderValue);
+  slider.addEventListener("change", applySliderValue);
   updateScore();
   body.appendChild(row);
 }
@@ -759,6 +725,8 @@ function bindAbilityRow(body, a, remaining, primary) {
 function refreshAbilitySummary() {
   var value = byId("ability-points-value");
   var bar = byId("ability-progress-bar");
+  var remaining = byId("ability-points-remaining");
+  if (remaining) remaining.innerHTML = t("screen.dndclasses.creation.points_remaining") + (BUDGET - totalCost());
   if (value) value.textContent = totalCost() + " / " + BUDGET;
   if (bar) bar.style.width = Math.round(totalCost() * 100 / BUDGET) + "%";
 }

@@ -6,7 +6,7 @@ import java.util.Random;
 
 /**
  * A deterministic network of bent ridge skeletons. Each segment is a triangular prism in
- * cross-section: the crest is a line, the two flanks fall away linearly, and both ends taper
+ * cross-section: the crest is a line, the two flanks ease into the surrounding terrain, and both ends taper
  * down to the surrounding foot instead of ending in a vertical triangular face.
  */
 public final class RidgeNetwork {
@@ -76,7 +76,8 @@ public final class RidgeNetwork {
                 if (lateral >= halfWidth) continue;
                 double foot = Math.min(1.0D, Math.min(t, 1.0D - t) / 0.14D);
                 foot = foot * foot * (3.0D - 2.0D * foot);
-                double profile = 1.0D - lateral / halfWidth;
+                double u = lateral / halfWidth;
+                double profile = 1.0D - u * u * (3.0D - 2.0D * u);
                 double weight = foot * profile;
                 double crest = a.crest() + (b.crest() - a.crest()) * t;
                 if (weight > bestWeight) {

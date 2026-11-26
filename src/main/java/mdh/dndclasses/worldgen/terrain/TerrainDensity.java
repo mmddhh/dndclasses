@@ -30,7 +30,7 @@ public final class TerrainDensity {
     private static final class ColumnCache {
         int x = Integer.MIN_VALUE;
         int z = Integer.MIN_VALUE;
-        double mask;
+        double targetHeight;
         double roughness;
     }
 
@@ -52,11 +52,10 @@ public final class TerrainDensity {
         if (column.x != x || column.z != z) {
             column.x = x;
             column.z = z;
-            column.mask = clamp((landform.targetHeight(x, z) - SEA_LEVEL) / 95.0D,
-                    -1.7D, 1.7D);
+            column.targetHeight = landform.targetHeight(x, z);
             column.roughness = landform.roughness(x, z);
         }
-        double mask = column.mask;
+        double landDetail = smoothstep(SEA_LEVEL - 24.0D, SEA_LEVEL + 8.0D, column.targetHeight);
         double formRoughness = column.roughness;
 
         double warpX = gradient2(wx, wz, 48, 0x51ED270BL) * 260.0D;
@@ -84,17 +83,17 @@ public final class TerrainDensity {
         double tributary = ridge2(mx + 2_113, mz - 4_127, 64, 0x7F4A7C15L);
         double valley = smoothstep(0.78D, 0.97D, tributary);
 
-        double vertical = (SEA_LEVEL - y) / 96.0D;
+        double vertical = (column.targetHeight - y) / 96.0D;
         return vertical
-                + mask * 1.35D
+
                 + broad * 0.85D * formRoughness
                 + detail * 0.30D * formRoughness
                 + fine * 0.38D * formRoughness
                 + micro * 0.12D * formRoughness
-                + ridge * ridge * 0.55D * (0.45D + 0.55D * (detail * 0.5D + 0.5D))
+                + landDetail * ridge * ridge * 0.40D * (0.45D + 0.55D * (detail * 0.5D + 0.5D))
                         * formRoughness
-                + mountain * 0.55D * formRoughness
-                - valley * 0.42D * formRoughness;
+                + landDetail * mountain * 0.38D * formRoughness
+                - landDetail * valley * 0.42D * formRoughness;
     }
 
     private double ridge2(double x, double z, int period, long salt) {

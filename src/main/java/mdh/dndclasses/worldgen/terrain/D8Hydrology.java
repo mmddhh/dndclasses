@@ -22,16 +22,25 @@ public final class D8Hydrology {
     }
 
     public static Result compute(int size, short[] height, boolean[] water) {
-        int count = size * size;
-        int[] filled = priorityFlood(size, height, water);
+        return compute(size, size, height, water, true);
+    }
+
+    static Result computeRegion(int width, int depth, short[] height, boolean[] water) {
+        return compute(width, depth, height, water, false);
+    }
+
+    private static Result compute(int width, int depth, short[] height, boolean[] water,
+                                  boolean wrap) {
+        int count = width * depth;
+        int[] filled = priorityFlood(width, depth, height, water, wrap);
         int[] receiver = new int[count];
         int[] flow = new int[count];
         Arrays.fill(receiver, -1);
         Arrays.fill(flow, 1);
 
-        for (int z = 0; z < size; z++) {
-            for (int x = 0; x < size; x++) {
-                int index = z * size + x;
+        for (int z = 0; z < depth; z++) {
+            for (int x = 0; x < width; x++) {
+                int index = z * width + x;
                 if (water[index]) {
                     continue;
                 }
@@ -42,9 +51,10 @@ public final class D8Hydrology {
                         if (dx == 0 && dz == 0) {
                             continue;
                         }
-                        int nx = Math.floorMod(x + dx, size);
-                        int nz = Math.floorMod(z + dz, size);
-                        int ni = nz * size + nx;
+                        int ni = neighbor(x + dx, z + dz, width, depth, wrap);
+                        if (ni < 0) {
+                            continue;
+                        }
                         int nh = water[ni] ? 63 : filled[ni];
                         if (nh < bestHeight) {
                             bestHeight = nh;
@@ -82,11 +92,19 @@ public final class D8Hydrology {
                 lake[i] = true;
             }
         }
-        return new Result(river, lake, flow, buildPaths(size, river, receiver, flow));
+        return new Result(river, lake, flow, buildPaths(width, river, receiver, flow));
     }
 
-    private static int[] priorityFlood(int size, short[] height, boolean[] water) {
-        int count = size * size;
+    private static int neighbor(int x, int z, int width, int depth, boolean wrap) {
+        if (wrap) {
+            return Math.floorMod(z, depth) * width + Math.floorMod(x, width);
+        }
+        return x < 0 || x >= width || z < 0 || z >= depth ? -1 : z * width + x;
+    }
+
+    private static int[] priorityFlood(int width, int depth, short[] height, boolean[] water,
+                                       boolean wrap) {
+        int count = width * depth;
         int[] filled = new int[count];
         boolean[] visited = new boolean[count];
         java.util.PriorityQueue<Integer> queue = new java.util.PriorityQueue<>(
@@ -95,6 +113,10 @@ public final class D8Hydrology {
             filled[i] = height[i];
             if (water[i]) {
                 filled[i] = 63;
+            }
+            int x = i % width;
+            int z = i / width;
+            if (water[i] || (!wrap && (x == 0 || x == width - 1 || z == 0 || z == depth - 1))) {
                 visited[i] = true;
                 queue.add(i);
             }
@@ -106,17 +128,15 @@ public final class D8Hydrology {
         }
         while (!queue.isEmpty()) {
             int current = queue.poll();
-            int x = current % size;
-            int z = current / size;
+            int x = current % width;
+            int z = current / width;
             for (int dz = -1; dz <= 1; dz++) {
                 for (int dx = -1; dx <= 1; dx++) {
                     if (dx == 0 && dz == 0) {
                         continue;
                     }
-                    int nx = Math.floorMod(x + dx, size);
-                    int nz = Math.floorMod(z + dz, size);
-                    int index = nz * size + nx;
-                    if (visited[index]) {
+                    int index = neighbor(x + dx, z + dz, width, depth, wrap);
+                    if (index < 0 || visited[index]) {
                         continue;
                     }
                     visited[index] = true;
@@ -128,8 +148,8 @@ public final class D8Hydrology {
         return filled;
     }
 
-    private static List<RiverPath> buildPaths(int size, boolean[] river, int[] receiver, int[] flow) {
-        int count = size * size;
+    private static List<RiverPath> buildPaths(int width, boolean[] river, int[] receiver, int[] flow) {
+        int count = river.length;
         boolean[] visited = new boolean[count];
         List<RiverPath> paths = new ArrayList<>();
         for (int start = 0; start < count; start++) {
@@ -141,7 +161,7 @@ public final class D8Hydrology {
             int maxFlow = 0;
             while (current >= 0 && river[current] && !visited[current]) {
                 visited[current] = true;
-                nodes.add(new RiverPath.Node(current % size, current / size));
+                nodes.add(new RiverPath.Node(current % width, current / width));
                 maxFlow = Math.max(maxFlow, flow[current]);
                 current = receiver[current];
             }

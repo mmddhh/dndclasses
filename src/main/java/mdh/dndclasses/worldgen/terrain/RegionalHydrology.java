@@ -1,9 +1,11 @@
 package mdh.dndclasses.worldgen.terrain;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * TFC-style lazy regional hydrology: a 4096-block region is sampled, drained and cached on demand.
@@ -13,7 +15,11 @@ public final class RegionalHydrology {
 
     private static final int REGION_BLOCKS = 4_096;
     private static final int CELL_BLOCKS = 64;
-    private static final int GRID = REGION_BLOCKS / CELL_BLOCKS;
+    private static final WorldTopology TOPOLOGY = WorldTopology.standard();
+    private static final int SIDE = TOPOLOGY.sideBlocks();
+    private static final int REGIONS = (SIDE + REGION_BLOCKS - 1) / REGION_BLOCKS;
+    private static final int EDGE_MARGIN = CELL_BLOCKS * 4;
+    private static final int BUCKET_BLOCKS = 128;
     private static final int CACHE_SIZE = 64;
 
     public record Hit(int widthBlocks, double distance, int waterLevel) {
@@ -23,98 +29,114 @@ public final class RegionalHydrology {
                            int waterLevel) {
     }
 
-    private record Region(List<Segment> segments) {
+    private record RegionKey(long seed, int x, int z) {
     }
 
-    private static final Map<Long, Region> CACHE = new LinkedHashMap<>(CACHE_SIZE, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<Long, Region> eldest) {
-            return size() > CACHE_SIZE;
+    private record Region(Map<Long, List<Segment>> buckets) {
+        List<Segment> near(int x, int z) {
+            return buckets.getOrDefault(key(Math.floorDiv(x, BUCKET_BLOCKS),
+                    Math.floorDiv(z, BUCKET_BLOCKS)), List.of());
         }
-    };
+    }
 
-    private static long cachedSeed = Long.MIN_VALUE;
+    private static final Map<RegionKey, CompletableFuture<Region>> CACHE =
+            new LinkedHashMap<>(CACHE_SIZE, 0.75f, true);
 
     private RegionalHydrology() {
     }
 
     public static Hit hit(int x, int z, long seed) {
-        if (seed != cachedSeed) {
-            synchronized (CACHE) {
-                CACHE.clear();
-                cachedSeed = seed;
-            }
-        }
-        int regionX = Math.floorDiv(Math.floorMod(x, 62_720), REGION_BLOCKS);
-        int regionZ = Math.floorDiv(Math.floorMod(z, 62_720), REGION_BLOCKS);
-        int localX = Math.floorMod(x, REGION_BLOCKS);
-        int localZ = Math.floorMod(z, REGION_BLOCKS);
-        boolean nearEdge = localX < CELL_BLOCKS * 4 || localX > REGION_BLOCKS - CELL_BLOCKS * 4
-                || localZ < CELL_BLOCKS * 4 || localZ > REGION_BLOCKS - CELL_BLOCKS * 4;
-        int range = nearEdge ? 1 : 0;
-        Hit best = null;
-        for (int dz = -range; dz <= range; dz++) {
-            for (int dx = -range; dx <= range; dx++) {
-                int rx = Math.floorMod(regionX + dx, 16);
-                int rz = Math.floorMod(regionZ + dz, 16);
-                Region region;
-                if (dx == 0 && dz == 0) {
-                    synchronized (CACHE) {
-                        region = CACHE.computeIfAbsent(key(rx, rz),
-                                ignored -> build(rx, rz, seed));
-                    }
-                } else {
-                    synchronized (CACHE) {
-                        region = CACHE.get(key(rx, rz));
-                    }
-                }
-                if (region == null) {
-                    continue;
-                }
-                for (Segment segment : region.segments()) {
-                    double distance = distanceToSegmentSq(x, z, segment);
+        int wx = TOPOLOGY.wrap(x);
+        int wz = TOPOLOGY.wrap(z);
+        Segment best = null;
+        double bestDistanceSq = Double.POSITIVE_INFINITY;
+        for (int rz = regionAt(wz - EDGE_MARGIN); rz <= regionAt(wz + EDGE_MARGIN); rz++) {
+            for (int rx = regionAt(wx - EDGE_MARGIN); rx <= regionAt(wx + EDGE_MARGIN); rx++) {
+                int px = wx - Math.floorDiv(rx, REGIONS) * SIDE;
+                int pz = wz - Math.floorDiv(rz, REGIONS) * SIDE;
+                Region region = region(new RegionKey(seed, Math.floorMod(rx, REGIONS),
+                        Math.floorMod(rz, REGIONS)));
+                for (Segment segment : region.near(px, pz)) {
+                    double distance = distanceToSegmentSq(px, pz, segment);
                     double radius = segment.width() * 0.5D;
-                    if (distance <= radius * radius) {
-                        if (best == null || distance < best.distance()) {
-                            best = new Hit(segment.width(), Math.sqrt(distance),
-                                    segment.waterLevel());
-                        }
+                    if (distance <= radius * radius && distance < bestDistanceSq) {
+                        best = segment;
+                        bestDistanceSq = distance;
                     }
                 }
             }
         }
-        return best;
+        return best == null ? null : new Hit(best.width(), Math.sqrt(bestDistanceSq), best.waterLevel());
+    }
+
+    private static int regionAt(int coordinate) {
+        return Math.floorDiv(coordinate, SIDE) * REGIONS + TOPOLOGY.wrap(coordinate) / REGION_BLOCKS;
+    }
+
+    private static CompletableFuture<Region> cachedRegion(RegionKey key, CompletableFuture<Region> pending) {
+        synchronized (CACHE) {
+            return CACHE.computeIfAbsent(key, ignored -> pending);
+        }
+    }
+
+    private static Region region(RegionKey key) {
+        synchronized (CACHE) {
+            CompletableFuture<Region> existing = CACHE.get(key);
+            if (existing != null && existing.isDone()) {
+                return existing.join();
+            }
+        }
+        CompletableFuture<Region> pending = new CompletableFuture<>();
+        CompletableFuture<Region> result = cachedRegion(key, pending);
+        if (result == pending) {
+            try {
+                pending.complete(build(key.x(), key.z(), key.seed()));
+            } catch (RuntimeException | Error failure) {
+                pending.completeExceptionally(failure);
+                synchronized (CACHE) {
+                    CACHE.remove(key, pending);
+                }
+                throw failure;
+            }
+            synchronized (CACHE) {
+                var entries = CACHE.entrySet().iterator();
+                while (CACHE.size() > CACHE_SIZE && entries.hasNext()) {
+                    if (entries.next().getValue().isDone()) {
+                        entries.remove();
+                    }
+                }
+            }
+        }
+        return result.join();
     }
 
     private static Region build(int regionX, int regionZ, long seed) {
-        WorldTopology topology = WorldTopology.standard();
-        TerrainDensity density = new TerrainDensity(topology, seed);
-        int expanded = GRID + 2;
-        short[] heights = new short[expanded * expanded];
-        boolean[] water = new boolean[expanded * expanded];
+        TerrainDensity density = new TerrainDensity(TOPOLOGY, seed);
         int baseX = regionX * REGION_BLOCKS;
         int baseZ = regionZ * REGION_BLOCKS;
-        for (int gz = 0; gz < expanded; gz++) {
-            for (int gx = 0; gx < expanded; gx++) {
+        int width = Math.min(REGION_BLOCKS, SIDE - baseX) / CELL_BLOCKS + 2;
+        int depth = Math.min(REGION_BLOCKS, SIDE - baseZ) / CELL_BLOCKS + 2;
+        short[] heights = new short[width * depth];
+        boolean[] water = new boolean[width * depth];
+        for (int gz = 0; gz < depth; gz++) {
+            for (int gx = 0; gx < width; gx++) {
                 int x = baseX + (gx - 1) * CELL_BLOCKS + CELL_BLOCKS / 2;
                 int z = baseZ + (gz - 1) * CELL_BLOCKS + CELL_BLOCKS / 2;
                 int height = density.surfaceHeight(x, z);
-                int index = gz * expanded + gx;
+                int index = gz * width + gx;
                 heights[index] = (short) height;
                 water[index] = height < TerrainModel.SEA_LEVEL;
             }
         }
-        D8Hydrology.Result result = D8Hydrology.compute(expanded, heights, water);
-        List<Segment> segments = new ArrayList<>();
+        D8Hydrology.Result result = D8Hydrology.computeRegion(width, depth, heights, water);
+        Map<Long, List<Segment>> buckets = new HashMap<>();
         for (RiverPath path : result.paths()) {
             int count = path.points().size();
             int[] terrain = new int[count];
             int[] levels = new int[count];
             for (int i = 0; i < count; i++) {
                 RiverPath.Node node = path.points().get(i);
-                int index = Math.max(0, Math.min(expanded - 1, node.z())) * expanded
-                        + Math.max(0, Math.min(expanded - 1, node.x()));
-                terrain[i] = heights[index];
+                terrain[i] = heights[node.z() * width + node.x()];
             }
             // Backward water profile: a local pit fills to the downstream spill level, while the
             // surface still follows the general terrain slope instead of an artificial constant drop.
@@ -137,11 +159,28 @@ public final class RegionalHydrology {
                         * Math.min(26.0D, length * 0.18D);
                 double mx = (x1 + x2) * 0.5D - dz / Math.max(1.0D, length) * meander;
                 double mz = (z1 + z2) * 0.5D + dx / Math.max(1.0D, length) * meander;
-                segments.add(new Segment(x1, z1, mx, mz, path.width(), waterLevel));
-                segments.add(new Segment(mx, mz, x2, z2, path.width(), waterLevel));
+                index(buckets, new Segment(x1, z1, mx, mz, path.width(), waterLevel));
+                index(buckets, new Segment(mx, mz, x2, z2, path.width(), waterLevel));
             }
         }
-        return new Region(List.copyOf(segments));
+        return new Region(buckets);
+    }
+
+    private static void index(Map<Long, List<Segment>> buckets, Segment segment) {
+        double radius = segment.width() * 0.5D;
+        int minX = bucket(Math.min(segment.x1(), segment.x2()) - radius);
+        int maxX = bucket(Math.max(segment.x1(), segment.x2()) + radius);
+        int minZ = bucket(Math.min(segment.z1(), segment.z2()) - radius);
+        int maxZ = bucket(Math.max(segment.z1(), segment.z2()) + radius);
+        for (int z = minZ; z <= maxZ; z++) {
+            for (int x = minX; x <= maxX; x++) {
+                buckets.computeIfAbsent(key(x, z), ignored -> new ArrayList<>()).add(segment);
+            }
+        }
+    }
+
+    private static int bucket(double coordinate) {
+        return (int) Math.floor(coordinate / BUCKET_BLOCKS);
     }
 
     private static double distanceToSegmentSq(int px, int pz, Segment segment) {
@@ -163,7 +202,6 @@ public final class RegionalHydrology {
     public static void clear() {
         synchronized (CACHE) {
             CACHE.clear();
-            cachedSeed = Long.MIN_VALUE;
         }
     }
 }

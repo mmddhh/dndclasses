@@ -2,18 +2,14 @@ package mdh.dndclasses.worldgen.mc;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import mdh.dndclasses.worldgen.terrain.TerrainDensity;
-import mdh.dndclasses.worldgen.terrain.TerrainModel;
+import mdh.dndclasses.worldgen.terrain.TerrainColumns;
+import mdh.dndclasses.worldgen.terrain.TerrainBiomeSource;
 import mdh.dndclasses.worldgen.terrain.WorldTopology;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
 import net.minecraft.server.level.WorldGenRegion;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
-import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.SnowLayerBlock;
@@ -37,12 +33,12 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     public static final Codec<TerrainChunkGenerator> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     BiomeSource.CODEC.fieldOf("biome_source").forGetter(generator -> generator.biomeSource),
-                    Codec.LONG.optionalFieldOf("seed", 12345L).forGetter(generator -> generator.seed)
+                    Codec.LONG.optionalFieldOf("seed", 12345L).forGetter(generator -> generator.columns.seed())
             ).apply(instance, TerrainChunkGenerator::new));
 
-    private static final int MIN_Y = -64;
-    private static final int HEIGHT = 512;
-    private static final int SEA_LEVEL = 63;
+    private static final int MIN_Y = TerrainColumns.MIN_Y;
+    private static final int HEIGHT = TerrainColumns.HEIGHT;
+    private static final int SEA_LEVEL = TerrainColumns.SEA_LEVEL;
     private static final BlockState STONE = Blocks.STONE.defaultBlockState();
     private static final BlockState DEEPSLATE = Blocks.DEEPSLATE.defaultBlockState();
     private static final BlockState BEDROCK = Blocks.BEDROCK.defaultBlockState();
@@ -52,30 +48,20 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     private static final BlockState GRAVEL = Blocks.GRAVEL.defaultBlockState();
     private static final BlockState SNOW = Blocks.SNOW_BLOCK.defaultBlockState();
     private static final BlockState ICE = Blocks.ICE.defaultBlockState();
-    private static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
+    private static final BlockState AIR = Blocks.AIR.defaultBlockState();
 
-    private long seed;
-    private TerrainModel model;
-    private TerrainDensity density;
-    private mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver resolver;
+    private volatile TerrainColumns columns;
 
     public TerrainChunkGenerator(BiomeSource biomeSource, long seed) {
         super(biomeSource);
-        this.seed = seed;
-        this.model = new TerrainModel(WorldTopology.standard(), seed);
-        this.density = new TerrainDensity(WorldTopology.standard(), seed);
-        this.resolver = new mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver(model, density);
+        setWorldSeed(seed);
     }
 
     public void setWorldSeed(long worldSeed) {
-        if (worldSeed != seed) {
-            this.seed = worldSeed;
-            this.model = new TerrainModel(WorldTopology.standard(), worldSeed);
-            this.density = new TerrainDensity(WorldTopology.standard(), worldSeed);
-            this.resolver = new mdh.dndclasses.worldgen.terrain.TerrainBiomeResolver(model, density);
-            if (biomeSource instanceof mdh.dndclasses.worldgen.terrain.TerrainBiomeSource biomes) {
-                biomes.setSeed(worldSeed);
-            }
+        if (biomeSource instanceof TerrainBiomeSource terrainBiomes) {
+            columns = terrainBiomes.columnsForSeed(worldSeed);
+        } else if (columns == null || columns.seed() != worldSeed) {
+            columns = new TerrainColumns(worldSeed);
         }
     }
 
@@ -131,124 +117,49 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     }
 
     private void fill(ChunkAccess chunk) {
+        TerrainColumns sampler = columns;
         int minX = chunk.getPos().getMinBlockX();
         int minZ = chunk.getPos().getMinBlockZ();
-        final int cell = 4;
-        final int gridX = 5;
-        final int gridZ = 5;
-        final int gridY = HEIGHT / cell + 1;
-        double[][][] grid = new double[gridX][gridZ][gridY];
-        for (int gx = 0; gx < gridX; gx++) {
-            for (int gz = 0; gz < gridZ; gz++) {
-                for (int gy = 0; gy < gridY; gy++) {
-                    int x = minX + gx * cell;
-                    int z = minZ + gz * cell;
-                    int y = Math.min(MIN_Y + HEIGHT - 1, MIN_Y + gy * cell);
-                    grid[gx][gz][gy] = density.density(x, y, z);
-                }
-            }
-        }
-
-        for (int localX = 0; localX < 16; localX++) {
-            for (int localZ = 0; localZ < 16; localZ++) {
-                int x = minX + localX;
-                int z = minZ + localZ;
-                int top = MIN_Y;
-                for (int y = MIN_Y + HEIGHT - 1; y >= MIN_Y; y--) {
-                    if (sampleGrid(grid, localX, y, localZ) > 0.0D) {
-                        top = y;
-                        break;
-                    }
-                }
-                // Temporary continuous-terrain rule: keep one solid column from bedrock to the
-                // highest density surface. Overhangs and caves return in a later pass.
-                for (int y = MIN_Y; y <= top; y++) {
-                    BlockState state;
-                    if (y == MIN_Y) {
-                        state = BEDROCK;
-                    } else if (y < 0) {
-                        state = DEEPSLATE;
-                    } else {
-                        state = STONE;
-                    }
-                    chunk.setBlockState(new BlockPos(x, y, z), state, false);
-                }
-
-                int riverSurface = -1;
-                boolean riverCarved = false;
-                mdh.dndclasses.worldgen.terrain.RegionalHydrology.Hit river =
-                        mdh.dndclasses.worldgen.terrain.RegionalHydrology.hit(x, z, seed);
-                if (river != null && top >= SEA_LEVEL) {
-                    int surface = Math.min(top, river.waterLevel());
-                    if (surface > SEA_LEVEL) {
-                        int depth = Math.min(7, 2 + river.widthBlocks() / 24);
-                        int bed = Math.max(MIN_Y + 4, Math.min(top - depth, surface - 2));
-                        for (int y = bed + 1; y <= surface; y++) {
-                            chunk.setBlockState(new BlockPos(x, y, z), WATER, false);
-                        }
-                        chunk.setBlockState(new BlockPos(x, bed, z), GRAVEL, false);
-                        riverSurface = surface;
-                        top = bed;
-                        riverCarved = true;
-                    }
-                }
-
-                TerrainModel.Biome biome = resolver.biomeAt(x, z, top);
-                double temperature = model.temperature(x, z, top);
-                double snowTemperature = temperature + snowJitter(x, z) * 3.5D;
-                if (riverSurface >= SEA_LEVEL
-                        && model.temperature(x, z, riverSurface) <= 0.0D) {
-                    chunk.setBlockState(new BlockPos(x, riverSurface, z), ICE, false);
-                }
-                if (top >= SEA_LEVEL) {
-                    if (!riverCarved) {
-                        if (biome == TerrainModel.Biome.OCEAN) {
-                            biome = TerrainModel.Biome.PLAINS;
-                        }
-                        chunk.setBlockState(new BlockPos(x, top, z),
-                                surfaceState(biome, top, top, snowTemperature, false), false);
-                    }
-                } else {
-                    chunk.setBlockState(new BlockPos(x, top, z),
-                            top < SEA_LEVEL - 2 ? GRAVEL : SAND, false);
-                    for (int y = top + 1; y <= SEA_LEVEL; y++) {
-                        chunk.setBlockState(new BlockPos(x, y, z), WATER, false);
-                    }
-                    if (temperature <= 0.0D) {
-                        chunk.setBlockState(new BlockPos(x, SEA_LEVEL, z), ICE, false);
-                    }
+        int bottom = Math.max(MIN_Y, chunk.getMinBuildHeight());
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        for (int z = minZ; z < minZ + 16; z++) {
+            for (int x = minX; x < minX + 16; x++) {
+                TerrainColumns.Column column = sampler.sample(x, z);
+                BlockState surface = groundState(column, x, z);
+                int top = Math.min(top(column), chunk.getMaxBuildHeight() - 1);
+                for (int y = bottom; y <= top; y++) {
+                    chunk.setBlockState(pos.set(x, y, z), blockAt(column, surface, y), false);
                 }
             }
         }
     }
 
-    private static double sampleGrid(double[][][] grid, int localX, int y, int localZ) {
-        double fx = localX / 4.0D;
-        double fy = (y - MIN_Y) / 4.0D;
-        double fz = localZ / 4.0D;
-        int x0 = (int) Math.floor(fx);
-        int y0 = (int) Math.floor(fy);
-        int z0 = (int) Math.floor(fz);
-        int x1 = Math.min(4, x0 + 1);
-        int y1 = Math.min(grid[0][0].length - 1, y0 + 1);
-        int z1 = Math.min(4, z0 + 1);
-        double tx = fx - x0;
-        double ty = fy - y0;
-        double tz = fz - z0;
-        double a = lerp(grid[x0][z0][y0], grid[x1][z0][y0], tx);
-        double b = lerp(grid[x0][z1][y0], grid[x1][z1][y0], tx);
-        double c = lerp(grid[x0][z0][y1], grid[x1][z0][y1], tx);
-        double d = lerp(grid[x0][z1][y1], grid[x1][z1][y1], tx);
-        return lerp(lerp(a, b, tz), lerp(c, d, tz), ty);
+    private static int top(TerrainColumns.Column column) {
+        return Math.max(column.ground(), column.water());
     }
 
-    private static double lerp(double a, double b, double t) {
-        return a + (b - a) * t;
+    private static BlockState blockAt(TerrainColumns.Column column, BlockState surface, int y) {
+        if (y == MIN_Y) {
+            return BEDROCK;
+        }
+        if (y < column.ground()) {
+            return y < 0 ? DEEPSLATE : STONE;
+        }
+        if (y == column.ground()) {
+            return surface;
+        }
+        if (y <= column.water()) {
+            return y == column.water() && column.waterTemperature() <= 0.0D ? ICE : WATER;
+        }
+        return AIR;
     }
+
+    private static final int SNOW_NOISE_PERIOD = 653;
+
     private static double snowJitter(int x, int z) {
-        double scale = 1.0D / 96.0D;
-        double u = x * scale;
-        double v = z * scale;
+        double scale = SNOW_NOISE_PERIOD / (double) WorldTopology.DEFAULT_SIDE;
+        double u = Math.floorMod(x, WorldTopology.DEFAULT_SIDE) * scale;
+        double v = Math.floorMod(z, WorldTopology.DEFAULT_SIDE) * scale;
         int x0 = (int) Math.floor(u);
         int z0 = (int) Math.floor(v);
         double tx = u - x0;
@@ -263,62 +174,77 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     }
 
     private static double snowNoise(int x, int z) {
-        long h = (long) x * 0x9E3779B97F4A7C15L ^ (long) z * 0xC2B2AE3D27D4EB4FL;
+        long h = Math.floorMod(x, SNOW_NOISE_PERIOD) * 0x9E3779B97F4A7C15L
+                ^ Math.floorMod(z, SNOW_NOISE_PERIOD) * 0xC2B2AE3D27D4EB4FL;
         h = (h ^ (h >>> 30)) * 0xBF58476D1CE4E5B9L;
         h = (h ^ (h >>> 27)) * 0x94D049BB133111EBL;
         h ^= h >>> 31;
         return (h >>> 11) * 0x1.0p-53;
     }
 
-    private static BlockState surfaceState(TerrainModel.Biome biome, int y, int height,
-                                           double temperature, boolean snowEligible) {
-        if (temperature <= 0.0D || snowEligible) {
-            return y == height ? SNOW : STONE;
+    private static BlockState groundState(TerrainColumns.Column column, int x, int z) {
+        if (column.river() || column.ground() < SEA_LEVEL - 2) {
+            return GRAVEL;
+        }
+        if (column.ground() < SEA_LEVEL) {
+            return SAND;
+        }
+        double temperature = column.groundTemperature() + snowJitter(x, z) * 3.5D;
+        if (temperature <= 0.0D) {
+            return SNOW;
         }
         if (temperature <= 3.0D) {
             int layers = Math.max(1, Math.min(3, (int) Math.ceil(3.0D - temperature)));
-            return y == height
-                    ? Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, layers)
-                    : STONE;
+            return Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, layers);
         }
-        if (biome == TerrainModel.Biome.DESERT || biome == TerrainModel.Biome.BEACH) {
-            return y == height ? SAND : SAND;
-        }
-        if (biome == TerrainModel.Biome.TUNDRA) {
-            return y == height ? SNOW : STONE;
-        }
-        if (biome == TerrainModel.Biome.MOUNTAINS) {
-            return y == height ? STONE : STONE;
-        }
-        if (biome == TerrainModel.Biome.OCEAN) {
-            return y == height ? GRAVEL : STONE;
-        }
-        return y == height ? GRASS : DIRT;
+        return switch (column.biome()) {
+            case DESERT, BEACH -> SAND;
+            case TUNDRA -> SNOW;
+            case MOUNTAINS -> STONE;
+            default -> GRASS;
+        };
+    }
+
+    public boolean isDryLand(int x, int z) {
+        TerrainColumns.Column column = columns.sample(x, z);
+        return column.ground() >= SEA_LEVEL && column.water() < column.ground();
     }
 
     @Override
     public int getBaseHeight(int x, int z, Heightmap.Types type,
                              LevelHeightAccessor level, RandomState randomState) {
-        return Math.max(MIN_Y + 5, Math.min(MIN_Y + HEIGHT - 1, density.surfaceHeight(x, z)));
+        TerrainColumns.Column column = columns.sample(x, z);
+        BlockState surface = groundState(column, x, z);
+        int bottom = Math.max(MIN_Y, level.getMinBuildHeight());
+        int top = Math.min(top(column), level.getMaxBuildHeight() - 1);
+        for (int y = top; y >= bottom; y--) {
+            if (type.isOpaque().test(blockAt(column, surface, y))) {
+                return y + 1;
+            }
+        }
+        return level.getMinBuildHeight();
     }
 
     @Override
     public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor level,
                                      RandomState randomState) {
-        BlockState[] states = new BlockState[HEIGHT];
-        int height = getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
-        for (int index = 0; index < HEIGHT; index++) {
-            int y = MIN_Y + index;
-            states[index] = y > height ? Blocks.AIR.defaultBlockState() : STONE;
+        TerrainColumns.Column column = columns.sample(x, z);
+        BlockState surface = groundState(column, x, z);
+        int bottom = Math.max(MIN_Y, level.getMinBuildHeight());
+        int limit = Math.min(MIN_Y + HEIGHT, level.getMaxBuildHeight());
+        BlockState[] states = new BlockState[Math.max(0, limit - bottom)];
+        for (int index = 0; index < states.length; index++) {
+            states[index] = blockAt(column, surface, bottom + index);
         }
-        return new NoiseColumn(MIN_Y, states);
+        return new NoiseColumn(bottom, states);
     }
 
     @Override
     public void addDebugScreenInfo(java.util.List<String> lines, RandomState randomState,
                                    BlockPos pos) {
-        lines.add("dndclasses terrain seed=" + seed);
-        lines.add("dndclasses landform=" + density.landformType(pos.getX(), pos.getZ()));
+        TerrainColumns sampler = columns;
+        lines.add("dndclasses terrain seed=" + sampler.seed());
+        TerrainColumns.Column column = sampler.sample(pos.getX(), pos.getZ());
+        lines.add("dndclasses terrain biome=" + column.biome() + " ground=" + column.ground());
     }
 }
-

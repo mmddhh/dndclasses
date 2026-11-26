@@ -40,10 +40,12 @@ public final class RealHabitabilitySampler {
                         level, level.getChunkSource().randomState());
                 Holder<Biome> biome = biomeSource.getNoiseBiome(x >> 2, seaLevel >> 2, z >> 2, sampler);
 
-                boolean ocean = biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_RIVER)
-                        || height <= seaLevel;
-                water[gz][gx] = ocean;
-                if (ocean) {
+                boolean wet = generator instanceof TerrainChunkGenerator terrain
+                        ? !terrain.isDryLand(x, z)
+                        : biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_RIVER)
+                                || height <= seaLevel;
+                water[gz][gx] = wet;
+                if (wet) {
                     continue;
                 }
 

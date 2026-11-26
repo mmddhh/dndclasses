@@ -43,8 +43,13 @@ public final class PlateModel {
     }
 
     public boolean isLand(int x, int z) {
-        double coast = (noise(x, z, 96, 0x3C6EF372L) - 0.5D) * 0.22D;
-        return sample(land, x, z) + coast > 0.5D;
+        return coastMask(x, z) > 0.5D;
+    }
+
+    double coastMask(int x, int z) {
+        double coast = (noise(x, z, 96, 0x3C6EF372L) - 0.5D) * 0.22D
+                + (noise(x, z, 384, 0xA54FF53AL) - 0.5D) * 0.08D;
+        return sample(land, x, z) + coast;
     }
 
     public double oceanDepth(int x, int z) {
@@ -64,7 +69,7 @@ public final class PlateModel {
                 int second = secondNearest(x, z, first);
                 Plate a = plates[first];
                 Plate b = plates[second];
-                int boundary = boundaryDistance(x, z, first, second);
+                double boundary = boundaryDistance(x, z, first, second);
                 double influence = Math.max(0.0D, 1.0D - boundary / 760.0D);
                 influence = influence * influence;
 
@@ -90,10 +95,9 @@ public final class PlateModel {
 
     private int nearest(int x, int z) {
         int best = 0;
-        int bestDistance = Integer.MAX_VALUE;
+        long bestDistance = Long.MAX_VALUE;
         for (int i = 0; i < plates.length; i++) {
-            int distance = topology.distance(x, plates[i].x)
-                    + topology.distance(z, plates[i].z);
+            long distance = distanceSquared(x, z, plates[i]);
             if (distance < bestDistance) {
                 bestDistance = distance;
                 best = i;
@@ -104,11 +108,10 @@ public final class PlateModel {
 
     private int secondNearest(int x, int z, int exclude) {
         int best = exclude == 0 ? 1 : 0;
-        int bestDistance = Integer.MAX_VALUE;
+        long bestDistance = Long.MAX_VALUE;
         for (int i = 0; i < plates.length; i++) {
             if (i == exclude) continue;
-            int distance = topology.distance(x, plates[i].x)
-                    + topology.distance(z, plates[i].z);
+            long distance = distanceSquared(x, z, plates[i]);
             if (distance < bestDistance) {
                 bestDistance = distance;
                 best = i;
@@ -117,9 +120,15 @@ public final class PlateModel {
         return best;
     }
 
-    private int boundaryDistance(int x, int z, int a, int b) {
-        int da = topology.distance(x, plates[a].x) + topology.distance(z, plates[a].z);
-        int db = topology.distance(x, plates[b].x) + topology.distance(z, plates[b].z);
+    private long distanceSquared(int x, int z, Plate plate) {
+        long dx = topology.distance(x, plate.x);
+        long dz = topology.distance(z, plate.z);
+        return dx * dx + dz * dz;
+    }
+
+    private double boundaryDistance(int x, int z, int a, int b) {
+        double da = Math.sqrt(distanceSquared(x, z, plates[a]));
+        double db = Math.sqrt(distanceSquared(x, z, plates[b]));
         return Math.abs(da - db);
     }
 
@@ -128,8 +137,8 @@ public final class PlateModel {
                 (noise(x, z, 48, 0x51ED270BL) - 0.5D) * 260.0D));
         int warpedZ = topology.wrap(z + (int) Math.round(
                 (noise(x + 7_133, z - 3_177, 48, 0x6A09E667L) - 0.5D) * 260.0D));
-        double gx = warpedX / (double) CELL;
-        double gz = warpedZ / (double) CELL;
+        double gx = warpedX / (double) CELL - 0.5D;
+        double gz = warpedZ / (double) CELL - 0.5D;
         int x0 = (int) Math.floor(gx);
         int z0 = (int) Math.floor(gz);
         int x1 = Math.floorMod(x0 + 1, GRID);

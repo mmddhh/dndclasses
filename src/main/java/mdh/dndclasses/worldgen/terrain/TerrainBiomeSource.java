@@ -21,34 +21,24 @@ public final class TerrainBiomeSource extends BiomeSource {
 
     public static final Codec<TerrainBiomeSource> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
-                    Codec.LONG.optionalFieldOf("seed", 12_345L).forGetter(source -> source.seed)
+                    Codec.LONG.optionalFieldOf("seed", 12_345L).forGetter(source -> source.columns.seed())
             ).apply(instance, TerrainBiomeSource::new));
 
     private static volatile Map<TerrainModel.Biome, Holder<Biome>> holders = Map.of();
     private static volatile Holder<Biome> fallback;
     private static volatile Holder<Biome> river;
 
-    private long seed;
-    private TerrainModel model;
-    private TerrainDensity density;
-    private TerrainBiomeResolver resolver;
+    private volatile TerrainColumns columns;
 
     public TerrainBiomeSource(long seed) {
-        this.seed = seed;
-        rebuild();
+        columns = new TerrainColumns(seed);
     }
 
-    public void setSeed(long seed) {
-        if (seed != this.seed) {
-            this.seed = seed;
-            rebuild();
+    public TerrainColumns columnsForSeed(long seed) {
+        if (seed != columns.seed()) {
+            columns = new TerrainColumns(seed);
         }
-    }
-
-    private void rebuild() {
-        this.model = new TerrainModel(WorldTopology.standard(), seed);
-        this.density = new TerrainDensity(WorldTopology.standard(), seed);
-        this.resolver = new TerrainBiomeResolver(model, density);
+        return columns;
     }
 
     public static void install(RegistryAccess access) {
@@ -83,7 +73,9 @@ public final class TerrainBiomeSource extends BiomeSource {
 
     @Override
     protected Stream<Holder<Biome>> collectPossibleBiomes() {
-        return holders.values().stream();
+        Holder<Biome> riverBiome = river;
+        return riverBiome == null ? holders.values().stream()
+                : Stream.concat(holders.values().stream(), Stream.of(riverBiome));
     }
 
     @Override
@@ -91,11 +83,11 @@ public final class TerrainBiomeSource extends BiomeSource {
                                        Climate.Sampler sampler) {
         int x = quartX << 2;
         int z = quartZ << 2;
-        if (RegionalHydrology.hit(x, z, seed) != null) {
+        TerrainColumns.Column column = columns.sample(x, z);
+        if (column.river()) {
             return river;
         }
-        TerrainModel.Biome kind = resolver.sample(x, z).biome();
-        Holder<Biome> holder = holders.get(kind);
+        Holder<Biome> holder = holders.get(column.biome());
         return holder != null ? holder : fallback;
     }
 }

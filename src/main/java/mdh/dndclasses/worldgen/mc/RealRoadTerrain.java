@@ -42,6 +42,11 @@ public final class RealRoadTerrain implements TerrainCost {
         if (cached != null) {
             return cached;
         }
+        if (generator instanceof TerrainChunkGenerator terrain) {
+            boolean dryLand = terrain.isDryLand(x, z);
+            passableCache.put(key, dryLand);
+            return dryLand;
+        }
         Holder<Biome> biome = biomeSource.getNoiseBiome(x >> 2, seaLevel >> 2, z >> 2, sampler);
         boolean result = height(x, z) > seaLevel
                 && !biome.is(BiomeTags.IS_OCEAN) && !biome.is(BiomeTags.IS_RIVER);

@@ -50,9 +50,12 @@ public final class TerrainLandform {
         return Type.PLAINS;
     }
 
-    public int targetHeight(int x, int z) {
-        if (!plates.isLand(x, z)) {
-            return (int) Math.round(TerrainModel.SEA_LEVEL - plates.oceanDepth(x, z));
+    public double targetHeight(int x, int z) {
+        double coast = plates.coastMask(x, z);
+        if (coast <= 0.5D) {
+            double shelf = smoothstep(0.5D, 0.0D, coast);
+            double relief = (fbm(x, z, 220, 0x243F6A88L) - 0.5D) * 14.0D;
+            return TerrainModel.SEA_LEVEL - shelf * (plates.oceanDepth(x, z) + relief);
         }
         double hill = hillMask(x, z);
         double mountain = mountainWeight(x, z);
@@ -66,27 +69,26 @@ public final class TerrainLandform {
             plateau /= total;
             basin /= total;
         }
-        double plains = Math.max(0.0D, 1.0D - hillWeight - mountain - plateau - basin);
-
         double height = TerrainModel.SEA_LEVEL + 4.0D;
         height += ridges.sample(x, z).height();
         height += hillWeight * (10.0D + fbm(x, z, 96, 0x9E3779B1L) * 18.0D);
         height += plateau * (58.0D + fbm(x, z, 128, 0x243F6A88L) * 4.0D);
         height -= basin * (10.0D + fbm(x, z, 80, 0x85A308D3L) * 8.0D);
-        return (int) Math.round(Math.max(TerrainModel.SEA_LEVEL + 1,
-                Math.min(TerrainModel.MAX_Y - 8, height)));
+        height = Math.max(TerrainModel.SEA_LEVEL + 1, Math.min(TerrainModel.MAX_Y - 8, height));
+        return lerp(TerrainModel.SEA_LEVEL, height, smoothstep(0.5D, 1.0D, coast));
     }
 
     /** 0 = perfectly flat plains core, 1 = fully rugged mountains. */
     public double roughness(int x, int z) {
+        double coast = smoothstep(0.5D, 1.0D, plates.coastMask(x, z));
         double hill = hillMask(x, z);
         double mountain = mountainWeight(x, z);
         double plateau = plateauMask(x, z);
         double basin = basinMask(x, z);
         double hillWeight = smoothstep(0.48D, 0.62D, hill);
-        double floor = plates.isLand(x, z) ? 0.055D : 0.12D;
-        return Math.min(1.0D, floor + hillWeight * 0.55D + mountain * 0.90D
+        double landRoughness = Math.min(1.0D, 0.055D + hillWeight * 0.55D + mountain * 0.90D
                 + plateau * 0.08D + basin * 0.10D);
+        return lerp(0.12D, landRoughness, coast);
     }
 
     private double mountainWeight(int x, int z) {

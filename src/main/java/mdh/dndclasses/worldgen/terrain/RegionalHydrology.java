@@ -26,7 +26,7 @@ public final class RegionalHydrology {
     }
 
     private record Segment(double x1, double z1, double x2, double z2, int width,
-                           int waterLevel) {
+                           double startLevel, double endLevel) {
     }
 
     private record RegionKey(long seed, int x, int z) {
@@ -50,6 +50,7 @@ public final class RegionalHydrology {
         int wz = TOPOLOGY.wrap(z);
         Segment best = null;
         double bestDistanceSq = Double.POSITIVE_INFINITY;
+        double bestT = 0.0D;
         for (int rz = regionAt(wz - EDGE_MARGIN); rz <= regionAt(wz + EDGE_MARGIN); rz++) {
             for (int rx = regionAt(wx - EDGE_MARGIN); rx <= regionAt(wx + EDGE_MARGIN); rx++) {
                 int px = wx - Math.floorDiv(rx, REGIONS) * SIDE;
@@ -57,16 +58,21 @@ public final class RegionalHydrology {
                 Region region = region(new RegionKey(seed, Math.floorMod(rx, REGIONS),
                         Math.floorMod(rz, REGIONS)));
                 for (Segment segment : region.near(px, pz)) {
-                    double distance = distanceToSegmentSq(px, pz, segment);
+                    double t = projection(px, pz, segment);
+                    double dx = px - (segment.x1() + t * (segment.x2() - segment.x1()));
+                    double dz = pz - (segment.z1() + t * (segment.z2() - segment.z1()));
+                    double distance = dx * dx + dz * dz;
                     double radius = segment.width() * 0.5D;
                     if (distance <= radius * radius && distance < bestDistanceSq) {
                         best = segment;
                         bestDistanceSq = distance;
+                        bestT = t;
                     }
                 }
             }
         }
-        return best == null ? null : new Hit(best.width(), Math.sqrt(bestDistanceSq), best.waterLevel());
+        return best == null ? null : new Hit(best.width(), Math.sqrt(bestDistanceSq),
+                (int) Math.floor(best.startLevel() + bestT * (best.endLevel() - best.startLevel())));
     }
 
     private static int regionAt(int coordinate) {
@@ -142,7 +148,11 @@ public final class RegionalHydrology {
             // surface still follows the general terrain slope instead of an artificial constant drop.
             levels[count - 1] = Math.max(TerrainModel.SEA_LEVEL, terrain[count - 1]);
             for (int i = count - 2; i >= 0; i--) {
-                levels[i] = Math.max(TerrainModel.SEA_LEVEL, Math.max(terrain[i], levels[i + 1]));
+                int natural = Math.max(TerrainModel.SEA_LEVEL, terrain[i]);
+                // A coarse cell represents 64 blocks. Keep ordinary river slope gentle and
+                // reserve multi-block drops for explicit waterfalls added later.
+                levels[i] = Math.max(levels[i + 1],
+                        Math.min(natural, levels[i + 1] + 1));
             }
             for (int i = 1; i < count; i++) {
                 RiverPath.Node a = path.points().get(i - 1);
@@ -154,16 +164,23 @@ public final class RegionalHydrology {
                 double dx = x2 - x1;
                 double dz = z2 - z1;
                 double length = Math.sqrt(dx * dx + dz * dz);
-                int waterLevel = levels[i];
+                double middleLevel = (levels[i - 1] + levels[i]) * 0.5D;
                 double meander = Math.sin(i * 0.83D + path.points().get(0).x() * 0.11D)
                         * Math.min(26.0D, length * 0.18D);
                 double mx = (x1 + x2) * 0.5D - dz / Math.max(1.0D, length) * meander;
                 double mz = (z1 + z2) * 0.5D + dx / Math.max(1.0D, length) * meander;
-                index(buckets, new Segment(x1, z1, mx, mz, path.width(), waterLevel));
-                index(buckets, new Segment(mx, mz, x2, z2, path.width(), waterLevel));
+                if (length == 0.0D) continue;
+                int startWidth = channelWidth(result.flow()[a.z() * width + a.x()]);
+                int endWidth = channelWidth(result.flow()[b.z() * width + b.x()]);
+                index(buckets, new Segment(x1, z1, mx, mz, startWidth, levels[i - 1], middleLevel));
+                index(buckets, new Segment(mx, mz, x2, z2, endWidth, middleLevel, levels[i]));
             }
         }
         return new Region(buckets);
+    }
+
+    private static int channelWidth(int flow) {
+        return Math.min(64, 4 + (int) Math.sqrt(flow));
     }
 
     private static void index(Map<Long, List<Segment>> buckets, Segment segment) {
@@ -183,16 +200,13 @@ public final class RegionalHydrology {
         return (int) Math.floor(coordinate / BUCKET_BLOCKS);
     }
 
-    private static double distanceToSegmentSq(int px, int pz, Segment segment) {
+    private static double projection(int px, int pz, Segment segment) {
         double dx = segment.x2() - segment.x1();
         double dz = segment.z2() - segment.z1();
         double lengthSq = dx * dx + dz * dz;
         double t = lengthSq == 0.0D ? 0.0D
                 : (((px - segment.x1()) * dx + (pz - segment.z1()) * dz) / lengthSq);
-        t = Math.max(0.0D, Math.min(1.0D, t));
-        double x = segment.x1() + t * dx;
-        double z = segment.z1() + t * dz;
-        return (px - x) * (px - x) + (pz - z) * (pz - z);
+        return Math.max(0.0D, Math.min(1.0D, t));
     }
 
     private static long key(int x, int z) {

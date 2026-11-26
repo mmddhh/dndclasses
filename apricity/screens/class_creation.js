@@ -672,6 +672,8 @@ function bindAbilityRow(body, a, remaining, primary) {
   slider.setAttribute("min", String(MIN_SCORE));
   slider.setAttribute("max", String(MAX_SCORE));
   slider.setAttribute("step", "1");
+  slider.setAttribute("value", String(sc));
+  slider.setAttribute("data-ability", a.key);
   slider.setAttribute("aria-label", abilName(a.key));
   var score = make("span", "ability-score", bonus
     ? String(finalScore) + " (" + (bonus > 0 ? "+" : "") + bonus + ")"
@@ -700,10 +702,14 @@ function bindAbilityRow(body, a, remaining, primary) {
     var shownMod = Math.floor((shown - 10) / 2);
     modifier.textContent = (shownMod >= 0 ? "+" : "") + shownMod;
     var accepted = String(state.abilities[a.key]);
-    if (String(slider.value) !== accepted) slider.value = accepted;
+    slider.value = accepted;
+    slider.setAttribute("value", accepted);
   }
   function applySliderValue() {
     var requested = Number(slider.value);
+    if (!isFinite(requested) || requested < MIN_SCORE || requested > MAX_SCORE) {
+      requested = Number(slider.valueAsNumber);
+    }
     if (!isFinite(requested) || requested < MIN_SCORE || requested > MAX_SCORE || Math.floor(requested) !== requested) return;
     var before = state.abilities[a.key];
     if (requested === before) return;
@@ -714,7 +720,6 @@ function bindAbilityRow(body, a, remaining, primary) {
     console.log("[ability-slider] input key=" + a.key + " requested=" + requested
       + " before=" + before + " after=" + state.abilities[a.key]
       + " budgetBefore=" + beforeBudget + " budgetAfter=" + (BUDGET - totalCost()));
-
   }
   slider.addEventListener("input", applySliderValue);
   slider.addEventListener("change", applySliderValue);
@@ -761,7 +766,22 @@ function setAbilityTarget(key, target, render) {
 
 function changeAbility(key, delta) {
   if (!applyAbilityDelta(key, delta)) return;
-  renderAbility();
+  var slider = document.querySelector('.ability-slider[data-ability="' + key + '"]');
+  if (slider) {
+    slider.value = String(state.abilities[key]);
+    slider.setAttribute("value", String(state.abilities[key]));
+    var row = slider.parentNode;
+    var score = row && row.querySelector(".ability-score");
+    var modifier = row && row.querySelector(".ability-mod");
+    var bonus = (DND_RACE && DND_RACE.bonuses) ? (DND_RACE.bonuses[key] || 0) : 0;
+    var shown = Math.min(20, state.abilities[key] + bonus);
+    if (score) score.textContent = bonus ? String(shown) + " (" + (bonus > 0 ? "+" : "") + bonus + ")" : String(shown);
+    if (modifier) {
+      var mod = Math.floor((shown - 10) / 2);
+      modifier.textContent = (mod >= 0 ? "+" : "") + mod;
+    }
+  }
+  refreshAbilitySummary();
   updateFooterSummary();
   refreshConfirmState();
   setMsg("", false);

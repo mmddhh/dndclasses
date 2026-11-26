@@ -51,11 +51,12 @@ public final class TerrainColumns {
         int ground = surface(x, z, local);
         int water = ground < SEA_LEVEL ? SEA_LEVEL : MIN_Y - 1;
         RegionalHydrology.Hit hit = RegionalHydrology.hit(x, z, seed);
-        boolean river = hit != null && ground >= SEA_LEVEL;
+        boolean river = hit != null && (ground >= SEA_LEVEL || hit.waterLevel() > SEA_LEVEL);
         if (river) {
-            water = Math.max(SEA_LEVEL, Math.min(ground, hit.waterLevel()));
-            int depth = Math.min(7, 2 + hit.widthBlocks() / 24);
-            ground = Math.max(MIN_Y + 4, Math.min(ground - depth, water - 2));
+            water = hit.waterLevel();
+            double across = Math.min(1.0D, hit.distance() * 2.0D / hit.widthBlocks());
+            int depth = 2 + (int) Math.round((1.0D - across * across) * Math.min(5, hit.widthBlocks() / 8));
+            ground = Math.min(ground, water - depth);
         }
         TerrainModel.Biome biome = resolver.biomeAt(x, z, ground);
         return new Column(ground, water, river, biome, model.temperature(x, z, ground),

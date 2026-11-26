@@ -86,8 +86,8 @@ public final class TerrainDensity {
         double vertical = (column.targetHeight - y) / 96.0D;
         return vertical
 
-                + broad * 0.85D * formRoughness
-                + detail * 0.30D * formRoughness
+                + broad * (0.20D + 0.45D * landDetail) * formRoughness
+                + detail * (0.10D + 0.16D * landDetail) * formRoughness
                 + fine * 0.38D * formRoughness
                 + micro * 0.12D * formRoughness
                 + landDetail * ridge * ridge * 0.40D * (0.45D + 0.55D * (detail * 0.5D + 0.5D))

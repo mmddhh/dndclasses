@@ -651,52 +651,6 @@
 .ability-slider::-webkit-slider-thumb { cursor: grab; }
 .ability-slider::-webkit-slider-runnable-track { height: 6px; }
 
-.ability-slider-track,
-.ability-slider-fill,
-.ability-slider-thumb {
-  pointer-events: none;
-}
-
-.ability-slider-track,
-.ability-slider-fill {
-  position: absolute;
-  left: 0;
-  top: 11px;
-  height: 6px;
-  border-radius: 3px;
-}
-
-.ability-slider-track {
-  width: 100%;
-  background: #2a2116;
-  border: 1px solid #120d07;
-}
-
-.ability-slider-fill {
-  width: 0;
-  background: var(--gold);
-}
-
-.ability-slider-thumb {
-  position: absolute;
-  top: 6px;
-  left: 0;
-  width: 16px;
-  height: 16px;
-  margin-left: -8px;
-  border-radius: 50%;
-  background: #f0d27a;
-  border: 2px solid #5b431d;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-}
-
-.ability-slider-debug {
-  display: none;
-  width: 100%;
-  color: #d8b45a;
-  font-size: 10px;
-}
-
 .ability-row.primary .ability-name { color: var(--gold); }
 
 .ability-score {

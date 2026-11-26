@@ -54,13 +54,13 @@ public final class TerrainLandform {
         double coast = plates.coastMask(x, z);
         if (coast <= 0.5D) {
             double shelf = smoothstep(0.5D, 0.0D, coast);
-            double relief = (fbm(x, z, 220, 0x243F6A88L) - 0.5D) * 14.0D;
+            double relief = (fbm(x, z, 120, 0x243F6A88L) - 0.5D) * 7.0D;
             return TerrainModel.SEA_LEVEL - shelf * (plates.oceanDepth(x, z) + relief);
         }
         double hill = hillMask(x, z);
         double mountain = mountainWeight(x, z);
-        double plateau = plateauMask(x, z);
-        double basin = basinMask(x, z);
+        double plateau = plateauMask(x, z) * 0.55D;
+        double basin = basinMask(x, z) * 0.35D;
         double hillWeight = smoothstep(0.48D, 0.62D, hill);
         double total = hillWeight + mountain + plateau + basin;
         if (total > 1.0D) {
@@ -119,14 +119,14 @@ public final class TerrainLandform {
     }
 
     private double plateauMask(int x, int z) {
-        double n = noise(x, z, 3, 0xA54FF53AL);
-        return smoothstep(0.68D, 0.82D, n) * (1.0D - hillMask(x, z))
+        double n = noise(x, z, 6, 0xA54FF53AL);
+        return smoothstep(0.74D, 0.90D, n) * (1.0D - hillMask(x, z))
                 * (1.0D - mountainMask(x, z));
     }
 
     private double basinMask(int x, int z) {
-        double n = noise(x, z, 5, 0x1F83D9ABL);
-        return smoothstep(0.78D, 0.90D, n) * (1.0D - hillMask(x, z))
+        double n = noise(x, z, 9, 0x1F83D9ABL);
+        return smoothstep(0.80D, 0.94D, n) * (1.0D - hillMask(x, z))
                 * (1.0D - mountainMask(x, z)) * (1.0D - plateauMask(x, z));
     }
 
@@ -151,7 +151,7 @@ public final class TerrainLandform {
     }
 
     private double noise(int x, int z, int period, long salt) {
-        int side = 62_720;
+        int side = model.topology().sideBlocks();
         double scale = period / (double) side;
         double u = x * scale;
         double v = z * scale;
@@ -167,7 +167,7 @@ public final class TerrainLandform {
     }
 
     private double value(int x, int z, int period, long salt) {
-        long hash = salt;
+        long hash = model.seed() ^ salt;
         hash ^= (long) Math.floorMod(x, period) * 0x9E3779B97F4A7C15L;
         hash ^= (long) Math.floorMod(z, period) * 0xC2B2AE3D27D4EB4FL;
         hash = (hash ^ (hash >>> 30)) * 0xBF58476D1CE4E5B9L;

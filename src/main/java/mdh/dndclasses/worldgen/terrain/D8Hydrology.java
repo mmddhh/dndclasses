@@ -150,22 +150,33 @@ public final class D8Hydrology {
 
     private static List<RiverPath> buildPaths(int width, boolean[] river, int[] receiver, int[] flow) {
         int count = river.length;
-        boolean[] visited = new boolean[count];
+        int[] upstream = new int[count];
+        for (int i = 0; i < count; i++) {
+            if (river[i] && receiver[i] >= 0 && river[receiver[i]]) upstream[receiver[i]]++;
+        }
+        boolean[] usedEdge = new boolean[count];
         List<RiverPath> paths = new ArrayList<>();
         for (int start = 0; start < count; start++) {
-            if (!river[start] || visited[start]) {
+            if (!river[start] || upstream[start] == 1) {
                 continue;
             }
             List<RiverPath.Node> nodes = new ArrayList<>();
             int current = start;
             int maxFlow = 0;
-            while (current >= 0 && river[current] && !visited[current]) {
-                visited[current] = true;
+            while (current >= 0 && river[current]) {
                 nodes.add(new RiverPath.Node(current % width, current / width));
                 maxFlow = Math.max(maxFlow, flow[current]);
-                current = receiver[current];
+                int next = receiver[current];
+                if (next < 0 || !river[next] || usedEdge[current]) break;
+                usedEdge[current] = true;
+                current = next;
+                if (upstream[current] != 1) {
+                    nodes.add(new RiverPath.Node(current % width, current / width));
+                    maxFlow = Math.max(maxFlow, flow[current]);
+                    break;
+                }
             }
-            if (nodes.size() >= 4) {
+            if (nodes.size() >= 2) {
                 int widthBlocks = 4 + (int) Math.min(236.0D, Math.sqrt(maxFlow) * 2.2D);
                 paths.add(new RiverPath(smooth(nodes), widthBlocks));
             }

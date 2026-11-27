@@ -22,7 +22,7 @@ public final class RegionalHydrology {
     private static final int BUCKET_BLOCKS = 128;
     private static final int CACHE_SIZE = 64;
 
-    public record Hit(int widthBlocks, double distance, int waterLevel) {
+    public record Hit(int widthBlocks, double distance, int waterLevel, boolean lake) {
     }
 
     private record Segment(double x1, double z1, double x2, double z2, int width,
@@ -32,7 +32,7 @@ public final class RegionalHydrology {
     private record RegionKey(long seed, int x, int z) {
     }
 
-    private record Region(Map<Long, List<Segment>> buckets) {
+    private record Region(Map<Long, List<Segment>> buckets, Map<Long, Integer> lakes) {
         List<Segment> near(int x, int z) {
             return buckets.getOrDefault(key(Math.floorDiv(x, BUCKET_BLOCKS),
                     Math.floorDiv(z, BUCKET_BLOCKS)), List.of());
@@ -46,6 +46,10 @@ public final class RegionalHydrology {
     }
 
     public static Hit hit(int x, int z, long seed) {
+        return hit(x, z, seed, Integer.MAX_VALUE);
+    }
+
+    static Hit hit(int x, int z, long seed, int ground) {
         int wx = TOPOLOGY.wrap(x);
         int wz = TOPOLOGY.wrap(z);
         Segment best = null;
@@ -57,6 +61,9 @@ public final class RegionalHydrology {
                 int pz = wz - Math.floorDiv(rz, REGIONS) * SIDE;
                 Region region = region(new RegionKey(seed, Math.floorMod(rx, REGIONS),
                         Math.floorMod(rz, REGIONS)));
+                Integer lake = region.lakes().get(key(Math.floorDiv(px, CELL_BLOCKS),
+                        Math.floorDiv(pz, CELL_BLOCKS)));
+                if (lake != null && ground < lake) return new Hit(0, 0.0D, lake, true);
                 for (Segment segment : region.near(px, pz)) {
                     double t = projection(px, pz, segment);
                     double dx = px - (segment.x1() + t * (segment.x2() - segment.x1()));
@@ -72,7 +79,7 @@ public final class RegionalHydrology {
             }
         }
         return best == null ? null : new Hit(best.width(), Math.sqrt(bestDistanceSq),
-                (int) Math.floor(best.startLevel() + bestT * (best.endLevel() - best.startLevel())));
+                (int) Math.floor(best.startLevel() + bestT * (best.endLevel() - best.startLevel())), false);
     }
 
     private static int regionAt(int coordinate) {
@@ -118,12 +125,14 @@ public final class RegionalHydrology {
 
     private static Region build(int regionX, int regionZ, long seed) {
         TerrainDensity density = new TerrainDensity(TOPOLOGY, seed);
+        TerrainModel climate = new TerrainModel(TOPOLOGY, seed);
         int baseX = regionX * REGION_BLOCKS;
         int baseZ = regionZ * REGION_BLOCKS;
         int width = Math.min(REGION_BLOCKS, SIDE - baseX) / CELL_BLOCKS + 2;
         int depth = Math.min(REGION_BLOCKS, SIDE - baseZ) / CELL_BLOCKS + 2;
         short[] heights = new short[width * depth];
         boolean[] water = new boolean[width * depth];
+        double[] wetness = new double[width * depth];
         for (int gz = 0; gz < depth; gz++) {
             for (int gx = 0; gx < width; gx++) {
                 int x = baseX + (gx - 1) * CELL_BLOCKS + CELL_BLOCKS / 2;
@@ -132,28 +141,29 @@ public final class RegionalHydrology {
                 int index = gz * width + gx;
                 heights[index] = (short) height;
                 water[index] = height < TerrainModel.SEA_LEVEL;
+                wetness[index] = water[index] ? 0.0D : climate.humidity(x, z, height)
+                        - Math.max(0.0D, climate.temperature(x, z, height) - 20.0D) * 0.012D;
+                wetness[index] = Math.max(0.0D, wetness[index]);
             }
         }
-        D8Hydrology.Result result = D8Hydrology.computeRegion(width, depth, heights, water);
+        D8Hydrology.Result result = D8Hydrology.computeRegion(width, depth, heights, water, wetness);
         Map<Long, List<Segment>> buckets = new HashMap<>();
+        Map<Long, Integer> lakes = new HashMap<>();
+        int[] levels = new int[heights.length];
+        for (int i : result.downstreamFirst()) {
+            int natural = Math.max(TerrainModel.SEA_LEVEL, heights[i]);
+            int next = result.receiver()[i];
+            if (result.lake()[i]) {
+                levels[i] = result.lakeLevel()[i] - 1;
+                lakes.put(key(baseX / CELL_BLOCKS + i % width - 1,
+                        baseZ / CELL_BLOCKS + i / width - 1), levels[i]);
+            } else {
+                levels[i] = next < 0 ? natural
+                        : Math.max(levels[next], Math.min(natural, levels[next] + 1));
+            }
+        }
         for (RiverPath path : result.paths()) {
             int count = path.points().size();
-            int[] terrain = new int[count];
-            int[] levels = new int[count];
-            for (int i = 0; i < count; i++) {
-                RiverPath.Node node = path.points().get(i);
-                terrain[i] = heights[node.z() * width + node.x()];
-            }
-            // Backward water profile: a local pit fills to the downstream spill level, while the
-            // surface still follows the general terrain slope instead of an artificial constant drop.
-            levels[count - 1] = Math.max(TerrainModel.SEA_LEVEL, terrain[count - 1]);
-            for (int i = count - 2; i >= 0; i--) {
-                int natural = Math.max(TerrainModel.SEA_LEVEL, terrain[i]);
-                // A coarse cell represents 64 blocks. Keep ordinary river slope gentle and
-                // reserve multi-block drops for explicit waterfalls added later.
-                levels[i] = Math.max(levels[i + 1],
-                        Math.min(natural, levels[i + 1] + 1));
-            }
             for (int i = 1; i < count; i++) {
                 RiverPath.Node a = path.points().get(i - 1);
                 RiverPath.Node b = path.points().get(i);
@@ -164,23 +174,25 @@ public final class RegionalHydrology {
                 double dx = x2 - x1;
                 double dz = z2 - z1;
                 double length = Math.sqrt(dx * dx + dz * dz);
-                double middleLevel = (levels[i - 1] + levels[i]) * 0.5D;
-                double meander = Math.sin(i * 0.83D + path.points().get(0).x() * 0.11D)
+                int ia = a.z() * width + a.x();
+                int ib = b.z() * width + b.x();
+                double middleLevel = (levels[ia] + levels[ib]) * 0.5D;
+                double meander = Math.sin(x1 * 0.013D + z1 * 0.017D)
                         * Math.min(26.0D, length * 0.18D);
                 double mx = (x1 + x2) * 0.5D - dz / Math.max(1.0D, length) * meander;
                 double mz = (z1 + z2) * 0.5D + dx / Math.max(1.0D, length) * meander;
                 if (length == 0.0D) continue;
-                int startWidth = channelWidth(result.flow()[a.z() * width + a.x()]);
-                int endWidth = channelWidth(result.flow()[b.z() * width + b.x()]);
-                index(buckets, new Segment(x1, z1, mx, mz, startWidth, levels[i - 1], middleLevel));
-                index(buckets, new Segment(mx, mz, x2, z2, endWidth, middleLevel, levels[i]));
+                int startWidth = channelWidth(result.flow()[ia]);
+                int endWidth = result.river()[ib] ? channelWidth(result.flow()[ib]) : startWidth;
+                index(buckets, new Segment(x1, z1, mx, mz, startWidth, levels[ia], middleLevel));
+                index(buckets, new Segment(mx, mz, x2, z2, endWidth, middleLevel, levels[ib]));
             }
         }
-        return new Region(buckets);
+        return new Region(buckets, lakes);
     }
 
     private static int channelWidth(int flow) {
-        return Math.min(64, 4 + (int) Math.sqrt(flow));
+        return Math.min(64, 4 + (int) Math.sqrt(flow * 0.5D));
     }
 
     private static void index(Map<Long, List<Segment>> buckets, Segment segment) {

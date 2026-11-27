@@ -40,6 +40,11 @@ public final class TerrainColumns {
         return seed;
     }
 
+    public boolean isCave(int x, int y, int z, Column column) {
+        int cover = column.water() > column.ground() ? 14 : 6;
+        return y >= MIN_Y + 7 && y <= column.ground() - cover && density.isCave(x, y, z);
+    }
+
     public Column sample(int x, int z) {
         int wx = TOPOLOGY.wrap(x);
         int wz = TOPOLOGY.wrap(z);
@@ -50,8 +55,10 @@ public final class TerrainColumns {
     private Column sample(int x, int z, Cache local) {
         int ground = surface(x, z, local);
         int water = ground < SEA_LEVEL ? SEA_LEVEL : MIN_Y - 1;
-        RegionalHydrology.Hit hit = RegionalHydrology.hit(x, z, seed);
-        boolean river = hit != null && (ground >= SEA_LEVEL || hit.waterLevel() > SEA_LEVEL);
+        RegionalHydrology.Hit hit = RegionalHydrology.hit(x, z, seed, ground);
+        if (hit != null && hit.lake()) water = Math.max(water, hit.waterLevel());
+        boolean river = hit != null && !hit.lake()
+                && (ground >= SEA_LEVEL || hit.waterLevel() > SEA_LEVEL);
         if (river) {
             water = hit.waterLevel();
             double across = Math.min(1.0D, hit.distance() * 2.0D / hit.widthBlocks());

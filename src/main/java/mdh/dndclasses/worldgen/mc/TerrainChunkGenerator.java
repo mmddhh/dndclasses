@@ -44,6 +44,8 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     private static final BlockState BEDROCK = Blocks.BEDROCK.defaultBlockState();
     private static final BlockState WATER = Blocks.WATER.defaultBlockState();
     private static final BlockState GRASS = Blocks.GRASS_BLOCK.defaultBlockState();
+    private static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
+    private static final BlockState CAVE_AIR = Blocks.CAVE_AIR.defaultBlockState();
     private static final BlockState SAND = Blocks.SAND.defaultBlockState();
     private static final BlockState GRAVEL = Blocks.GRAVEL.defaultBlockState();
     private static final BlockState SNOW = Blocks.SNOW_BLOCK.defaultBlockState();
@@ -88,6 +90,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
     @Override
     public void applyBiomeDecoration(net.minecraft.world.level.WorldGenLevel level,
                                      ChunkAccess chunk, StructureManager structureManager) {
+        super.applyBiomeDecoration(level, chunk, structureManager);
     }
 
     @Override
@@ -128,7 +131,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
                 BlockState surface = groundState(column, x, z);
                 int top = Math.min(top(column), chunk.getMaxBuildHeight() - 1);
                 for (int y = bottom; y <= top; y++) {
-                    chunk.setBlockState(pos.set(x, y, z), blockAt(column, surface, y), false);
+                    chunk.setBlockState(pos.set(x, y, z), blockAt(sampler, column, surface, x, y, z), false);
                 }
             }
         }
@@ -138,11 +141,14 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         return Math.max(column.ground(), column.water());
     }
 
-    private static BlockState blockAt(TerrainColumns.Column column, BlockState surface, int y) {
+    private static BlockState blockAt(TerrainColumns sampler, TerrainColumns.Column column,
+                                      BlockState surface, int x, int y, int z) {
         if (y == MIN_Y) {
             return BEDROCK;
         }
         if (y < column.ground()) {
+            if (sampler.isCave(x, y, z, column)) return CAVE_AIR;
+            if (surface == GRASS && y >= column.ground() - 3) return DIRT;
             return y < 0 ? DEEPSLATE : STONE;
         }
         if (y == column.ground()) {
@@ -218,7 +224,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         int bottom = Math.max(MIN_Y, level.getMinBuildHeight());
         int top = Math.min(top(column), level.getMaxBuildHeight() - 1);
         for (int y = top; y >= bottom; y--) {
-            if (type.isOpaque().test(blockAt(column, surface, y))) {
+            if (type.isOpaque().test(blockAt(columns, column, surface, x, y, z))) {
                 return y + 1;
             }
         }
@@ -234,7 +240,7 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         int limit = Math.min(MIN_Y + HEIGHT, level.getMaxBuildHeight());
         BlockState[] states = new BlockState[Math.max(0, limit - bottom)];
         for (int index = 0; index < states.length; index++) {
-            states[index] = blockAt(column, surface, bottom + index);
+            states[index] = blockAt(columns, column, surface, x, bottom + index, z);
         }
         return new NoiseColumn(bottom, states);
     }

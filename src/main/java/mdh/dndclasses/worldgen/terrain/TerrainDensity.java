@@ -124,6 +124,14 @@ public final class TerrainDensity {
         return surfaceHeight(x, z) >= SEA_LEVEL + 2;
     }
 
+    public boolean isCave(int x, int y, int z) {
+        // Intersections of two independent 3D fields make passages, rather than stacked voids.
+        double a = gradient3(x, y * 1.6D, z, 1050, 0x3665B91FL);
+        double b = gradient3(x + 127, y * 1.6D - 51, z - 93, 1170, 0x43DD7831L);
+        if (a * a + b * b < 0.014D) return true;
+        return y < 48 && gradient3(x, y * 1.4D, z, 720, 0x6C2FA747L) > 0.62D;
+    }
+
     public TerrainLandform landform() {
         return landform;
     }
@@ -217,7 +225,7 @@ public final class TerrainDensity {
     private double dot3(int x, int y, int z, double dx, double dy, double dz,
                         int period, long salt) {
         long hash = hash(x, y, z, period, salt);
-        int[] gradient = GRADIENTS_3[(int) (hash & 11L)];
+        int[] gradient = GRADIENTS_3[(int) ((hash >>> 32) % GRADIENTS_3.length)];
         return gradient[0] * dx + gradient[1] * dy + gradient[2] * dz;
     }
 

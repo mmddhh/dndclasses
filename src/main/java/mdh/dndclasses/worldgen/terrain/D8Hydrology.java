@@ -11,7 +11,8 @@ import java.util.List;
  */
 public final class D8Hydrology {
 
-    public record Result(boolean[] river, boolean[] lake, int[] flow, List<RiverPath> paths) {
+    public record Result(boolean[] river, boolean[] lake, int[] flow, List<RiverPath> paths,
+                         int[] receiver, int[] downstreamFirst, int[] lakeLevel) {
     }
 
     private D8Hydrology() {
@@ -22,21 +23,20 @@ public final class D8Hydrology {
     }
 
     public static Result compute(int size, short[] height, boolean[] water) {
-        return compute(size, size, height, water, true);
+        return compute(size, size, height, water, null, true);
     }
 
-    static Result computeRegion(int width, int depth, short[] height, boolean[] water) {
-        return compute(width, depth, height, water, false);
+    static Result computeRegion(int width, int depth, short[] height, boolean[] water, double[] wetness) {
+        return compute(width, depth, height, water, wetness, false);
     }
 
     private static Result compute(int width, int depth, short[] height, boolean[] water,
-                                  boolean wrap) {
+                                  double[] wetness, boolean wrap) {
         int count = width * depth;
-        int[] filled = priorityFlood(width, depth, height, water, wrap);
         int[] receiver = new int[count];
-        int[] flow = new int[count];
+        int[] order = new int[count];
         Arrays.fill(receiver, -1);
-        Arrays.fill(flow, 1);
+        int[] filled = priorityFlood(width, depth, height, water, wrap, receiver, order);
 
         for (int z = 0; z < depth; z++) {
             for (int x = 0; x < width; x++) {
@@ -44,7 +44,7 @@ public final class D8Hydrology {
                 if (water[index]) {
                     continue;
                 }
-                int best = -1;
+                int best = receiver[index];
                 int bestHeight = filled[index];
                 for (int dz = -1; dz <= 1; dz++) {
                     for (int dx = -1; dx <= 1; dx++) {
@@ -55,7 +55,7 @@ public final class D8Hydrology {
                         if (ni < 0) {
                             continue;
                         }
-                        int nh = water[ni] ? 63 : filled[ni];
+                        int nh = filled[ni];
                         if (nh < bestHeight) {
                             bestHeight = nh;
                             best = ni;
@@ -66,33 +66,54 @@ public final class D8Hydrology {
             }
         }
 
-        Integer[] order = new Integer[count];
-        for (int i = 0; i < count; i++) {
-            order[i] = i;
-        }
-        Arrays.sort(order, Comparator.comparingInt(i -> -filled[i]));
-
-        for (int index : order) {
-            int next = receiver[index];
-            if (next >= 0 && !water[index]) {
-                flow[next] += flow[index];
-            }
-        }
-
+        int[] flow = accumulate(receiver, order, wetness);
         boolean[] river = new boolean[count];
         boolean[] lake = new boolean[count];
-        for (int i = 0; i < count; i++) {
-            if (water[i]) {
-                continue;
-            }
-            if (flow[i] >= 24) {
-                river[i] = true;
-            }
-            if (receiver[i] < 0 && height[i] > 63 && flow[i] < 2) {
+        int[] lakeLevel = new int[count];
+        if (wetness != null) {
+            var basin = new java.util.ArrayDeque<Integer>();
+            for (int i : order) {
+                if (lake[i] || water[i] || filled[i] < height[i] + 4
+                        || wetness[i] < 0.52D || flow[i] < 52) continue;
+                int spill = filled[i];
                 lake[i] = true;
+                basin.add(i);
+                while (!basin.isEmpty()) {
+                    int cell = basin.removeFirst();
+                    lakeLevel[cell] = spill;
+                    receiver[cell] = -1;
+                    for (int dz = -1; dz <= 1; dz++) {
+                        for (int dx = -1; dx <= 1; dx++) {
+                            if (dx != 0 && dz != 0) continue;
+                            int next = neighbor(cell % width + dx, cell / width + dz, width, depth, wrap);
+                            if (next < 0 || lake[next] || water[next] || filled[next] != spill
+                                    || height[next] >= spill) continue;
+                            lake[next] = true;
+                            basin.add(next);
+                        }
+                    }
+                }
             }
+            flow = accumulate(receiver, order, wetness);
         }
-        return new Result(river, lake, flow, buildPaths(width, river, receiver, flow));
+        for (int i = 0; i < count; i++) {
+            river[i] = !water[i] && !lake[i] && flow[i] >= (wetness == null ? 24 : 36);
+        }
+        return new Result(river, lake, flow, buildPaths(width, river, receiver, flow),
+                receiver, order, lakeLevel);
+    }
+
+    private static int[] accumulate(int[] receiver, int[] order, double[] wetness) {
+        int[] flow = new int[order.length];
+        for (int i = 0; i < flow.length; i++) {
+            flow[i] = wetness == null ? 1 : (int) Math.round(4.0D * wetness[i]);
+        }
+        for (int i = order.length - 1; i >= 0; i--) {
+            int cell = order[i];
+            int next = receiver[cell];
+            if (next >= 0) flow[next] += flow[cell];
+        }
+        return flow;
     }
 
     private static int neighbor(int x, int z, int width, int depth, boolean wrap) {
@@ -103,12 +124,12 @@ public final class D8Hydrology {
     }
 
     private static int[] priorityFlood(int width, int depth, short[] height, boolean[] water,
-                                       boolean wrap) {
+                                       boolean wrap, int[] receiver, int[] order) {
         int count = width * depth;
         int[] filled = new int[count];
         boolean[] visited = new boolean[count];
         java.util.PriorityQueue<Integer> queue = new java.util.PriorityQueue<>(
-                Comparator.comparingInt(i -> filled[i]));
+                Comparator.<Integer>comparingInt(i -> filled[i]).thenComparingInt(i -> i));
         for (int i = 0; i < count; i++) {
             filled[i] = height[i];
             if (water[i]) {
@@ -126,8 +147,10 @@ public final class D8Hydrology {
             visited[0] = true;
             queue.add(0);
         }
+        int rank = 0;
         while (!queue.isEmpty()) {
             int current = queue.poll();
+            order[rank++] = current;
             int x = current % width;
             int z = current / width;
             for (int dz = -1; dz <= 1; dz++) {
@@ -140,6 +163,7 @@ public final class D8Hydrology {
                         continue;
                     }
                     visited[index] = true;
+                    receiver[index] = current;
                     filled[index] = Math.max(height[index], filled[current]);
                     queue.add(index);
                 }
@@ -167,7 +191,11 @@ public final class D8Hydrology {
                 nodes.add(new RiverPath.Node(current % width, current / width));
                 maxFlow = Math.max(maxFlow, flow[current]);
                 int next = receiver[current];
-                if (next < 0 || !river[next] || usedEdge[current]) break;
+                if (next < 0 || usedEdge[current]) break;
+                if (!river[next]) {
+                    nodes.add(new RiverPath.Node(next % width, next / width));
+                    break;
+                }
                 usedEdge[current] = true;
                 current = next;
                 if (upstream[current] != 1) {
@@ -178,30 +206,10 @@ public final class D8Hydrology {
             }
             if (nodes.size() >= 2) {
                 int widthBlocks = 4 + (int) Math.min(236.0D, Math.sqrt(maxFlow) * 2.2D);
-                paths.add(new RiverPath(smooth(nodes), widthBlocks));
+                paths.add(new RiverPath(List.copyOf(nodes), widthBlocks));
             }
         }
         return paths;
     }
 
-    private static List<RiverPath.Node> smooth(List<RiverPath.Node> input) {
-        List<RiverPath.Node> points = input;
-        for (int pass = 0; pass < 2; pass++) {
-            List<RiverPath.Node> next = new ArrayList<>();
-            next.add(points.get(0));
-            for (int i = 1; i < points.size(); i++) {
-                RiverPath.Node a = points.get(i - 1);
-                RiverPath.Node b = points.get(i);
-                next.add(new RiverPath.Node(
-                        (int) Math.round(a.x() * 0.75D + b.x() * 0.25D),
-                        (int) Math.round(a.z() * 0.75D + b.z() * 0.25D)));
-                next.add(new RiverPath.Node(
-                        (int) Math.round(a.x() * 0.25D + b.x() * 0.75D),
-                        (int) Math.round(a.z() * 0.25D + b.z() * 0.75D)));
-            }
-            next.add(points.get(points.size() - 1));
-            points = next;
-        }
-        return List.copyOf(points);
-    }
 }

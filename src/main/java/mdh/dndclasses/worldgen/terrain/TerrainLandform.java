@@ -55,7 +55,9 @@ public final class TerrainLandform {
         if (coast <= 0.5D) {
             double shelf = smoothstep(0.5D, 0.0D, coast);
             double relief = (fbm(x, z, 120, 0x243F6A88L) - 0.5D) * 7.0D;
-            return TerrainModel.SEA_LEVEL - shelf * (plates.oceanDepth(x, z) + relief);
+            double shelfDetail = (warpedNoise(x, z, 173, 0x72671D1BL) - 0.5D) * 3.0D;
+            return TerrainModel.SEA_LEVEL - shelf * (plates.oceanDepth(x, z) + relief)
+                    + shelfDetail * Math.min(1.0D, shelf * 6.0D);
         }
         double hill = hillMask(x, z);
         double mountain = mountainWeight(x, z);
@@ -70,6 +72,7 @@ public final class TerrainLandform {
             basin /= total;
         }
         double height = TerrainModel.SEA_LEVEL + 4.0D;
+        height += (warpedNoise(x, z, 109, 0x6E7F5193L) - 0.5D) * 5.0D;
         height += ridges.sample(x, z).height();
         height += hillWeight * (10.0D + fbm(x, z, 96, 0x9E3779B1L) * 18.0D);
         height += plateau * (58.0D + fbm(x, z, 128, 0x243F6A88L) * 4.0D);
@@ -98,15 +101,16 @@ public final class TerrainLandform {
     }
 
     private double hillMask(int x, int z) {
-        double n = noise(x, z, 10, 0x51ED270BL);
+        double n = warpedNoise(x, z, 10, 0x51ED270BL);
         double cut = smoothstep(0.72D, 0.86D, n);
         double suppress = smoothstep(0.84D, 0.96D, noise(x, z, 4, 0x6A09E667L));
         return cut * (1.0D - suppress) * 0.85D;
     }
 
     private double mountainMask(int x, int z) {
-        double chain = 1.0D - Math.abs(noise(x, z, 14, 0xBB67AE85L) * 2.0D - 1.0D);
-        double chainMask = smoothstep(0.82D, 0.94D, chain);
+        // A band around a single scalar isoline draws closed ridge loops around its extrema.
+        double chain = warpedNoise(x, z, 14, 0xBB67AE85L);
+        double chainMask = smoothstep(0.64D, 0.84D, chain);
         double region = smoothstep(0.55D, 0.70D, noise(x, z, 4, 0x3C6EF372L));
         return chainMask * region;
     }
@@ -119,13 +123,13 @@ public final class TerrainLandform {
     }
 
     private double plateauMask(int x, int z) {
-        double n = noise(x, z, 6, 0xA54FF53AL);
+        double n = warpedNoise(x, z, 6, 0xA54FF53AL);
         return smoothstep(0.74D, 0.90D, n) * (1.0D - hillMask(x, z))
                 * (1.0D - mountainMask(x, z));
     }
 
     private double basinMask(int x, int z) {
-        double n = noise(x, z, 9, 0x1F83D9ABL);
+        double n = warpedNoise(x, z, 9, 0x1F83D9ABL);
         return smoothstep(0.80D, 0.94D, n) * (1.0D - hillMask(x, z))
                 * (1.0D - mountainMask(x, z)) * (1.0D - plateauMask(x, z));
     }
@@ -150,7 +154,15 @@ public final class TerrainLandform {
         return ridge * ridge;
     }
 
-    private double noise(int x, int z, int period, long salt) {
+    private double warpedNoise(int x, int z, int period, long salt) {
+        double amplitude = model.topology().sideBlocks() / (period * 3.0D);
+        double dx = (noise(x, z, period * 3, salt ^ 0x674D6915L) - 0.5D) * amplitude;
+        double dz = (noise(x, z, period * 4, salt ^ 0x37A264DFL) - 0.5D) * amplitude;
+        return 0.73D * noise(x + dx, z + dz, period, salt)
+                + 0.27D * noise(x + dx, z + dz, period * 2, salt ^ 0x589965CDL);
+    }
+
+    private double noise(double x, double z, int period, long salt) {
         int side = model.topology().sideBlocks();
         double scale = period / (double) side;
         double u = x * scale;

@@ -74,7 +74,34 @@ public final class TectonicPrototype {
             continentStarts[i] = rng.nextInt(CELLS);
             continentPace[i] = rng.nextDouble(0.52, 1.55);
         }
-        int[] grown = grow(continentStarts, continentPace, (int) (CELLS * landFraction), 29);
+        int mainLand = (int) (CELLS * landFraction * (landFraction <= 0.4D ? 0.72D : 0.82D));
+        int[] grown = grow(continentStarts, continentPace, mainLand, 29);
+        boolean[] occupied = new boolean[CELLS];
+        for (int i = 0; i < CELLS; i++) occupied[i] = grown[i] >= 0;
+        int islandBudget = (int) (CELLS * landFraction) - mainLand;
+        int islandCount = Math.max(8, (int) Math.round(landFraction * 38));
+        int[] islandStarts = new int[islandCount];
+        int selected = 0;
+        int attempts = 0;
+        while (selected < islandCount && attempts++ < islandCount * 200) {
+            int candidate = rng.nextInt(CELLS);
+            if (occupied[candidate]) continue;
+            boolean far = true;
+            for (int j = 0; j < selected; j++) {
+                int dx = Math.abs(candidate % SIDE - islandStarts[j] % SIDE);
+                int dz = Math.abs(candidate / SIDE - islandStarts[j] / SIDE);
+                if (Math.min(dx, SIDE - dx) + Math.min(dz, SIDE - dz) < 12) {
+                    far = false;
+                    break;
+                }
+            }
+            if (far) islandStarts[selected++] = candidate;
+        }
+        if (selected < islandStarts.length) islandStarts = Arrays.copyOf(islandStarts, selected);
+        double[] islandPace = new double[islandStarts.length];
+        Arrays.fill(islandPace, 1.0D);
+        int[] islands = growIslands(occupied, islandStarts, islandBudget, 67);
+        for (int i = 0; i < CELLS; i++) if (islands[i] >= 0) grown[i] = islands[i];
         double[] continental = new double[CELLS];
         double[] height = new double[CELLS];
         double[] age = new double[CELLS];
@@ -117,6 +144,33 @@ public final class TectonicPrototype {
                 int j = neighbor(i, DX[d], DZ[d]);
                 if (owner[j] < 0) queue.add(new Front(j, front.label,
                         front.cost + pace[front.label] * (resistance[i] + resistance[j]) * 0.5));
+            }
+        }
+        return owner;
+    }
+
+    /** Grow separated island bodies only through ocean cells, preserving the mainland mask. */
+    private int[] growIslands(boolean[] occupied, int[] starts, int limit, int salt) {
+        int[] owner = new int[CELLS];
+        Arrays.fill(owner, -1);
+        var queue = new PriorityQueue<Front>(Comparator.comparingDouble(Front::cost)
+                .thenComparingInt(Front::cell).thenComparingInt(Front::label));
+        for (int i = 0; i < starts.length; i++) {
+            if (!occupied[starts[i]]) queue.add(new Front(starts[i], i, 0));
+        }
+        int claimed = 0;
+        while (claimed < limit && !queue.isEmpty()) {
+            Front front = queue.remove();
+            int i = front.cell;
+            if (occupied[i] || owner[i] >= 0) continue;
+            owner[i] = front.label;
+            claimed++;
+            for (int d = 0; d < DX.length; d++) {
+                int j = neighbor(i, DX[d], DZ[d]);
+                if (!occupied[j] && owner[j] < 0) {
+                    double irregular = 0.55D + 1.1D * field(j, 13, salt + front.label * 17);
+                    queue.add(new Front(j, front.label, front.cost + irregular));
+                }
             }
         }
         return owner;

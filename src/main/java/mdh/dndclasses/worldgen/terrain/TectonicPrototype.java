@@ -32,10 +32,19 @@ public final class TectonicPrototype {
 
     private final Plate[] plates = new Plate[PLATES];
     private final long seed;
+    private final double landFraction;
     private final Crust initial;
 
     public TectonicPrototype(long seed) {
+        this(seed, 0.40D);
+    }
+
+    public TectonicPrototype(long seed, double landFraction) {
+        if (landFraction < 0.10D || landFraction > 0.85D) {
+            throw new IllegalArgumentException("landFraction must be between 0.10 and 0.85");
+        }
         this.seed = seed;
+        this.landFraction = landFraction;
         var rng = new SplittableRandom(seed);
         int[] starts = new int[PLATES];
         double[] pace = new double[PLATES];
@@ -58,13 +67,14 @@ public final class TectonicPrototype {
             pace[i] = (i < 5 ? 0.61 : i < 11 ? 1.30 : 2.15) * rng.nextDouble(0.82, 1.18);
         }
         int[] owner = grow(starts, pace, CELLS, 11);
-        int[] continentStarts = new int[3 + rng.nextInt(3)];
+        int continentCount = landFraction < 0.36D ? 5 : landFraction < 0.56D ? 4 : 3;
+        int[] continentStarts = new int[continentCount];
         double[] continentPace = new double[continentStarts.length];
         for (int i = 0; i < continentStarts.length; i++) {
             continentStarts[i] = rng.nextInt(CELLS);
             continentPace[i] = rng.nextDouble(0.52, 1.55);
         }
-        int[] grown = grow(continentStarts, continentPace, (int) (CELLS * rng.nextDouble(0.32, 0.42)), 29);
+        int[] grown = grow(continentStarts, continentPace, (int) (CELLS * landFraction), 29);
         double[] continental = new double[CELLS];
         double[] height = new double[CELLS];
         double[] age = new double[CELLS];
@@ -458,7 +468,7 @@ public final class TectonicPrototype {
             int j = water.receiver[i];
             drop[i] = basin[i] == 1 || basin[i] == 2 ? i : j < 0 ? -1 : drop[j];
             if (j >= 0 && basin[i] != 1 && basin[i] != 2) steps[i] = steps[j] + 1;
-            if (channelFlow[i] >= 24 && !water.sea[i] && basin[i] == 0) {
+            if (channelFlow[i] >= 8 && !water.sea[i] && basin[i] == 0) {
                 if (drop[i] < 0) seaRoutes++; else basinRoutes++;
                 longest = Math.max(longest, steps[i]);
             }
@@ -471,12 +481,13 @@ public final class TectonicPrototype {
             if (basin[i] == 3) return 0xff246bd6;
             if (basin[i] == 2) return 0xff9377ce;
             if (basin[i] == 1) return 0xffe1c585;
-            if (channelFlow[i] >= 24) return drop[i] < 0 ? 0xff35c7ee : 0xffad79ed;
+            if (channelFlow[i] >= 8) return drop[i] < 0 ? 0xff35c7ee : 0xffad79ed;
             return relief(height, i, false);
         }, false);
         int[] area = new int[PLATES];
         for (int p : initial.plate) area[p]++;
         long continental = java.util.stream.IntStream.range(0, CELLS).filter(i -> initial.land[i] > 0.5).count();
+        int islands = countIslands(initial.land);
         double initialLow = Double.POSITIVE_INFINITY, initialHigh = Double.NEGATIVE_INFINITY;
         double highest = Double.NEGATIVE_INFINITY;
         for (int i = 0; i < CELLS; i++) {
@@ -486,7 +497,8 @@ public final class TectonicPrototype {
             }
             highest = Math.max(highest, height[i]);
         }
-        Files.writeString(dir.resolve("summary.txt"), "seed=" + seed + "\ninitial continental cells=" + continental
+        Files.writeString(dir.resolve("summary.txt"), "seed=" + seed + "\nrequested land fraction=" + landFraction
+                + "\ninitial continental cells=" + continental + "\ninitial land masses=" + islands
                 + "\ninitial land elevation range / final peak (above sea)="
                 + "%.2f..%.2f / %.2f".formatted(initialLow, initialHigh, highest)
                 + "\nsubsteps per iteration=" + substeps
@@ -590,6 +602,29 @@ public final class TectonicPrototype {
         return count;
     }
 
+    private static int countIslands(double[] land) {
+        boolean[] visited = new boolean[CELLS];
+        var queue = new ArrayDeque<Integer>();
+        int count = 0;
+        for (int first = 0; first < CELLS; first++) {
+            if (visited[first] || land[first] <= 0.5) continue;
+            count++;
+            visited[first] = true;
+            queue.add(first);
+            while (!queue.isEmpty()) {
+                int i = queue.remove();
+                for (int d = 0; d < DX.length; d++) {
+                    int j = neighbor(i, DX[d], DZ[d]);
+                    if (!visited[j] && land[j] > 0.5) {
+                        visited[j] = true;
+                        queue.add(j);
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
     private void write(Path dir, String name, java.util.function.IntUnaryOperator color, boolean arrows)
             throws IOException {
         int zoom = 4;
@@ -665,6 +700,33 @@ public final class TectonicPrototype {
             prototype.export(dir.resolve("half-step"), 7, 2, true);
             return;
         }
+        if (args.length >= 3 && args[0].equals("--ratios")) {
+            Path dir = Path.of(args[1]);
+            double[] ratios = {0.30D, 0.40D, 0.50D, 0.60D, 0.70D};
+            String[] labels = {"3-7", "4-6", "5-5", "6-4", "7-3"};
+            StringBuilder cards = new StringBuilder();
+            for (int r = 0; r < ratios.length; r++) {
+                cards.append("<section><h2>陆地 : 海洋 = ").append(labels[r]).append("</h2>");
+                for (int i = 2; i < args.length; i++) {
+                    long seed = Long.parseLong(args[i]);
+                    Path target = dir.resolve(labels[r]).resolve(Long.toString(seed));
+                    new TectonicPrototype(seed, ratios[r]).export(target, seed);
+                    String relative = labels[r] + "/" + seed;
+                    cards.append("<article><h3>种子 ").append(seed).append("</h3><div class='maps'>")
+                            .append("<a href='").append(relative).append("/evolved.png'><img src='")
+                            .append(relative).append("/evolved.png' alt='地形'></a>")
+                            .append("<a href='").append(relative).append("/plates.png'><img src='")
+                            .append(relative).append("/plates.png' alt='板块'></a>")
+                            .append("<a href='").append(relative).append("/drainage.png'><img src='")
+                            .append(relative).append("/drainage.png' alt='水文'></a></div>")
+                            .append("<a href='").append(relative).append("/summary.txt'>统计</a></article>");
+                }
+                cards.append("</section>");
+            }
+            Files.createDirectories(dir);
+            Files.writeString(dir.resolve("index.html"), galleryHtml("板块地形：海陆比例对照", cards.toString()));
+            return;
+        }
         if (args.length >= 3 && args[0].equals("--gallery")) {
             Path dir = Path.of(args[1]);
             StringBuilder cards = new StringBuilder();
@@ -711,5 +773,23 @@ public final class TectonicPrototype {
         }
         long seed = args.length > 0 ? Long.parseLong(args[0]) : 12345L;
         new TectonicPrototype(seed).export(Path.of(args.length > 1 ? args[1] : "build/tectonic-preview"), seed);
+    }
+
+    private static String galleryHtml(String title, String cards) {
+        return "<!doctype html><html lang='zh-CN'><meta charset='utf-8'><title>" + title + "</title>"
+                + "<style>body{margin:2rem auto;padding:0 1rem;max-width:100rem;background:#17232a;color:#edf3f5;font:1rem system-ui}"
+                + "a{color:#9ed4f3}section{margin:2rem 0;padding:1rem;border:1px solid #49606c}"
+                + ".maps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}"
+                + "article{display:inline-block;vertical-align:top;width:min(31%,30rem);margin:.5rem}"
+                + "img{display:block;width:100%;height:auto;image-rendering:pixelated}"
+                + ".legend{display:flex;flex-wrap:wrap;gap:1rem}.swatch{display:inline-flex;gap:.3rem;align-items:center}"
+                + ".swatch i{width:1rem;height:1rem;border:1px solid #789}.sea{background:#236ea3}.land{background:#609653}"
+                + ".hill{background:#a9784c}.mountain{background:#f4f1e9}.plate{background:linear-gradient(90deg,#d84f83,#55b8aa,#7d63cc)}"
+                + ".river{background:#34c7ee}.lake{background:#ad79ed}</style><h1>" + title + "</h1>"
+                + "<p>每组按海陆比例分栏；每个种子依次显示地形、板块和最终水文。点击图片查看原尺寸。</p>"
+                + "<div class='legend'><span class='swatch'><i class='sea'></i>海洋</span><span class='swatch'><i class='land'></i>低地</span>"
+                + "<span class='swatch'><i class='hill'></i>高地</span><span class='swatch'><i class='mountain'></i>高山</span>"
+                + "<span class='swatch'><i class='plate'></i>板块编号</span><span class='swatch'><i class='river'></i>入海河流</span>"
+                + "<span class='swatch'><i class='lake'></i>内陆水系</span></div>" + cards + "</html>";
     }
 }

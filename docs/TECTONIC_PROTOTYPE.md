@@ -14,7 +14,7 @@ Global drainage periodically cuts valleys and deposits sediment downhill.
 From the repository root with JDK 17:
 
 ```powershell
-javac -encoding UTF-8 -d build/tectonic-classes src/main/java/mdh/dndclasses/worldgen/terrain/WorldTopology.java src/main/java/mdh/dndclasses/worldgen/terrain/TectonicPrototype.java
+javac -encoding UTF-8 -d build/tectonic-classes src/main/java/mdh/dndclasses/worldgen/terrain/WorldTopology.java src/main/java/mdh/dndclasses/worldgen/terrain/PreviewHydrology.java src/main/java/mdh/dndclasses/worldgen/terrain/TectonicPrototype.java
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype 12345 build/tectonic-preview/12345
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --gallery build/tectonic-v2 7 42 12345 314159 20261127
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --check-rift build/tectonic-v3/seed-7
@@ -40,11 +40,14 @@ can differ between the two runs.
 - `--check-rift` runs seed 7 with one and two substeps per iteration, exports
   every iteration from 18 to 36, and logs flooded and isolated low cells in
   a fixed lower-left window. Those counts also reflect coastline movement.
-- `drainage.png`: strokes follow the downstream links. Larger flows get
-  slightly wider strokes. Cyan channels continue to sea and purple channels terminate inland.
-  Tan depressions are dry, lavender depressions are seasonal, and blue inland
-  basins have enough modeled supply to overflow.
-- `summary.txt`: plate velocities, cell counts and longest route to an outlet.
+- `drainage.png`: runoff follows downhill routes with a preference for convergent
+  valleys. Only established channels are drawn, with thicker main rivers.
+  Cyan channels continue to sea; purple channels enter an inland basin.
+  Tan depressions are dry, lavender water is seasonal, light blue lakes are
+  closed, and darker blue lakes can overflow. Partly filled lakes cover only
+  the floor supported by the water budget, and only surplus leaves a spillway.
+- `summary.txt`: plate velocities, cell counts, lake outlets, channel junctions
+  and the longest visible reach.
   Route length counts grid steps, including diagonal steps; it is not a block distance.
 
 The preview checks initial plate connectivity, continental mass conservation,

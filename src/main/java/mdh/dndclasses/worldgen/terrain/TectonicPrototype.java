@@ -23,7 +23,6 @@ public final class TectonicPrototype {
     private final int resolution;
     private static final int PLATES = 18;
     private static final int STEPS = 72;
-    private static final double CHANNEL_THRESHOLD = 8;
     private static final Color SEA_CHANNEL = new Color(0x35c7ee);
     private static final Color INLAND_CHANNEL = new Color(0xad79ed);
     private static final int[] DX = {1, -1, 0, 0};
@@ -445,44 +444,6 @@ public final class TectonicPrototype {
         return new Drainage(parent, order, spill, flow, sea, rain);
     }
 
-    /** Classify each depression using its inflow, local humidity and evaporation. */
-    private byte[] basins(double[] height, Drainage water) {
-        byte[] kind = new byte[cells];
-        var pending = new ArrayDeque<Integer>();
-        var members = new ArrayDeque<Integer>();
-        for (int i : water.order) {
-            if (kind[i] != 0 || water.sea[i] || water.spill[i] - height[i] < 1) continue;
-            double level = water.spill[i];
-            double supply = 0, loss = 0, localRain = 0;
-            kind[i] = -1;
-            pending.add(i);
-            while (!pending.isEmpty()) {
-                int j = pending.remove();
-                members.add(j);
-                localRain += water.rain[j];
-                loss += (0.65 + 1.05 * field(j, 6, 294)) / (resolution * resolution);
-                for (int dz = -1; dz <= 1; dz++) {
-                    for (int dx = -1; dx <= 1; dx++) {
-                        if (dx == 0 && dz == 0) continue;
-                        int k = neighbor(j, dx, dz);
-                        if (water.spill[k] == level && !water.sea[k] && height[k] <= level - 1) {
-                            if (kind[k] == 0) {
-                                kind[k] = -1;
-                                pending.add(k);
-                            }
-                        } else if (water.receiver[k] == j) {
-                            supply += water.flow[k];
-                        }
-                    }
-                }
-            }
-            double balance = (localRain + supply) / loss;
-            byte type = (byte) (balance >= 1.1 ? 3 : balance >= 0.68 ? 2 : 1);
-            while (!members.isEmpty()) kind[members.remove()] = type;
-        }
-        return kind;
-    }
-
     private void export(Path dir, long seed) throws IOException {
         export(dir, seed, 1, false);
     }
@@ -526,31 +487,42 @@ public final class TectonicPrototype {
             throw new IllegalStateException("Continental mass drift: " + startingMass + " -> " + endingMass);
         }
         Drainage water = drain(height);
-        byte[] basin = basins(height, water);
         verify(water);
-        double[] channelFlow = water.rain.clone();
-        for (int k = cells - 1; k >= 0; k--) {
-            int i = water.order[k], j = water.receiver[i];
-            if (j >= 0 && basin[i] != 1 && basin[i] != 2) channelFlow[j] += channelFlow[i];
+        double[] evaporation = new double[cells];
+        for (int i = 0; i < cells; i++) {
+            evaporation[i] = (0.65 + 1.05 * field(i, 6, 294)) / (resolution * resolution);
         }
-        int[] drop = new int[cells];
-        int seaRoutes = 0, basinRoutes = 0, longest = 0;
-        int[] basinCells = new int[4];
-        int[] steps = new int[cells];
+        var rivers = PreviewHydrology.build(side, resolution, height, water.sea, water.spill,
+                water.order, water.receiver, water.rain, water.flow, evaporation);
+        int seaRoutes = 0, basinRoutes = 0;
+        int[] basinCells = new int[5];
+        int[] previousChannels = new int[cells];
+        int[] lengths = new int[cells];
+        int longest = 0, junctions = 0;
         for (int i : water.order) {
-            basinCells[basin[i]]++;
-            int j = water.receiver[i];
-            drop[i] = basin[i] == 1 || basin[i] == 2 ? i : j < 0 ? -1 : drop[j];
-            if (j >= 0 && basin[i] != 1 && basin[i] != 2) steps[i] = steps[j] + 1;
-            if (channelFlow[i] >= CHANNEL_THRESHOLD && !water.sea[i] && basin[i] == 0) {
-                if (drop[i] < 0) seaRoutes++; else basinRoutes++;
-                longest = Math.max(longest, steps[i]);
+            basinCells[rivers.surface()[i]]++;
+            if (!rivers.channel()[i]) continue;
+            if (rivers.inland()[i]) basinRoutes++; else seaRoutes++;
+            int j = rivers.receiver()[i];
+            if (rivers.channel()[j] && ++previousChannels[j] == 2) junctions++;
+            // An inlet ends at the shore. An outlet is a separate visible reach.
+            int end = i, length = 0;
+            while (rivers.channel()[end] && lengths[end] == 0) {
+                if (++length > cells) throw new IllegalStateException("Cyclic preview channel");
+                int next = rivers.receiver()[end];
+                if (rivers.surface()[next] != 0) {
+                    end = -1;
+                    break;
+                }
+                end = next;
             }
+            lengths[i] = length + (end < 0 ? 0 : lengths[end]);
+            longest = Math.max(longest, lengths[i]);
         }
         write(dir, "plates", i -> plateColor(initial, i), true);
         write(dir, "initial", i -> relief(initial.height, i, initial.height[i] <= 0), false);
         write(dir, "evolved", i -> relief(height, i, water.sea[i]), false);
-        writeDrainage(dir, height, water, basin, channelFlow, drop);
+        writeDrainage(dir, height, water, rivers);
         int[] area = new int[PLATES];
         for (int p : initial.plate) area[p]++;
         long continental = java.util.stream.IntStream.range(0, cells).filter(i -> initial.land[i] > 0.5).count();
@@ -578,9 +550,11 @@ public final class TectonicPrototype {
                     .mapToObj(i -> i + ": " + area[i] + " cells, " + plates[i].vx + ", " + plates[i].vz + "\n")
                     .collect(java.util.stream.Collectors.joining())
                 + "sea-bound channel cells=" + seaRoutes + "\ninterior-bound channel cells=" + basinRoutes
-                + "\ndry / seasonal / overflowing basin cells=" + basinCells[1]
-                + " / " + basinCells[2] + " / " + basinCells[3]
-                + "\nlongest channel-to-outlet route (grid steps)=" + longest + "\n");
+                + "\nchannel junctions=" + junctions
+                + "\nlakes / flowing lake outlets=" + rivers.lakeCount() + " / " + rivers.outletCount()
+                + "\ndry / seasonal / overflowing / closed basin cells=" + basinCells[1]
+                + " / " + basinCells[2] + " / " + basinCells[3] + " / " + basinCells[4]
+                + "\nlongest visible channel reach (grid segments)=" + longest + "\n");
     }
 
     private void verify(Drainage water) {
@@ -693,8 +667,9 @@ public final class TectonicPrototype {
         return count;
     }
 
-    private void writeDrainage(Path dir, double[] height, Drainage water, byte[] basin,
-                               double[] flow, int[] drop) throws IOException {
+    private void writeDrainage(Path dir, double[] height, Drainage water,
+                               PreviewHydrology.Result rivers) throws IOException {
+        byte[] basin = rivers.surface();
         int pixelsPerCell = 8;
         int width = side * pixelsPerCell;
         var image = new BufferedImage(width, width, BufferedImage.TYPE_INT_RGB);
@@ -706,31 +681,34 @@ public final class TectonicPrototype {
                     case 3 -> 0xff246bd6;
                     case 2 -> 0xff9377ce;
                     case 1 -> 0xffe1c585;
+                    case 4 -> 0xff4d8fec;
                     default -> relief(height, i, false);
                 };
             });
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             var line = new Line2D.Double();
             for (int i : water.order) {
-                int j = water.receiver[i];
-                if (j < 0 || basin[i] != 0 || flow[i] < CHANNEL_THRESHOLD) continue;
+                if (!rivers.channel()[i]) continue;
+                int j = rivers.receiver()[i];
                 int dx = localStep(i % side, j % side);
                 int dz = localStep(i / side, j / side);
                 // Stop at the water's edge instead of drawing across the receiving lake or sea.
                 double length = water.sea[j] || basin[j] != 0 ? 0.5 : 1.0;
+                double start = rivers.outlet()[i] ? 0.5 : 0;
                 double x = (i % side + 0.5) * pixelsPerCell;
                 double z = (i / side + 0.5) * pixelsPerCell;
                 double endX = x + dx * pixelsPerCell * length;
                 double endZ = z + dz * pixelsPerCell * length;
                 float stroke = (float) (pixelsPerCell
-                        * Math.min(0.34, 0.15 + 0.045 * Math.log(flow[i] / CHANNEL_THRESHOLD)));
+                        * (0.14 + 0.25 * smooth(0, PreviewHydrology.MAIN_FLOW, rivers.discharge()[i])));
                 g.setStroke(new BasicStroke(stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                g.setColor(drop[i] < 0 ? SEA_CHANNEL : INLAND_CHANNEL);
+                g.setColor(rivers.inland()[i] ? INLAND_CHANNEL : SEA_CHANNEL);
                 int wrapX = endX <= 0 ? width : endX >= width ? -width : 0;
                 int wrapZ = endZ <= 0 ? width : endZ >= width ? -width : 0;
                 for (int tx = 0; tx <= (wrapX == 0 ? 0 : 1); tx++) {
                     for (int tz = 0; tz <= (wrapZ == 0 ? 0 : 1); tz++) {
-                        line.setLine(x + tx * wrapX, z + tz * wrapZ,
+                        line.setLine(x + dx * pixelsPerCell * start + tx * wrapX,
+                                z + dz * pixelsPerCell * start + tz * wrapZ,
                                 endX + tx * wrapX, endZ + tz * wrapZ);
                         g.draw(line);
                     }
@@ -870,7 +848,7 @@ public final class TectonicPrototype {
                     plates: ['-plates', '每种颜色代表一个板块编号。'],
                     thickness: ['-thickness', '越亮的地方陆壳越厚。'],
                     rift: ['-rift', '红色表示累计拉伸，蓝色表示新生洋壳。'],
-                    drainage: ['', '水文显示第 72 轮。青色为入海河道，亮紫为内陆河道，亮蓝为可溢流湖盆，淡紫为季节湖盆，浅褐为干盆地。']
+                    drainage: ['', '水文显示第 72 轮。青色为入海河道，亮紫为内陆河道，深亮蓝为溢流湖，浅亮蓝为封闭湖，淡紫为季节湖，浅褐为干盆地。主河线条更粗。']
                   };
                   const seed = document.getElementById('seed');
                   const step = document.getElementById('step');

@@ -23,6 +23,9 @@ public final class TectonicPrototype {
     private final int resolution;
     private static final int PLATES = 18;
     private static final int STEPS = 72;
+    private static final double DIAGONAL_COST = Math.sqrt(2);
+    private static final int[] COAST_X = {1,-1,0,0,1,1,-1,-1};
+    private static final int[] COAST_Z = {0,0,1,-1,1,-1,1,-1};
     private static final Color SEA_CHANNEL = new Color(0x35c7ee);
     private static final Color INLAND_CHANNEL = new Color(0xad79ed);
     private static final int[] DX = {1, -1, 0, 0};
@@ -141,7 +144,7 @@ public final class TectonicPrototype {
             continentPace[i] = rng.nextDouble(0.52, 1.55);
         }
         int mainLand = (int) (cells * landFraction * (landFraction <= 0.4D ? 0.72D : 0.82D));
-        int[] grown = grow(continentStarts, continentPace, mainLand, 29);
+        int[] grown = growLand(null, continentStarts, continentPace, mainLand, 29);
         boolean[] occupied = new boolean[cells];
         for (int i = 0; i < cells; i++) occupied[i] = grown[i] >= 0;
         int islandBudget = (int) (cells * landFraction) - mainLand;
@@ -164,7 +167,9 @@ public final class TectonicPrototype {
             if (far) islandStarts[selected++] = candidate;
         }
         if (selected < islandStarts.length) islandStarts = Arrays.copyOf(islandStarts, selected);
-        int[] islands = growIslands(occupied, islandStarts, islandBudget, 67);
+        double[] islandPace = new double[islandStarts.length];
+        for (int i = 0; i < islandPace.length; i++) islandPace[i] = rng.nextDouble(0.72, 1.45);
+        int[] islands = growLand(occupied, islandStarts, islandPace, islandBudget, 67);
         for (int i = 0; i < cells; i++) if (islands[i] >= 0) grown[i] = islands[i];
         double[] continental = new double[cells];
         double[] height = new double[cells];
@@ -211,27 +216,43 @@ public final class TectonicPrototype {
         return owner;
     }
 
-    /** Grow separated island bodies only through ocean cells, preserving the mainland mask. */
-    private int[] growIslands(boolean[] occupied, int[] starts, int limit, int salt) {
+    private int[] growLand(boolean[] occupied, int[] starts, double[] pace, int limit, int salt) {
         int[] owner = new int[cells];
         Arrays.fill(owner, -1);
         var queue = new PriorityQueue<Front>(Comparator.comparingDouble(Front::cost)
                 .thenComparingInt(Front::cell).thenComparingInt(Front::label));
+        double[] resistance = new double[cells], best = new double[cells];
+        Arrays.fill(best, Double.POSITIVE_INFINITY);
+        for (int i = 0; i < cells; i++) {
+            if (occupied != null && occupied[i]) continue;
+            double belt = field(i, 11, salt);
+            resistance[i] = 0.25 + 2.8 * belt * belt + 0.9 * field(i, 31, salt + 1)
+                    + 0.44 * field(i, 83, salt + 2);
+        }
         for (int i = 0; i < starts.length; i++) {
-            if (!occupied[starts[i]]) queue.add(new Front(starts[i], i, 0));
+            if (occupied != null && occupied[starts[i]]) continue;
+            best[starts[i]] = 0;
+            queue.add(new Front(starts[i], i, 0));
         }
         int claimed = 0;
         while (claimed < limit && !queue.isEmpty()) {
             Front front = queue.remove();
             int i = front.cell;
-            if (occupied[i] || owner[i] >= 0) continue;
+            if (owner[i] >= 0) continue;
             owner[i] = front.label;
             claimed++;
-            for (int d = 0; d < DX.length; d++) {
-                int j = neighbor(i, DX[d], DZ[d]);
-                if (!occupied[j] && owner[j] < 0) {
-                    double irregular = 0.55D + 1.1D * field(j, 13, salt + front.label * 17);
-                    queue.add(new Front(j, front.label, front.cost + irregular));
+            for (int d = 0; d < COAST_X.length; d++) {
+                int dx = COAST_X[d], dz = COAST_Z[d];
+                int j = neighbor(i, dx, dz);
+                if (owner[j] >= 0 || (occupied != null && occupied[j])) continue;
+                // Diagonal shortcuts must preserve a shared edge with the landmass.
+                if (d >= 4 && owner[neighbor(i, dx, 0)] != front.label
+                        && owner[neighbor(i, 0, dz)] != front.label) continue;
+                double cost = front.cost + pace[front.label] * (resistance[i] + resistance[j])
+                        * 0.5 * (d >= 4 ? DIAGONAL_COST : 1);
+                if (cost < best[j]) {
+                    best[j] = cost;
+                    queue.add(new Front(j, front.label, cost));
                 }
             }
         }
@@ -268,28 +289,38 @@ public final class TectonicPrototype {
         Crust next = new Crust(new int[cells], new double[cells], new double[cells], new double[cells],
                 new double[cells], new double[cells], new double[cells], new Shares(cells, resolution >= 8));
         double[] cover = new double[cells], uplift = new double[cells], tension = new double[cells];
+        int[] moveX = new int[PLATES], moveZ = new int[PLATES];
+        double[] fractionX = new double[PLATES], fractionZ = new double[PLATES];
+        for (int q = 0; q < PLATES; q++) {
+            double x = plates[q].vx * dt * resolution, z = plates[q].vz * dt * resolution;
+            moveX[q] = (int) Math.floor(x);
+            moveZ[q] = (int) Math.floor(z);
+            fractionX[q] = x - moveX[q];
+            fractionZ[q] = z - moveZ[q];
+        }
         for (int i = 0; i < cells; i++) {
             int p = previous.plate[i];
+            int col = i % side, row = i - col;
             double relief = previous.height[i] - base(previous.land[i], previous.thickness[i], previous.age[i]);
+            double stretchedLand = previous.stretch[i] * previous.land[i];
             for (int candidates = previous.shares.candidates(i); candidates != 0; candidates &= candidates - 1) {
                 int q = Integer.numberOfTrailingZeros(candidates);
                 double share = previous.shares.get(i, q);
                 if (share == 0) continue;
-                double x = plates[q].vx * dt * resolution, z = plates[q].vz * dt * resolution;
-                int ix = (int) Math.floor(x), iz = (int) Math.floor(z);
-                double fx = x - ix, fz = z - iz;
+                int ix = moveX[q], iz = moveZ[q];
+                double fx = fractionX[q], fz = fractionZ[q];
                 for (int dz = 0; dz <= 1; dz++) {
                     for (int dx = 0; dx <= 1; dx++) {
                         double w = share * (dx == 0 ? 1 - fx : fx) * (dz == 0 ? 1 - fz : fz);
                         if (w == 0) continue;
-                        int j = neighbor(i, ix + dx, iz + dz);
+                        int j = wrapOnce(row + (iz + dz) * side, cells) + wrapOnce(col + ix + dx, side);
                         next.shares.set(j, q, next.shares.get(j, q) + w);
                         cover[j] += w;
                         next.land[j] += previous.land[i] * w;
                         next.thickness[j] += previous.thickness[i] * w;
                         next.height[j] += relief * w;
                         next.age[j] += previous.age[i] * w;
-                        next.stretch[j] += previous.stretch[i] * previous.land[i] * w;
+                        next.stretch[j] += stretchedLand * w;
                     }
                 }
             }
@@ -588,6 +619,10 @@ public final class TectonicPrototype {
     }
 
     private void export(Path dir, long seed, int substeps, boolean traceRift, boolean timed) throws IOException {
+        export(dir, seed, substeps, traceRift, timed, STEPS);
+    }
+
+    private void export(Path dir, long seed, int substeps, boolean traceRift, boolean timed, int steps) throws IOException {
         Files.createDirectories(dir);
         long phase = System.nanoTime();
         long tectonics = 0, erosion = 0, images = 0;
@@ -599,19 +634,19 @@ public final class TectonicPrototype {
         StringBuilder trace = new StringBuilder(
                 "step,baseline_land_connected_to_ocean,low_land_not_connected_to_ocean,small_plate_fragments\n");
         boolean[] baselineSea = null;
-        for (int step = 1; step <= STEPS; step++) {
+        for (int step = 1; step <= steps; step++) {
             phase = System.nanoTime();
             for (int sub = 0; sub < substeps; sub++) crust = advance(crust, 1.0 / substeps, events);
             tectonics += System.nanoTime() - phase;
             phase = System.nanoTime();
             if (step % 2 == 0) erode(crust.height);
             erosion += System.nanoTime() - phase;
-            if (step % 18 == 0 || (traceRift && step >= 18 && step <= 36)) {
+            if (step % 18 == 0 || step == steps || (traceRift && step >= 18 && step <= 36)) {
                 phase = System.nanoTime();
                 writeFrame(dir, new Frame(step, crust));
                 images += System.nanoTime() - phase;
                 if (timed) System.out.printf("Step %d/%d: tectonics %.1f s, erosion %.1f s, maps %.1f s%n",
-                        step, STEPS, seconds(tectonics), seconds(erosion), seconds(images));
+                        step, steps, seconds(tectonics), seconds(erosion), seconds(images));
             }
             if (traceRift && step >= 18 && step <= 36) {
                 boolean[] sea = ocean(crust.height);
@@ -707,7 +742,7 @@ public final class TectonicPrototype {
                 + "\ninitial continental cells=" + continental + "\ninitial land masses=" + islands
                 + "\ninitial land elevation range / final peak (above sea)="
                 + "%.2f..%.2f / %.2f".formatted(initialLow, initialHigh, highest)
-                + "\nsubsteps per iteration=" + substeps
+                + "\niterations=" + steps + "\nsubsteps per iteration=" + substeps
                 + "\ncontinental mass (initial / final)=" + startingMass + " / " + endingMass
                 + "\ncollision / spreading area (cumulative grid cells)=" + events[0] + " / " + events[1]
                 + "\nfinal small plate fragments (<16 cells)=" + finalFragments
@@ -991,6 +1026,10 @@ public final class TectonicPrototype {
                 | (int) clamp(g, 0, 255) << 8 | (int) clamp(b, 0, 255);
     }
 
+    private static int wrapOnce(int value, int period) {
+        return value < 0 ? value + period : value >= period ? value - period : value;
+    }
+
     private static double mix(double a, double b, double t) {
         return a + (b - a) * t;
     }
@@ -1009,6 +1048,15 @@ public final class TectonicPrototype {
     }
 
     private static void writeDetailPage(Path dir, long[] seeds, double land, boolean fineOnly) throws IOException {
+        writeDetailPage(dir, seeds, land, fineOnly, STEPS);
+    }
+
+    private static void writeDetailPage(Path dir, long[] seeds, double land, boolean fineOnly, int steps) throws IOException {
+        var stepOptions = new StringBuilder();
+        for (int step = 0; step < steps; step += 18) {
+            stepOptions.append("<option>%02d</option>".formatted(step));
+        }
+        stepOptions.append("<option selected>%02d</option>".formatted(steps));
         var seedOptions = new StringBuilder();
         var fineDirectories = new StringBuilder();
         var tileDirectories = new StringBuilder();
@@ -1044,8 +1092,7 @@ public final class TectonicPrototype {
                 <p>初始陆地目标 %.0f%% · 世界边长 62,720 方块</p>
                 <label>种子 <select id="seed">%s</select></label>
                 <label>迭代轮次 <select id="step">
-                  <option>00</option><option>18</option><option>36</option>
-                  <option>54</option><option selected>72</option>
+                  %s
                 </select></label>
                 <label>图层 <select id="layer">
                   <option value="terrain">地形</option>
@@ -1103,7 +1150,8 @@ public final class TectonicPrototype {
                     const [suffix, legend] = layers[layer.value];
                     step.disabled = layer.value === 'drainage';
                     const imageName = step.disabled ? 'drainage.png' : 'step-' + step.value + suffix + '.png';
-                    document.getElementById('legend').textContent = legend;
+                    document.getElementById('legend').textContent = step.disabled
+                      ? legend.replace('72', step.options[step.options.length - 1].value) : legend;
                     for (const panel of document.querySelectorAll('[data-grid]')) {
                       panel.hidden = (fineOnly && ['256', '128'].includes(panel.dataset.grid))
                                   || (panel.dataset.grid === '64' && !fineDirectories.has(seed.value))
@@ -1150,7 +1198,7 @@ public final class TectonicPrototype {
                   refresh();
                 </script>
                 </html>
-                """.formatted(land * 100, seedOptions, fineDirectories, tileDirectories, TILE_CELLS,
+                """.formatted(land * 100, seedOptions, stepOptions, fineDirectories, tileDirectories, TILE_CELLS,
                         WorldTopology.DEFAULT_SIDE / 32, fineOnly));
     }
 
@@ -1159,17 +1207,19 @@ public final class TectonicPrototype {
     }
 
     public static void main(String[] args) throws IOException {
-        if (args.length == 4 && args[0].equals("--benchmark-32")) {
+        if ((args.length == 4 || args.length == 5) && args[0].equals("--benchmark-32")) {
             Path dir = Path.of(args[1]);
             long seed = Long.parseLong(args[2]);
             double land = Double.parseDouble(args[3]);
+            int steps = args.length == 5 ? Integer.parseInt(args[4]) : STEPS;
+            if (steps < 1 || steps > STEPS) throw new IllegalArgumentException("Iterations must be between 1 and " + STEPS);
             int scale = WorldTopology.DEFAULT_CELL / 32;
             long start = System.nanoTime();
             var prototype = new TectonicPrototype(seed, land, scale);
             long initialization = System.nanoTime() - start;
             System.out.printf("Initialized in %.3f s%n", seconds(initialization));
-            prototype.export(dir.resolve("32"), seed, scale, false, true);
-            writeDetailPage(dir, new long[]{seed}, land, true);
+            prototype.export(dir.resolve("32"), seed, scale, false, true, steps);
+            writeDetailPage(dir, new long[]{seed}, land, true, steps);
             var totals = String.format(java.util.Locale.ROOT, "initialization_seconds=%.3f%ntotal_seconds=%.3f%n",
                     seconds(initialization), seconds(System.nanoTime() - start));
             Files.writeString(dir.resolve("32/timings.txt"), totals, java.nio.file.StandardOpenOption.APPEND);

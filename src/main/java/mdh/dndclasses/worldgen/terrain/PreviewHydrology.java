@@ -14,7 +14,7 @@ final class PreviewHydrology {
     private static final double LAKE_LOSS_FACTOR = 1.45;
 
     record Result(int[] receiver, double[] discharge, byte[] surface, boolean[] channel,
-                  boolean[] outlet, boolean[] inland, int lakeCount, int outletCount) {}
+                  boolean[] outlet, boolean[] inland, int lakeCount, int outletCount, double[] lakeLevel) {}
 
     private record Basin(ArrayList<Integer> cells, int anchor) {}
 
@@ -91,6 +91,8 @@ final class PreviewHydrology {
         double[] largestBranch = new double[size];
         double[] secondBranch = new double[size];
         byte[] surface = new byte[size];
+        double[] lakeLevel = new double[size];
+        Arrays.fill(lakeLevel, Double.NaN);
         boolean[] outlet = new boolean[size];
         int lakeCount = 0, outletCount = 0;
         for (int k = size - 1; k >= 0; k--) {
@@ -106,7 +108,10 @@ final class PreviewHydrology {
                 for (int cell : basin.cells) demand += evaporation[cell] * LAKE_LOSS_FACTOR;
                 double supply = flow[i];
                 if (supply >= demand) {
-                    for (int cell : basin.cells) surface[cell] = OPEN_LAKE;
+                    for (int cell : basin.cells) {
+                        surface[cell] = OPEN_LAKE;
+                        lakeLevel[cell] = spill[i];
+                    }
                     lakeCount++;
                     flow[i] = supply - demand;
                     outlet[i] = flow[i] > 1e-9;
@@ -118,6 +123,7 @@ final class PreviewHydrology {
                     byte wet = supply >= demand * 0.68 ? CLOSED_LAKE : SEASONAL;
                     double remaining = supply;
                     boolean hasWater = false;
+                    int wetCells = 0;
                     for (int start = 0; start < basin.cells.size();) {
                         double level = height[basin.cells.get(start)];
                         int end = start;
@@ -129,9 +135,14 @@ final class PreviewHydrology {
                         for (int n = start; n < end; n++) surface[basin.cells.get(n)] = wet;
                         remaining -= cost;
                         hasWater = true;
+                        wetCells = end;
                         start = end;
                     }
-                    if (hasWater) lakeCount++;
+                    if (hasWater) {
+                        lakeCount++;
+                        double level = height[basin.cells.get(wetCells - 1)] + 0.05;
+                        for (int n = 0; n < wetCells; n++) lakeLevel[basin.cells.get(n)] = level;
+                    }
                     else for (int cell : basin.cells) surface[cell] = DRY;
                     flow[i] = 0;
                     continue;
@@ -206,7 +217,7 @@ final class PreviewHydrology {
                 j = receiver[j];
             }
         }
-        return new Result(receiver, flow, surface, channel, outlet, inland, lakeCount, outletCount);
+        return new Result(receiver, flow, surface, channel, outlet, inland, lakeCount, outletCount, lakeLevel);
     }
 
     private static double crossValley(int side, int i, int dx, int dz, int radius,

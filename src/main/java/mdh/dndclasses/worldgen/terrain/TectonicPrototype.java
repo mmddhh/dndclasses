@@ -96,6 +96,8 @@ public final class TectonicPrototype {
     private final long seed;
     private final double landFraction;
     private final Crust initial;
+    private double[] fineScratch;
+    private double[] fineCover, fineUplift, fineTension;
 
     public TectonicPrototype(long seed) {
         this(seed, 0.40D);
@@ -288,7 +290,19 @@ public final class TectonicPrototype {
     private Crust advance(Crust previous, double dt, double[] events) {
         Crust next = new Crust(new int[cells], new double[cells], new double[cells], new double[cells],
                 new double[cells], new double[cells], new double[cells], new Shares(cells, resolution >= 8));
-        double[] cover = new double[cells], uplift = new double[cells], tension = new double[cells];
+        if (resolution >= 8) {
+            if (fineCover == null) {
+                fineCover = new double[cells];
+                fineUplift = new double[cells];
+                fineTension = new double[cells];
+            } else {
+                Arrays.fill(fineCover, 0);
+                Arrays.fill(fineUplift, 0);
+            }
+        }
+        double[] cover = resolution >= 8 ? fineCover : new double[cells];
+        double[] uplift = resolution >= 8 ? fineUplift : new double[cells];
+        double[] tension = resolution >= 8 ? fineTension : new double[cells];
         int[] moveX = new int[PLATES], moveZ = new int[PLATES];
         double[] fractionX = new double[PLATES], fractionZ = new double[PLATES];
         double[][] extensionByFace = new double[4][PLATES * PLATES];
@@ -454,7 +468,8 @@ public final class TectonicPrototype {
         int upper = lower + 2;
         int useUpper = (int) Math.round((12 * variance - 3.0 * (lower * lower - 1))
                 / (upper * upper - lower * lower));
-        double[] tmp = new double[cells];
+        if (fineScratch == null) fineScratch = new double[cells];
+        double[] tmp = fineScratch;
         double[] columnSums = new double[side];
         for (int pass = 0; pass < 3; pass++) {
             int radius = ((pass < useUpper ? upper : lower) - 1) / 2;
@@ -721,6 +736,7 @@ public final class TectonicPrototype {
         }
         int finalFragments = smallFragments(crust.plate);
         crust = null;
+        fineScratch = fineCover = fineUplift = fineTension = null;
         phase = System.nanoTime();
         Drainage water = drain(height);
         verify(water);
@@ -762,6 +778,10 @@ public final class TectonicPrototype {
         write(dir, "evolved", i -> relief(height, i, water.sea[i]), false);
         writeDrainage(dir, height, water, rivers);
         images += System.nanoTime() - phase;
+        if (timed && resolution == 8) {
+            TectonicSnapshot.write(dir.resolve("world.bin.gz"),
+                    TectonicSnapshot.from(height, water.sea, rivers.lakeLevel(), rivers));
+        }
         if (timed) {
             long seaCells = 0;
             for (boolean sea : water.sea) if (sea) seaCells++;
@@ -1171,6 +1191,7 @@ public final class TectonicPrototype {
                 <dialog id="detail-tile" aria-labelledby="tile-position">
                   <form method="dialog"><button>关闭</button></form>
                   <p id="tile-position"></p>
+                  <output id="world-position"></output>
                   <button type="button" data-dx="-1" data-dz="0">向西</button>
                   <button type="button" data-dx="1" data-dz="0">向东</button>
                   <button type="button" data-dx="0" data-dz="-1">向北</button>
@@ -1217,7 +1238,21 @@ public final class TectonicPrototype {
                   const dialog = document.getElementById('detail-tile');
                   const tileCount = Math.ceil(fineSide / tileSize);
                   let tileX = 0, tileZ = 0, tilePath;
+                  const worldPosition = document.getElementById('world-position');
+                  const centered = coordinate => coordinate >= fineSide * 16 ? coordinate - fineSide * 32 : coordinate;
+                  dialog.querySelector('img').addEventListener('click', event => {
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    const coordinate = (tile, ratio) => {
+                      const start = tile * tileSize;
+                      const span = Math.min(tileSize, fineSide - start) * 32;
+                      return centered(start * 32 + Math.max(0, Math.min(span - 1, Math.floor(ratio * span))));
+                    };
+                    const x = coordinate(tileX, (event.clientX - bounds.left) / bounds.width);
+                    const z = coordinate(tileZ, (event.clientY - bounds.top) / bounds.height);
+                    worldPosition.textContent = '/tp @s ' + x + ' 240 ' + z;
+                  });
                   function showTile() {
+                    worldPosition.textContent = '';
                     dialog.querySelector('img').src = tilePath + tileX + '-' + tileZ + '.png';
                     document.getElementById('tile-position').textContent =
                       '地图瓦片 · 列 ' + (tileX + 1) + ' / ' + tileCount + ' · 行 ' + (tileZ + 1) + ' / ' + tileCount;

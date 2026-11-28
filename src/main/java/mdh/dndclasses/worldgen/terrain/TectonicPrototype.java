@@ -760,7 +760,12 @@ public final class TectonicPrototype {
         return Math.max(lo, Math.min(hi, x));
     }
 
-    private static void writeDetailPage(Path dir, long seed, double land) throws IOException {
+    private static void writeDetailPage(Path dir, long[] seeds, double land) throws IOException {
+        var seedOptions = new StringBuilder();
+        for (int i = 0; i < seeds.length; i++) {
+            seedOptions.append("<option value=\"").append(detailSeedPath(i, seeds[i]))
+                    .append("\">").append(seeds[i]).append("</option>");
+        }
         Files.writeString(dir.resolve("index.html"), """
                 <!doctype html>
                 <html lang="zh-CN">
@@ -776,57 +781,81 @@ public final class TectonicPrototype {
                   select { font: inherit; }
                 </style>
                 <h1>地形采样对照</h1>
-                <p>种子 %d · 初始陆地目标 %.0f%% · 世界边长 62,720 方块</p>
+                <p>初始陆地目标 %.0f%% · 世界边长 62,720 方块</p>
+                <label>种子 <select id="seed">%s</select></label>
+                <label>迭代轮次 <select id="step">
+                  <option>00</option><option>18</option><option>36</option>
+                  <option>54</option><option selected>72</option>
+                </select></label>
                 <label>图层 <select id="layer">
-                  <option value="evolved.png">最终地形</option>
-                  <option value="drainage.png">最终水文</option>
-                  <option value="step-72-plates.png">最终板块</option>
+                  <option value="terrain">地形</option>
+                  <option value="plates">板块</option>
+                  <option value="thickness">陆壳厚度</option>
+                  <option value="rift">张裂活动</option>
+                  <option value="drainage">最终水文</option>
                 </select></label>
                 <p id="legend"></p>
                 <main>
                   <section data-grid="256"><h2>256 方块 / 格</h2>
                     <a href="256/evolved.png"><img src="256/evolved.png" alt="256 方块网格的地形图"></a>
-                    <p><a href="256/summary.txt">统计</a> · 245 × 245 采样格</p>
+                    <p><a href="256/summary.txt" class="summary">统计</a> · 245 × 245 采样格</p>
                   </section>
                   <section data-grid="128"><h2>128 方块 / 格</h2>
                     <a href="128/evolved.png"><img src="128/evolved.png" alt="128 方块网格的地形图"></a>
-                    <p><a href="128/summary.txt">统计</a> · 490 × 490 采样格</p>
+                    <p><a href="128/summary.txt" class="summary">统计</a> · 490 × 490 采样格</p>
                   </section>
                 </main>
                 <p>点击地图打开原图。两张图覆盖同一范围，细网格重新推演后，局部海岸和河网可能变化。</p>
                 <script>
                   const layers = {
-                    'evolved.png': ['地形', '蓝色为海洋，绿色为低地，棕灰色为高地，白色为高山。'],
-                    'drainage.png': ['水文', '青色为入海河道，亮紫为内陆河道，亮蓝为可溢流湖盆，淡紫为季节湖盆，浅褐为干盆地。'],
-                    'step-72-plates.png': ['板块', '每种颜色代表一个板块编号。']
+                    terrain: ['', '蓝色为海洋，绿色为低地，棕灰色为高地，白色为高山。'],
+                    plates: ['-plates', '每种颜色代表一个板块编号。'],
+                    thickness: ['-thickness', '越亮的地方陆壳越厚。'],
+                    rift: ['-rift', '红色表示累计拉伸，蓝色表示新生洋壳。'],
+                    drainage: ['', '水文显示第 72 轮。青色为入海河道，亮紫为内陆河道，亮蓝为可溢流湖盆，淡紫为季节湖盆，浅褐为干盆地。']
                   };
+                  const seed = document.getElementById('seed');
+                  const step = document.getElementById('step');
                   const layer = document.getElementById('layer');
                   function refresh() {
-                    const [label, legend] = layers[layer.value];
+                    const [suffix, legend] = layers[layer.value];
+                    step.disabled = layer.value === 'drainage';
+                    const imageName = step.disabled ? 'drainage.png' : 'step-' + step.value + suffix + '.png';
                     document.getElementById('legend').textContent = legend;
                     for (const panel of document.querySelectorAll('[data-grid]')) {
+                      const directory = seed.value + panel.dataset.grid + '/';
                       const image = panel.querySelector('img');
-                      const path = panel.dataset.grid + '/' + layer.value;
-                      panel.querySelector('a').href = path;
-                      image.src = path;
-                      image.alt = panel.dataset.grid + ' 方块网格的' + label + '图';
+                      panel.querySelector('a').href = directory + imageName;
+                      panel.querySelector('.summary').href = directory + 'summary.txt';
+                      image.src = directory + imageName;
+                      image.alt = panel.dataset.grid + ' 方块网格的' + layer.selectedOptions[0].text + '图';
                     }
                   }
-                  layer.addEventListener('change', refresh);
+                  for (const control of [seed, step, layer]) control.addEventListener('change', refresh);
                   refresh();
                 </script>
                 </html>
-                """.formatted(seed, land * 100));
+                """.formatted(land * 100, seedOptions));
+    }
+
+    private static String detailSeedPath(int index, long seed) {
+        return index == 0 ? "" : "seeds/" + seed + "/";
     }
 
     public static void main(String[] args) throws IOException {
-        if (args.length == 4 && args[0].equals("--detail")) {
+        if (args.length >= 4 && args[0].equals("--detail")) {
             Path dir = Path.of(args[1]);
-            long seed = Long.parseLong(args[2]);
             double land = Double.parseDouble(args[3]);
-            new TectonicPrototype(seed, land).export(dir.resolve("256"), seed);
-            new TectonicPrototype(seed, land, 2).export(dir.resolve("128"), seed, 2, false);
-            writeDetailPage(dir, seed, land);
+            long[] seeds = java.util.stream.LongStream.concat(
+                    java.util.stream.LongStream.of(Long.parseLong(args[2])),
+                    Arrays.stream(args, 4, args.length).mapToLong(Long::parseLong)).distinct().toArray();
+            for (int i = 0; i < seeds.length; i++) {
+                long seed = seeds[i];
+                Path seedDir = dir.resolve(detailSeedPath(i, seed));
+                new TectonicPrototype(seed, land).export(seedDir.resolve("256"), seed);
+                new TectonicPrototype(seed, land, 2).export(seedDir.resolve("128"), seed, 2, false);
+            }
+            writeDetailPage(dir, seeds, land);
             return;
         }
         if (args.length == 2 && args[0].equals("--check-rift")) {

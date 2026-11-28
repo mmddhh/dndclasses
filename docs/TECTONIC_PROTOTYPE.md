@@ -18,14 +18,16 @@ javac -encoding UTF-8 -d build/tectonic-classes src/main/java/mdh/dndclasses/wor
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype 12345 build/tectonic-preview/12345
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --gallery build/tectonic-v2 7 42 12345 314159 20261127
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --check-rift build/tectonic-v3/seed-7
-java -Xmx768m -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --detail build/tectonic-detail 7 0.40
+java -Xmx768m -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --detail build/tectonic-detail 7 0.40 42 12345 314159 20261127
 ```
 
 Open `build/tectonic-v2/index.html` to compare the five seeds and switch
 between the same iteration in all of them.
 
 Open `build/tectonic-detail/index.html` to compare 256- and 128-block
-sampling for the same seed and initial land target. The finer grid reruns
+sampling. The seed and iteration selectors update both maps. The drainage
+layer shows iteration 72. Additional seeds can follow the land fraction.
+The finer grid reruns
 the simulation at twice the linear resolution, so coastlines and drainage
 can differ between the two runs.
 

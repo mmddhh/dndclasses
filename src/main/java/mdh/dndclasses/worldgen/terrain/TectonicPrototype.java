@@ -291,12 +291,19 @@ public final class TectonicPrototype {
         double[] cover = new double[cells], uplift = new double[cells], tension = new double[cells];
         int[] moveX = new int[PLATES], moveZ = new int[PLATES];
         double[] fractionX = new double[PLATES], fractionZ = new double[PLATES];
+        double[][] extensionByFace = new double[4][PLATES * PLATES];
         for (int q = 0; q < PLATES; q++) {
             double x = plates[q].vx * dt * resolution, z = plates[q].vz * dt * resolution;
             moveX[q] = (int) Math.floor(x);
             moveZ[q] = (int) Math.floor(z);
             fractionX[q] = x - moveX[q];
             fractionZ[q] = z - moveZ[q];
+            for (int p = 0; p < PLATES; p++) {
+                for (int d = 0; d < 4; d++) {
+                    extensionByFace[d][p * PLATES + q] = Math.max(0, (plates[q].vx - plates[p].vx) * DX[d]
+                            + (plates[q].vz - plates[p].vz) * DZ[d]);
+                }
+            }
         }
         for (int i = 0; i < cells; i++) {
             int p = previous.plate[i];
@@ -325,12 +332,12 @@ public final class TectonicPrototype {
                 }
             }
             // Relative normal motion across the four faces, smoothed into an extension belt.
+            int plateOffset = p * PLATES;
             double extension = 0;
-            for (int d = 0; d < DX.length; d++) {
-                int q = previous.plate[neighbor(i, DX[d], DZ[d])];
-                extension += Math.max(0, (plates[q].vx - plates[p].vx) * DX[d]
-                        + (plates[q].vz - plates[p].vz) * DZ[d]);
-            }
+            extension += extensionByFace[0][plateOffset + previous.plate[row + wrapOnce(col + 1, side)]];
+            extension += extensionByFace[1][plateOffset + previous.plate[row + wrapOnce(col - 1, side)]];
+            extension += extensionByFace[2][plateOffset + previous.plate[wrapOnce(row + side, cells) + col]];
+            extension += extensionByFace[3][plateOffset + previous.plate[wrapOnce(row - side, cells) + col]];
             tension[i] = extension;
         }
         tension = spread(tension, 3 * resolution * resolution);
@@ -523,20 +530,19 @@ public final class TectonicPrototype {
         int[] region = new int[cells];
         Arrays.fill(region, -1);
         int largest = -2, biggest = 0;
-        var queue = new ArrayDeque<Integer>();
+        int[] queue = new int[cells];
         for (int start = 0; start < cells; start++) {
             if (region[start] >= 0 || height[start] > 0) continue;
-            int count = 0;
+            int count = 1;
             region[start] = start;
-            queue.add(start);
-            while (!queue.isEmpty()) {
-                int i = queue.remove();
-                count++;
+            queue[0] = start;
+            for (int head = 0; head < count; head++) {
+                int i = queue[head];
                 for (int d = 0; d < DX.length; d++) {
                     int j = neighbor(i, DX[d], DZ[d]);
                     if (region[j] < 0 && height[j] <= 0) {
                         region[j] = start;
-                        queue.add(j);
+                        queue[count++] = j;
                     }
                 }
             }
@@ -554,7 +560,7 @@ public final class TectonicPrototype {
         boolean[] sea = ocean(height);
         double[] rain = new double[cells];
         double[] spill = height.clone();
-        var queue = new PriorityQueue<>(Comparator.<Integer>comparingDouble(i -> spill[i]).thenComparingInt(i -> i));
+        var queue = new FloodHeap(spill);
         int[] parent = new int[cells], order = new int[cells];
         Arrays.fill(parent, -2);
         for (int i = 0; i < cells; i++) {
@@ -608,6 +614,48 @@ public final class TectonicPrototype {
             if (parent[i] >= 0) flow[parent[i]] += flow[i];
         }
         return new Drainage(parent, order, spill, flow, sea, rain);
+    }
+
+    private static final class FloodHeap {
+        private final int[] heap;
+        private final double[] spill;
+        private int size;
+
+        FloodHeap(double[] spill) {
+            this.spill = spill;
+            heap = new int[spill.length];
+        }
+
+        boolean isEmpty() { return size == 0; }
+
+        private boolean before(int a, int b) {
+            int order = Double.compare(spill[a], spill[b]);
+            return order < 0 || order == 0 && a < b;
+        }
+
+        void add(int cell) {
+            int at = size++;
+            while (at > 0) {
+                int parent = (at - 1) >>> 1;
+                if (!before(cell, heap[parent])) break;
+                heap[at] = heap[parent];
+                at = parent;
+            }
+            heap[at] = cell;
+        }
+
+        int remove() {
+            int first = heap[0], last = heap[--size], at = 0;
+            while (at < (size >>> 1)) {
+                int child = at * 2 + 1;
+                if (child + 1 < size && before(heap[child + 1], heap[child])) child++;
+                if (!before(heap[child], last)) break;
+                heap[at] = heap[child];
+                at = child;
+            }
+            heap[at] = last;
+            return first;
+        }
     }
 
     private void export(Path dir, long seed) throws IOException {

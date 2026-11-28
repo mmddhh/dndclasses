@@ -8,7 +8,10 @@ import java.util.Comparator;
 /** Builds the final preview network. Intermediate erosion uses its own unfiltered runoff. */
 final class PreviewHydrology {
     static final byte DRY = 1, SEASONAL = 2, OPEN_LAKE = 3, CLOSED_LAKE = 4;
-    static final double TRIBUTARY_FLOW = 8, MAIN_FLOW = 32;
+    static final double TRIBUTARY_FLOW = 4.5, MAIN_FLOW = 22;
+    private static final double MIN_LAKE_DEPTH = 1.25;
+    private static final int MIN_LAKE_AREA = 5;
+    private static final double LAKE_LOSS_FACTOR = 1.45;
 
     record Result(int[] receiver, double[] discharge, byte[] surface, boolean[] channel,
                   boolean[] outlet, boolean[] inland, int lakeCount, int outletCount) {}
@@ -26,25 +29,32 @@ final class PreviewHydrology {
         var queue = new ArrayDeque<Integer>();
         // Priority-flood order ensures the first cell of each depression is its downstream anchor.
         for (int i : order) {
-            if (basinId[i] >= 0 || sea[i] || spill[i] - height[i] < 0.05) continue;
+            if (basinId[i] != -1 || sea[i] || spill[i] - height[i] < 0.05) continue;
             int id = basins.size();
             var members = new ArrayList<Integer>();
             basins.add(new Basin(members, i));
             basinId[i] = id;
             queue.add(i);
+            int deepCells = 0;
             while (!queue.isEmpty()) {
                 int j = queue.remove();
                 members.add(j);
+                if (spill[j] - height[j] >= MIN_LAKE_DEPTH) deepCells++;
                 for (int dz = -1; dz <= 1; dz++) {
                     for (int dx = -1; dx <= 1; dx++) {
                         int k = neighbor(side, j, dx, dz);
-                        if (basinId[k] < 0 && !sea[k] && spill[k] == spill[i]
+                        if (basinId[k] == -1 && !sea[k] && spill[k] == spill[i]
                                 && spill[k] - height[k] >= 0.05) {
                             basinId[k] = id;
                             queue.add(k);
                         }
                     }
                 }
+            }
+            // Small or shallow depressions keep their flood route without impounding runoff.
+            if (deepCells < MIN_LAKE_AREA * resolution * resolution) {
+                for (int cell : members) basinId[cell] = -2;
+                basins.remove(id);
             }
         }
 
@@ -93,7 +103,7 @@ final class PreviewHydrology {
                     continue;
                 }
                 double demand = 0;
-                for (int cell : basin.cells) demand += evaporation[cell];
+                for (int cell : basin.cells) demand += evaporation[cell] * LAKE_LOSS_FACTOR;
                 double supply = flow[i];
                 if (supply >= demand) {
                     for (int cell : basin.cells) surface[cell] = OPEN_LAKE;
@@ -113,7 +123,7 @@ final class PreviewHydrology {
                         int end = start;
                         double cost = 0;
                         do {
-                            cost += evaporation[basin.cells.get(end++)];
+                            cost += evaporation[basin.cells.get(end++)] * LAKE_LOSS_FACTOR;
                         } while (end < basin.cells.size() && height[basin.cells.get(end)] == level);
                         if (remaining < cost) break;
                         for (int n = start; n < end; n++) surface[basin.cells.get(n)] = wet;
@@ -154,12 +164,12 @@ final class PreviewHydrology {
             int i = order[k], j = receiver[i];
             if (j < 0 || basinId[i] >= 0 && !outlet[i]) continue;
             boolean smallIsland = landArea[i] <= 120 * resolution * resolution;
-            double minimum = smallIsland ? 4.5 : TRIBUTARY_FLOW;
-            boolean convergence = secondBranch[i] >= Math.max(0.85, flow[i] * 0.12);
-            boolean valleyHead = valley[i] >= 0.18 && (convergence || valley[i] >= 0.65);
-            boolean majorHead = flow[i] >= MAIN_FLOW && (valley[i] >= 0.08 || convergence);
+            double minimum = smallIsland ? 2.5 : TRIBUTARY_FLOW;
+            boolean convergence = secondBranch[i] >= Math.max(0.55, flow[i] * 0.10);
+            boolean valleyHead = valley[i] >= 0.10 && (convergence || valley[i] >= 0.35);
+            boolean majorHead = flow[i] >= MAIN_FLOW;
             boolean head = flow[i] >= minimum && lengthToWater[i] >= 2 * resolution
-                    && (valleyHead || majorHead || smallIsland && convergence);
+                    && (valleyHead || majorHead || convergence && (smallIsland || flow[i] >= 8));
             channel[i] |= outlet[i] || head;
             if (channel[i] && basinId[j] < 0 && !sea[j]) channel[j] = true;
         }

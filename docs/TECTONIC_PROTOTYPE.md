@@ -40,7 +40,8 @@ can differ between the two runs.
 - `--check-rift` runs seed 7 with one and two substeps per iteration, exports
   every iteration from 18 to 36, and logs flooded and isolated low cells in
   a fixed lower-left window. Those counts also reflect coastline movement.
-- `drainage.png`: cyan channels continue to sea; purple channels terminate inland.
+- `drainage.png`: strokes follow the downstream links. Larger flows get
+  slightly wider strokes. Cyan channels continue to sea and purple channels terminate inland.
   Tan depressions are dry, lavender depressions are seasonal, and blue inland
   basins have enough modeled supply to overflow.
 - `summary.txt`: plate velocities, cell counts and longest route to an outlet.

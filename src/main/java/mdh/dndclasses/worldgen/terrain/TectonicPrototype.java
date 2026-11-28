@@ -1,6 +1,10 @@
 package mdh.dndclasses.worldgen.terrain;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.Line2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,6 +23,9 @@ public final class TectonicPrototype {
     private final int resolution;
     private static final int PLATES = 18;
     private static final int STEPS = 72;
+    private static final double CHANNEL_THRESHOLD = 8;
+    private static final Color SEA_CHANNEL = new Color(0x35c7ee);
+    private static final Color INLAND_CHANNEL = new Color(0xad79ed);
     private static final int[] DX = {1, -1, 0, 0};
     private static final int[] DZ = {0, 0, 1, -1};
 
@@ -535,7 +542,7 @@ public final class TectonicPrototype {
             int j = water.receiver[i];
             drop[i] = basin[i] == 1 || basin[i] == 2 ? i : j < 0 ? -1 : drop[j];
             if (j >= 0 && basin[i] != 1 && basin[i] != 2) steps[i] = steps[j] + 1;
-            if (channelFlow[i] >= 8 && !water.sea[i] && basin[i] == 0) {
+            if (channelFlow[i] >= CHANNEL_THRESHOLD && !water.sea[i] && basin[i] == 0) {
                 if (drop[i] < 0) seaRoutes++; else basinRoutes++;
                 longest = Math.max(longest, steps[i]);
             }
@@ -543,14 +550,7 @@ public final class TectonicPrototype {
         write(dir, "plates", i -> plateColor(initial, i), true);
         write(dir, "initial", i -> relief(initial.height, i, initial.height[i] <= 0), false);
         write(dir, "evolved", i -> relief(height, i, water.sea[i]), false);
-        write(dir, "drainage", i -> {
-            if (water.sea[i]) return relief(height, i, true);
-            if (basin[i] == 3) return 0xff246bd6;
-            if (basin[i] == 2) return 0xff9377ce;
-            if (basin[i] == 1) return 0xffe1c585;
-            if (channelFlow[i] >= 8) return drop[i] < 0 ? 0xff35c7ee : 0xffad79ed;
-            return relief(height, i, false);
-        }, false);
+        writeDrainage(dir, height, water, basin, channelFlow, drop);
         int[] area = new int[PLATES];
         for (int p : initial.plate) area[p]++;
         long continental = java.util.stream.IntStream.range(0, cells).filter(i -> initial.land[i] > 0.5).count();
@@ -693,16 +693,73 @@ public final class TectonicPrototype {
         return count;
     }
 
+    private void writeDrainage(Path dir, double[] height, Drainage water, byte[] basin,
+                               double[] flow, int[] drop) throws IOException {
+        int pixelsPerCell = 8;
+        int width = side * pixelsPerCell;
+        var image = new BufferedImage(width, width, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = image.createGraphics();
+        try {
+            paintCells(g, pixelsPerCell, i -> {
+                if (water.sea[i]) return relief(height, i, true);
+                return switch (basin[i]) {
+                    case 3 -> 0xff246bd6;
+                    case 2 -> 0xff9377ce;
+                    case 1 -> 0xffe1c585;
+                    default -> relief(height, i, false);
+                };
+            });
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            var line = new Line2D.Double();
+            for (int i : water.order) {
+                int j = water.receiver[i];
+                if (j < 0 || basin[i] != 0 || flow[i] < CHANNEL_THRESHOLD) continue;
+                int dx = localStep(i % side, j % side);
+                int dz = localStep(i / side, j / side);
+                // Stop at the water's edge instead of drawing across the receiving lake or sea.
+                double length = water.sea[j] || basin[j] != 0 ? 0.5 : 1.0;
+                double x = (i % side + 0.5) * pixelsPerCell;
+                double z = (i / side + 0.5) * pixelsPerCell;
+                double endX = x + dx * pixelsPerCell * length;
+                double endZ = z + dz * pixelsPerCell * length;
+                float stroke = (float) (pixelsPerCell
+                        * Math.min(0.34, 0.15 + 0.045 * Math.log(flow[i] / CHANNEL_THRESHOLD)));
+                g.setStroke(new BasicStroke(stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g.setColor(drop[i] < 0 ? SEA_CHANNEL : INLAND_CHANNEL);
+                int wrapX = endX <= 0 ? width : endX >= width ? -width : 0;
+                int wrapZ = endZ <= 0 ? width : endZ >= width ? -width : 0;
+                for (int tx = 0; tx <= (wrapX == 0 ? 0 : 1); tx++) {
+                    for (int tz = 0; tz <= (wrapZ == 0 ? 0 : 1); tz++) {
+                        line.setLine(x + tx * wrapX, z + tz * wrapZ,
+                                endX + tx * wrapX, endZ + tz * wrapZ);
+                        g.draw(line);
+                    }
+                }
+            }
+        } finally {
+            g.dispose();
+        }
+        ImageIO.write(image, "png", dir.resolve("drainage.png").toFile());
+    }
+
+    private int localStep(int from, int to) {
+        return Math.floorMod(to - from + 1, side) - 1;
+    }
+
+    private void paintCells(Graphics2D g, int zoom, java.util.function.IntUnaryOperator color) {
+        for (int i = 0; i < cells; i++) {
+            g.setColor(new Color(color.applyAsInt(i)));
+            g.fillRect(i % side * zoom, i / side * zoom, zoom, zoom);
+        }
+    }
+
     private void write(Path dir, String name, java.util.function.IntUnaryOperator color, boolean arrows)
             throws IOException {
         int zoom = 4;
         var image = new BufferedImage(side * zoom, side * zoom, BufferedImage.TYPE_INT_RGB);
         var g = image.createGraphics();
         try {
-            for (int i = 0; i < cells; i++) {
-                g.setColor(new Color(color.applyAsInt(i)));
-                g.fillRect(i % side * zoom, i / side * zoom, zoom, zoom);
-            }
+            paintCells(g, zoom, color);
             if (arrows) {
                 g.setColor(Color.WHITE);
                 for (Plate plate : plates) {
@@ -777,6 +834,7 @@ public final class TectonicPrototype {
                          background: #17232a; color: #edf3f5; font: 1rem system-ui; }
                   main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
                   img { display: block; width: 100%%; height: auto; image-rendering: pixelated; }
+                  img[src$="/drainage.png"] { image-rendering: auto; }
                   a { color: #a4daf3; }
                   select { font: inherit; }
                 </style>
@@ -918,6 +976,7 @@ public final class TectonicPrototype {
                       body{margin:2rem auto;padding:0 1rem;max-width:80rem;background:#17232a;color:#edf3f5;font:1rem system-ui}
                       a{color:#9ed4f3} h2 a{font-size:1rem} .maps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
                       img{display:block;width:100%;height:auto;image-rendering:pixelated} section{margin-bottom:2rem} select{font:inherit}
+                      img[src$="/drainage.png"]{image-rendering:auto}
                     </style>
                     <h1>Tectonic terrain comparison</h1>
                     <label>Iteration <select id="step"><option>00</option><option>18</option><option>36</option>
@@ -947,6 +1006,7 @@ public final class TectonicPrototype {
                 + ".maps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}"
                 + "article{display:inline-block;vertical-align:top;width:min(31%,30rem);margin:.5rem}"
                 + "img{display:block;width:100%;height:auto;image-rendering:pixelated}"
+                + "img[src$='/drainage.png']{image-rendering:auto}"
                 + ".legend{display:flex;flex-wrap:wrap;gap:1rem}.swatch{display:inline-flex;gap:.3rem;align-items:center}"
                 + ".swatch i{width:1rem;height:1rem;border:1px solid #789}.sea{background:#236ea3}.land{background:#609653}"
                 + ".hill{background:#a9784c}.mountain{background:#f4f1e9}.plate{background:linear-gradient(90deg,#d84f83,#55b8aa,#7d63cc)}"

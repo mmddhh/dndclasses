@@ -44,11 +44,13 @@ public final class TectonicPrototype {
         private final int[] initialOwner;
         private final double[] dense;
         private final double[][] blocks;
+        private final int[] occupied;
 
         Shares(int[] initialOwner) {
             this.initialOwner = initialOwner;
             dense = null;
             blocks = null;
+            occupied = null;
         }
 
         Shares(int cells, boolean sparse) {
@@ -56,6 +58,12 @@ public final class TectonicPrototype {
             dense = sparse ? null : new double[cells * PLATES];
             int blockCount = (cells + BLOCK_SIZE - 1) >> BLOCK_SHIFT;
             blocks = sparse ? new double[PLATES * blockCount][] : null;
+            occupied = sparse ? new int[blockCount] : null;
+        }
+
+        int candidates(int cell) {
+            if (initialOwner != null) return 1 << initialOwner[cell];
+            return occupied == null ? (1 << PLATES) - 1 : occupied[cell >> BLOCK_SHIFT];
         }
 
         double get(int cell, int plate) {
@@ -75,6 +83,7 @@ public final class TectonicPrototype {
             if (block == null) {
                 if (value == 0) return;
                 blocks[index] = block = new double[BLOCK_SIZE];
+                occupied[cell >> BLOCK_SHIFT] |= 1 << plate;
             }
             block[cell & (BLOCK_SIZE - 1)] = value;
         }
@@ -262,7 +271,8 @@ public final class TectonicPrototype {
         for (int i = 0; i < cells; i++) {
             int p = previous.plate[i];
             double relief = previous.height[i] - base(previous.land[i], previous.thickness[i], previous.age[i]);
-            for (int q = 0; q < PLATES; q++) {
+            for (int candidates = previous.shares.candidates(i); candidates != 0; candidates &= candidates - 1) {
+                int q = Integer.numberOfTrailingZeros(candidates);
                 double share = previous.shares.get(i, q);
                 if (share == 0) continue;
                 double x = plates[q].vx * dt * resolution, z = plates[q].vz * dt * resolution;
@@ -338,7 +348,9 @@ public final class TectonicPrototype {
             next.height[i] = base(land, thickness, age) + relief;
             int incumbent = previous.plate[i], winner = incumbent;
             double best = next.shares.get(i, incumbent);
-            for (int p = 0; p < PLATES; p++) {
+            int material = next.shares.candidates(i);
+            for (int candidates = material; candidates != 0; candidates &= candidates - 1) {
+                int p = Integer.numberOfTrailingZeros(candidates);
                 double vote = next.shares.get(i, p);
                 if (vote > best) {
                     winner = p;
@@ -347,14 +359,18 @@ public final class TectonicPrototype {
             }
             next.plate[i] = winner;
             double retained = 0;
-            for (int p = 0; p < PLATES; p++) {
+            for (int candidates = material; candidates != 0; candidates &= candidates - 1) {
+                int p = Integer.numberOfTrailingZeros(candidates);
                 double share = next.shares.get(i, p) / Math.max(1e-8, incoming);
                 share = share >= 0.0001 ? share : 0;
                 next.shares.set(i, p, share);
                 retained += share;
             }
             if (retained == 0) next.shares.set(i, winner, 1);
-            else for (int p = 0; p < PLATES; p++) next.shares.set(i, p, next.shares.get(i, p) / retained);
+            else for (int candidates = material; candidates != 0; candidates &= candidates - 1) {
+                int p = Integer.numberOfTrailingZeros(candidates);
+                next.shares.set(i, p, next.shares.get(i, p) / retained);
+            }
         }
         double[] belt = spread(uplift, 5 * resolution * resolution);
         for (int i = 0; i < cells; i++) next.height[i] += belt[i];
@@ -401,29 +417,48 @@ public final class TectonicPrototype {
         int useUpper = (int) Math.round((12 * variance - 3.0 * (lower * lower - 1))
                 / (upper * upper - lower * lower));
         double[] tmp = new double[cells];
+        double[] columnSums = new double[side];
         for (int pass = 0; pass < 3; pass++) {
             int radius = ((pass < useUpper ? upper : lower) - 1) / 2;
-            blurAxis(field, tmp, radius, 1, side);
-            blurAxis(tmp, field, radius, side, 1);
+            blurRows(field, tmp, radius);
+            blurColumns(tmp, field, radius, columnSums);
         }
         return field;
     }
 
-    private void blurAxis(double[] source, double[] target, int radius, int stride, int lineStride) {
+    private void blurRows(double[] source, double[] target, int radius) {
         double weight = 1.0 / (2 * radius + 1);
         for (int line = 0; line < side; line++) {
-            int base = line * lineStride;
+            int base = line * side;
             double sum = 0;
             for (int offset = -radius; offset <= radius; offset++) {
-                sum += source[base + Math.floorMod(offset, side) * stride];
+                sum += source[base + Math.floorMod(offset, side)];
             }
-            int leaving = side - radius, entering = radius + 1;
+            int leaving = base + side - radius, entering = base + radius + 1;
             for (int i = 0; i < side; i++) {
-                target[base + i * stride] = Math.max(0, sum) * weight;
-                sum += source[base + entering * stride] - source[base + leaving * stride];
-                if (++leaving == side) leaving = 0;
-                if (++entering == side) entering = 0;
+                target[base + i] = Math.max(0, sum) * weight;
+                sum += source[entering] - source[leaving];
+                if (++leaving == base + side) leaving = base;
+                if (++entering == base + side) entering = base;
             }
+        }
+    }
+
+    private void blurColumns(double[] source, double[] target, int radius, double[] sums) {
+        double weight = 1.0 / (2 * radius + 1);
+        Arrays.fill(sums, 0);
+        for (int offset = -radius; offset <= radius; offset++) {
+            int row = Math.floorMod(offset, side) * side;
+            for (int x = 0; x < side; x++) sums[x] += source[row + x];
+        }
+        int leaving = (side - radius) * side, entering = (radius + 1) * side;
+        for (int row = 0; row < cells; row += side) {
+            for (int x = 0; x < side; x++) {
+                target[row + x] = Math.max(0, sums[x]) * weight;
+                sums[x] += source[entering + x] - source[leaving + x];
+            }
+            if ((leaving += side) == cells) leaving = 0;
+            if ((entering += side) == cells) entering = 0;
         }
     }
 

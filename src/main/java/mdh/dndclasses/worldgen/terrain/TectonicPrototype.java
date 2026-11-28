@@ -329,12 +329,33 @@ public final class TectonicPrototype {
     private double[] spread(double[] field, int passes) {
         double[] tmp = new double[cells];
         for (int pass = 0; pass < passes; pass++) {
-            for (int i = 0; i < cells; i++) tmp[i] = field[i] + 0.18 * laplacian(field, i);
+            for (int row = 0; row < cells; row += side) {
+                int south = row + side == cells ? 0 : row + side;
+                int north = row == 0 ? cells - side : row - side;
+                int last = side - 1;
+                tmp[row] = diffuse(field, row, row + 1, row + last, south, north);
+                for (int x = 1; x < last; x++) {
+                    int i = row + x;
+                    tmp[i] = diffuse(field, i, i + 1, i - 1, south + x, north + x);
+                }
+                int end = row + last;
+                tmp[end] = diffuse(field, end, row, end - 1, south + last, north + last);
+            }
             double[] swap = tmp;
             tmp = field;
             field = swap;
         }
         return field;
+    }
+
+    private static double diffuse(double[] field, int i, int east, int west, int south, int north) {
+        double value = field[i];
+        double sum = 0;
+        sum += field[east] - value;
+        sum += field[west] - value;
+        sum += field[south] - value;
+        sum += field[north] - value;
+        return value + 0.18 * sum;
     }
 
     private void erode(double[] height) {
@@ -797,9 +818,14 @@ public final class TectonicPrototype {
 
     private static void writeDetailPage(Path dir, long[] seeds, double land) throws IOException {
         var seedOptions = new StringBuilder();
+        var fineDirectories = new StringBuilder();
         for (int i = 0; i < seeds.length; i++) {
-            seedOptions.append("<option value=\"").append(detailSeedPath(i, seeds[i]))
+            String path = detailSeedPath(i, seeds[i]);
+            seedOptions.append("<option value=\"").append(path)
                     .append("\">").append(seeds[i]).append("</option>");
+            if (Files.isRegularFile(dir.resolve(path + "64/summary.txt"))) {
+                fineDirectories.append('"').append(path).append("\",");
+            }
         }
         Files.writeString(dir.resolve("index.html"), """
                 <!doctype html>
@@ -810,7 +836,7 @@ public final class TectonicPrototype {
                 <style>
                   body { max-width: 90rem; margin: 2rem auto; padding: 0 1rem;
                          background: #17232a; color: #edf3f5; font: 1rem system-ui; }
-                  main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+                  main { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%%, 24rem), 1fr)); gap: 1rem; }
                   img { display: block; width: 100%%; height: auto; image-rendering: pixelated; }
                   img[src$="/drainage.png"] { image-rendering: auto; }
                   a { color: #a4daf3; }
@@ -840,9 +866,14 @@ public final class TectonicPrototype {
                     <a href="128/evolved.png"><img src="128/evolved.png" alt="128 方块网格的地形图"></a>
                     <p><a href="128/summary.txt" class="summary">统计</a> · 490 × 490 采样格</p>
                   </section>
+                  <section data-grid="64" hidden><h2>64 方块 / 格</h2>
+                    <a><img alt="64 方块网格的地形图"></a>
+                    <p><a class="summary">统计</a> · 980 × 980 采样格</p>
+                  </section>
                 </main>
-                <p>点击地图打开原图。两张图覆盖同一范围，细网格重新推演后，局部海岸和河网可能变化。</p>
+                <p>各档地图覆盖同一范围。细网格重新推演后，局部海岸和河网可能变化。</p>
                 <script>
+                  const fineDirectories = new Set([%s]);
                   const layers = {
                     terrain: ['', '蓝色为海洋，绿色为低地，棕灰色为高地，白色为高山。'],
                     plates: ['-plates', '每种颜色代表一个板块编号。'],
@@ -859,6 +890,8 @@ public final class TectonicPrototype {
                     const imageName = step.disabled ? 'drainage.png' : 'step-' + step.value + suffix + '.png';
                     document.getElementById('legend').textContent = legend;
                     for (const panel of document.querySelectorAll('[data-grid]')) {
+                      panel.hidden = panel.dataset.grid === '64' && !fineDirectories.has(seed.value);
+                      if (panel.hidden) continue;
                       const directory = seed.value + panel.dataset.grid + '/';
                       const image = panel.querySelector('img');
                       panel.querySelector('a').href = directory + imageName;
@@ -871,7 +904,7 @@ public final class TectonicPrototype {
                   refresh();
                 </script>
                 </html>
-                """.formatted(land * 100, seedOptions));
+                """.formatted(land * 100, seedOptions, fineDirectories));
     }
 
     private static String detailSeedPath(int index, long seed) {
@@ -879,17 +912,40 @@ public final class TectonicPrototype {
     }
 
     public static void main(String[] args) throws IOException {
-        if (args.length >= 4 && args[0].equals("--detail")) {
+        if (args.length >= 4 && (args[0].equals("--detail") || args[0].equals("--detail-64"))) {
             Path dir = Path.of(args[1]);
             double land = Double.parseDouble(args[3]);
+            boolean addFine = args[0].equals("--detail-64");
             long[] seeds = java.util.stream.LongStream.concat(
                     java.util.stream.LongStream.of(Long.parseLong(args[2])),
                     Arrays.stream(args, 4, args.length).mapToLong(Long::parseLong)).distinct().toArray();
+            if (addFine) {
+                for (int i = 0; i < seeds.length; i++) {
+                    long seed = seeds[i];
+                    Path seedDir = dir.resolve(detailSeedPath(i, seed));
+                    for (String grid : new String[]{"256", "128", "64"}) {
+                        Path summary = seedDir.resolve(grid).resolve("summary.txt");
+                        if (grid.equals("64") && !Files.exists(summary)) continue;
+                        if (!Files.isRegularFile(summary) || !Files.readAllLines(summary).containsAll(Arrays.asList(
+                                "seed=" + seed, "requested land fraction=" + land, "grid cell size (blocks)=" + grid))) {
+                            throw new IllegalArgumentException("Existing comparison parameters mismatch: " + summary);
+                        }
+                    }
+                }
+            }
             for (int i = 0; i < seeds.length; i++) {
                 long seed = seeds[i];
                 Path seedDir = dir.resolve(detailSeedPath(i, seed));
-                new TectonicPrototype(seed, land).export(seedDir.resolve("256"), seed);
-                new TectonicPrototype(seed, land, 2).export(seedDir.resolve("128"), seed, 2, false);
+                if (addFine) {
+                    Path fine = seedDir.resolve("64");
+                    if (!Files.isRegularFile(fine.resolve("summary.txt"))) {
+                        new TectonicPrototype(seed, land, 4).export(fine, seed, 4, false);
+                    }
+                    writeDetailPage(dir, seeds, land);
+                } else {
+                    new TectonicPrototype(seed, land).export(seedDir.resolve("256"), seed);
+                    new TectonicPrototype(seed, land, 2).export(seedDir.resolve("128"), seed, 2, false);
+                }
             }
             writeDetailPage(dir, seeds, land);
             return;

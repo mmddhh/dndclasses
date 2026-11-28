@@ -42,7 +42,9 @@ public final class WorldPlanEvents {
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        if (!level.dimension().location().equals(
+        boolean snapshot = level.getChunkSource().getGenerator() instanceof TerrainChunkGenerator terrain
+                && terrain.usesSnapshot();
+        if (!snapshot && !level.dimension().location().equals(
                 new ResourceLocation(Dndclasses.MODID, "dnd_overworld"))) {
             return;
         }

@@ -1,6 +1,19 @@
 # Tectonic terrain prototype
 
-This offline preview does not change the Minecraft world preset. It uses a
+The offline prototype is also available as the opt-in **D&D Tectonic World
+(Seed 7)** world type. Choose it when creating a new world. The Overworld
+reads the bundled 32-block grid (seed 7, 60% initial land, 15 rounds);
+it does not simulate plates on startup. The seed field does not change this
+Overworld snapshot. The Nether and End retain vanilla generators.
+
+To regenerate the matching offline atlas, run the benchmark command below.
+Open its `index.html`, select the drainage layer, open a tile, and click
+within the tile to obtain centered Minecraft coordinates. The teleport
+command places you above the terrain; use Creative or Spectator to inspect
+it. The preview shows the coarse network, while the game interpolates
+terrain between samples and carves block-level channels along its links.
+
+The default standalone preview uses a
 245 × 245 torus, with one sample per 256 blocks. Plates grow from irregular
 seeds at different rates across a random resistance field. Continents grow
 independently and begin with little relief. No sinusoidal fields are used.
@@ -14,7 +27,8 @@ Global drainage periodically cuts valleys and deposits sediment downhill.
 From the repository root with JDK 17:
 
 ```powershell
-javac -encoding UTF-8 -d build/tectonic-classes src/main/java/mdh/dndclasses/worldgen/terrain/WorldTopology.java src/main/java/mdh/dndclasses/worldgen/terrain/PreviewHydrology.java src/main/java/mdh/dndclasses/worldgen/terrain/TectonicPrototype.java
+javac -encoding UTF-8 -d build/tectonic-classes src/main/java/mdh/dndclasses/worldgen/terrain/WorldTopology.java src/main/java/mdh/dndclasses/worldgen/terrain/PreviewHydrology.java src/main/java/mdh/dndclasses/worldgen/terrain/TectonicSnapshot.java src/main/java/mdh/dndclasses/worldgen/terrain/TectonicPrototype.java
+java -Xmx1536m -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --benchmark-32 build/tectonic-seed7-mc 7 0.60 15
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype 12345 build/tectonic-preview/12345
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --gallery build/tectonic-v2 7 42 12345 314159 20261127
 java -cp build/tectonic-classes mdh.dndclasses.worldgen.terrain.TectonicPrototype --check-rift build/tectonic-v3/seed-7

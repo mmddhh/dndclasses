@@ -67,6 +67,10 @@ public final class TerrainChunkGenerator extends ChunkGenerator {
         }
     }
 
+    public boolean usesSnapshot() {
+        return biomeSource instanceof TerrainBiomeSource terrainBiomes && terrainBiomes.usesSnapshot();
+    }
+
     @Override
     protected Codec<? extends ChunkGenerator> codec() {
         return CODEC;

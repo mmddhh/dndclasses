@@ -1,0 +1,32 @@
+{
+  "dimensions": {
+    "minecraft:overworld": {
+      "type": "dndclasses:dnd_overworld",
+      "generator": {
+        "type": "dndclasses:terrain",
+        "seed": 7,
+        "biome_source": {
+          "type": "dndclasses:terrain_biomes",
+          "seed": 7,
+          "tectonic_snapshot": "seed7_land60_step15"
+        }
+      }
+    },
+    "minecraft:the_nether": {
+      "type": "minecraft:the_nether",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": { "type": "minecraft:multi_noise", "preset": "minecraft:nether" },
+        "settings": "minecraft:nether"
+      }
+    },
+    "minecraft:the_end": {
+      "type": "minecraft:the_end",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": { "type": "minecraft:the_end" },
+        "settings": "minecraft:end"
+      }
+    }
+  }
+}

@@ -27,10 +27,16 @@ public final class TerrainColumns {
     private final TerrainModel model;
     private final TerrainDensity density;
     private final TerrainBiomeResolver resolver;
+    private final TectonicSnapshot snapshot;
     private final ThreadLocal<Cache> cache = ThreadLocal.withInitial(Cache::new);
 
     public TerrainColumns(long seed) {
+        this(seed, null);
+    }
+
+    TerrainColumns(long seed, TectonicSnapshot snapshot) {
         this.seed = seed;
+        this.snapshot = snapshot;
         model = new TerrainModel(TOPOLOGY, seed);
         density = new TerrainDensity(TOPOLOGY, seed);
         resolver = new TerrainBiomeResolver(model, density);
@@ -53,6 +59,18 @@ public final class TerrainColumns {
     }
 
     private Column sample(int x, int z, Cache local) {
+        if (snapshot != null) {
+            var sample = snapshot.sample(x, z);
+            int ground = sample.ground(), water = sample.water();
+            double temperature = model.temperature(x, z, ground);
+            TerrainModel.Biome biome = sample.ocean() ? TerrainModel.Biome.OCEAN
+                    : ground < water ? TerrainModel.Biome.SWAMP
+                    : temperature <= 0 ? TerrainModel.Biome.TUNDRA
+                    : ground >= SEA_LEVEL + 90 ? TerrainModel.Biome.MOUNTAINS
+                    : model.humidity(x, z, ground) > 0.55 ? TerrainModel.Biome.FOREST : TerrainModel.Biome.PLAINS;
+            return new Column(ground, water, sample.river(), biome, temperature,
+                    water > ground ? model.temperature(x, z, water) : 0);
+        }
         int ground = surface(x, z, local);
         int water = ground < SEA_LEVEL ? SEA_LEVEL : MIN_Y - 1;
         RegionalHydrology.Hit hit = RegionalHydrology.hit(x, z, seed, ground);

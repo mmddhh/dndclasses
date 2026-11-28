@@ -14,6 +14,7 @@ import net.minecraft.world.level.biome.Climate;
 
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /** Biome source backed by the same TerrainDensity surface used for blocks. */
@@ -21,7 +22,8 @@ public final class TerrainBiomeSource extends BiomeSource {
 
     public static final Codec<TerrainBiomeSource> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
-                    Codec.LONG.optionalFieldOf("seed", 12_345L).forGetter(source -> source.columns.seed())
+                    Codec.LONG.optionalFieldOf("seed", 12_345L).forGetter(source -> source.columns.seed()),
+                    Codec.STRING.optionalFieldOf("tectonic_snapshot").forGetter(source -> source.snapshot)
             ).apply(instance, TerrainBiomeSource::new));
 
     private static volatile Map<TerrainModel.Biome, Holder<Biome>> holders = Map.of();
@@ -29,13 +31,21 @@ public final class TerrainBiomeSource extends BiomeSource {
     private static volatile Holder<Biome> river;
 
     private volatile TerrainColumns columns;
+    private final Optional<String> snapshot;
 
     public TerrainBiomeSource(long seed) {
-        columns = new TerrainColumns(seed);
+        this(seed, Optional.empty());
     }
 
+    private TerrainBiomeSource(long seed, Optional<String> snapshot) {
+        this.snapshot = snapshot;
+        columns = snapshot.isPresent() ? new TerrainColumns(7, TectonicSnapshot.load(snapshot.get())) : new TerrainColumns(seed);
+    }
+
+    public boolean usesSnapshot() { return snapshot.isPresent(); }
+
     public TerrainColumns columnsForSeed(long seed) {
-        if (seed != columns.seed()) {
+        if (snapshot.isEmpty() && seed != columns.seed()) {
             columns = new TerrainColumns(seed);
         }
         return columns;

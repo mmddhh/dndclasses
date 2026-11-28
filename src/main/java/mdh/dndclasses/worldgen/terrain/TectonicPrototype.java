@@ -34,8 +34,51 @@ public final class TectonicPrototype {
                             boolean[] sea, double[] rain) {}
     private record Crust(int[] plate, double[] land, double[] height, double[] age,
                          double[] thickness, double[] stretch, double[] spreading,
-                         double[] shares) {}
+                         Shares shares) {}
     private record Frame(int step, Crust crust) {}
+
+    // Fine grids only allocate a plate's shares where its material has arrived.
+    private static final class Shares {
+        private static final int BLOCK_SHIFT = 6;
+        private static final int BLOCK_SIZE = 1 << BLOCK_SHIFT;
+        private final int[] initialOwner;
+        private final double[] dense;
+        private final double[][] blocks;
+
+        Shares(int[] initialOwner) {
+            this.initialOwner = initialOwner;
+            dense = null;
+            blocks = null;
+        }
+
+        Shares(int cells, boolean sparse) {
+            initialOwner = null;
+            dense = sparse ? null : new double[cells * PLATES];
+            int blockCount = (cells + BLOCK_SIZE - 1) >> BLOCK_SHIFT;
+            blocks = sparse ? new double[PLATES * blockCount][] : null;
+        }
+
+        double get(int cell, int plate) {
+            if (initialOwner != null) return initialOwner[cell] == plate ? 1 : 0;
+            if (dense != null) return dense[cell * PLATES + plate];
+            double[] block = blocks[(cell >> BLOCK_SHIFT) * PLATES + plate];
+            return block == null ? 0 : block[cell & (BLOCK_SIZE - 1)];
+        }
+
+        void set(int cell, int plate, double value) {
+            if (dense != null) {
+                dense[cell * PLATES + plate] = value;
+                return;
+            }
+            int index = (cell >> BLOCK_SHIFT) * PLATES + plate;
+            double[] block = blocks[index];
+            if (block == null) {
+                if (value == 0) return;
+                blocks[index] = block = new double[BLOCK_SIZE];
+            }
+            block[cell & (BLOCK_SIZE - 1)] = value;
+        }
+    }
 
     private final Plate[] plates = new Plate[PLATES];
     private final long seed;
@@ -129,10 +172,8 @@ public final class TectonicPrototype {
             age[i] = 25 + (int) (field(i, 8, 73) * 115);
             thickness[i] = continental[i];
         }
-        double[] shares = new double[cells * PLATES];
-        for (int i = 0; i < cells; i++) shares[i * PLATES + owner[i]] = 1;
         initial = new Crust(owner, continental, height, age, thickness,
-                new double[cells], new double[cells], shares);
+                new double[cells], new double[cells], new Shares(owner));
     }
 
     /** Contention on a periodic graph gives each territory a connected growth history. */
@@ -216,13 +257,13 @@ public final class TectonicPrototype {
 
     private Crust advance(Crust previous, double dt, double[] events) {
         Crust next = new Crust(new int[cells], new double[cells], new double[cells], new double[cells],
-                new double[cells], new double[cells], new double[cells], new double[cells * PLATES]);
+                new double[cells], new double[cells], new double[cells], new Shares(cells, resolution >= 8));
         double[] cover = new double[cells], uplift = new double[cells], tension = new double[cells];
         for (int i = 0; i < cells; i++) {
             int p = previous.plate[i];
             double relief = previous.height[i] - base(previous.land[i], previous.thickness[i], previous.age[i]);
             for (int q = 0; q < PLATES; q++) {
-                double share = previous.shares[i * PLATES + q];
+                double share = previous.shares.get(i, q);
                 if (share == 0) continue;
                 double x = plates[q].vx * dt * resolution, z = plates[q].vz * dt * resolution;
                 int ix = (int) Math.floor(x), iz = (int) Math.floor(z);
@@ -232,7 +273,7 @@ public final class TectonicPrototype {
                         double w = share * (dx == 0 ? 1 - fx : fx) * (dz == 0 ? 1 - fz : fz);
                         if (w == 0) continue;
                         int j = neighbor(i, ix + dx, iz + dz);
-                        next.shares[j * PLATES + q] += w;
+                        next.shares.set(j, q, next.shares.get(j, q) + w);
                         cover[j] += w;
                         next.land[j] += previous.land[i] * w;
                         next.thickness[j] += previous.thickness[i] * w;
@@ -296,9 +337,9 @@ public final class TectonicPrototype {
             next.age[i] = age;
             next.height[i] = base(land, thickness, age) + relief;
             int incumbent = previous.plate[i], winner = incumbent;
-            double best = next.shares[i * PLATES + incumbent];
+            double best = next.shares.get(i, incumbent);
             for (int p = 0; p < PLATES; p++) {
-                double vote = next.shares[i * PLATES + p];
+                double vote = next.shares.get(i, p);
                 if (vote > best) {
                     winner = p;
                     best = vote;
@@ -307,13 +348,13 @@ public final class TectonicPrototype {
             next.plate[i] = winner;
             double retained = 0;
             for (int p = 0; p < PLATES; p++) {
-                int k = i * PLATES + p;
-                double share = next.shares[k] / Math.max(1e-8, incoming);
-                next.shares[k] = share >= 0.0001 ? share : 0;
-                retained += next.shares[k];
+                double share = next.shares.get(i, p) / Math.max(1e-8, incoming);
+                share = share >= 0.0001 ? share : 0;
+                next.shares.set(i, p, share);
+                retained += share;
             }
-            if (retained == 0) next.shares[i * PLATES + winner] = 1;
-            else for (int p = 0; p < PLATES; p++) next.shares[i * PLATES + p] /= retained;
+            if (retained == 0) next.shares.set(i, winner, 1);
+            else for (int p = 0; p < PLATES; p++) next.shares.set(i, p, next.shares.get(i, p) / retained);
         }
         double[] belt = spread(uplift, 5 * resolution * resolution);
         for (int i = 0; i < cells; i++) next.height[i] += belt[i];
@@ -327,6 +368,7 @@ public final class TectonicPrototype {
     }
 
     private double[] spread(double[] field, int passes) {
+        if (resolution >= 8) return spreadFine(field, passes);
         double[] tmp = new double[cells];
         for (int pass = 0; pass < passes; pass++) {
             for (int row = 0; row < cells; row += side) {
@@ -346,6 +388,43 @@ public final class TectonicPrototype {
             field = swap;
         }
         return field;
+    }
+
+    private double[] spreadFine(double[] field, int passes) {
+        // Each diffusion pass has variance 0.36 cells² per axis. Match that variance
+        // with three separable box filters, each computed in one sweep per axis.
+        double variance = 0.36 * passes;
+        double width = Math.sqrt(4 * variance + 1);
+        int lower = (int) Math.floor(width);
+        if ((lower & 1) == 0) lower--;
+        int upper = lower + 2;
+        int useUpper = (int) Math.round((12 * variance - 3.0 * (lower * lower - 1))
+                / (upper * upper - lower * lower));
+        double[] tmp = new double[cells];
+        for (int pass = 0; pass < 3; pass++) {
+            int radius = ((pass < useUpper ? upper : lower) - 1) / 2;
+            blurAxis(field, tmp, radius, 1, side);
+            blurAxis(tmp, field, radius, side, 1);
+        }
+        return field;
+    }
+
+    private void blurAxis(double[] source, double[] target, int radius, int stride, int lineStride) {
+        double weight = 1.0 / (2 * radius + 1);
+        for (int line = 0; line < side; line++) {
+            int base = line * lineStride;
+            double sum = 0;
+            for (int offset = -radius; offset <= radius; offset++) {
+                sum += source[base + Math.floorMod(offset, side) * stride];
+            }
+            int leaving = side - radius, entering = radius + 1;
+            for (int i = 0; i < side; i++) {
+                target[base + i * stride] = Math.max(0, sum) * weight;
+                sum += source[base + entering * stride] - source[base + leaving * stride];
+                if (++leaving == side) leaving = 0;
+                if (++entering == side) entering = 0;
+            }
+        }
     }
 
     private static double diffuse(double[] field, int i, int east, int west, int south, int north) {
@@ -507,6 +586,8 @@ public final class TectonicPrototype {
         if (!Double.isFinite(endingMass) || Math.abs(startingMass - endingMass) > startingMass * 1e-8) {
             throw new IllegalStateException("Continental mass drift: " + startingMass + " -> " + endingMass);
         }
+        int finalFragments = smallFragments(crust.plate);
+        crust = null;
         Drainage water = drain(height);
         verify(water);
         double[] evaporation = new double[cells];
@@ -565,7 +646,7 @@ public final class TectonicPrototype {
                 + "\nsubsteps per iteration=" + substeps
                 + "\ncontinental mass (initial / final)=" + startingMass + " / " + endingMass
                 + "\ncollision / spreading area (cumulative grid cells)=" + events[0] + " / " + events[1]
-                + "\nfinal small plate fragments (<16 cells)=" + smallFragments(crust.plate)
+                + "\nfinal small plate fragments (<16 cells)=" + finalFragments
                 + "\ninitial plate area and velocities (grid x,z):\n"
                 + java.util.stream.IntStream.range(0, PLATES)
                     .mapToObj(i -> i + ": " + area[i] + " cells, " + plates[i].vx + ", " + plates[i].vz + "\n")
@@ -691,12 +772,8 @@ public final class TectonicPrototype {
     private void writeDrainage(Path dir, double[] height, Drainage water,
                                PreviewHydrology.Result rivers) throws IOException {
         byte[] basin = rivers.surface();
-        int pixelsPerCell = 8;
-        int width = side * pixelsPerCell;
-        var image = new BufferedImage(width, width, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g = image.createGraphics();
-        try {
-            paintCells(g, pixelsPerCell, i -> {
+        writeMap(dir, "drainage", 8, 2, (g, pixelsPerCell, region) -> {
+            paintCells(g, pixelsPerCell, region, i -> {
                 if (water.sea[i]) return relief(height, i, true);
                 return switch (basin[i]) {
                     case 3 -> 0xff246bd6;
@@ -708,57 +785,103 @@ public final class TectonicPrototype {
             });
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             var line = new Line2D.Double();
-            for (int i : water.order) {
-                if (!rivers.channel()[i]) continue;
-                int j = rivers.receiver()[i];
-                int dx = localStep(i % side, j % side);
-                int dz = localStep(i / side, j / side);
-                // Stop at the water's edge instead of drawing across the receiving lake or sea.
-                double length = water.sea[j] || basin[j] != 0 ? 0.5 : 1.0;
-                double start = rivers.outlet()[i] ? 0.5 : 0;
-                double x = (i % side + 0.5) * pixelsPerCell;
-                double z = (i / side + 0.5) * pixelsPerCell;
-                double endX = x + dx * pixelsPerCell * length;
-                double endZ = z + dz * pixelsPerCell * length;
-                float stroke = (float) (pixelsPerCell
-                        * (0.14 + 0.25 * smooth(0, PreviewHydrology.MAIN_FLOW, rivers.discharge()[i])));
-                g.setStroke(new BasicStroke(stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                g.setColor(rivers.inland()[i] ? INLAND_CHANNEL : SEA_CHANNEL);
-                int wrapX = endX <= 0 ? width : endX >= width ? -width : 0;
-                int wrapZ = endZ <= 0 ? width : endZ >= width ? -width : 0;
-                for (int tx = 0; tx <= (wrapX == 0 ? 0 : 1); tx++) {
-                    for (int tz = 0; tz <= (wrapZ == 0 ? 0 : 1); tz++) {
-                        line.setLine(x + dx * pixelsPerCell * start + tx * wrapX,
-                                z + dz * pixelsPerCell * start + tz * wrapZ,
-                                endX + tx * wrapX, endZ + tz * wrapZ);
-                        g.draw(line);
+            if (region.width == side && region.height == side) {
+                for (int i : water.order) drawChannel(g, line, pixelsPerCell, i, water, rivers);
+            } else {
+                // The one-cell margin includes strokes that cross a tile or world edge.
+                for (int z = region.z - 1; z <= region.z + region.height; z++) {
+                    for (int x = region.x - 1; x <= region.x + region.width; x++) {
+                        int i = Math.floorMod(z, side) * side + Math.floorMod(x, side);
+                        drawChannel(g, line, pixelsPerCell, i, water, rivers);
                     }
                 }
             }
-        } finally {
-            g.dispose();
+        });
+    }
+
+    private void drawChannel(Graphics2D g, Line2D.Double line, int pixelsPerCell, int i,
+                             Drainage water, PreviewHydrology.Result rivers) {
+        if (!rivers.channel()[i]) return;
+        int width = side * pixelsPerCell;
+        int j = rivers.receiver()[i];
+        int dx = localStep(i % side, j % side);
+        int dz = localStep(i / side, j / side);
+        // Stop at the water's edge instead of drawing across the receiving lake or sea.
+        double length = water.sea[j] || rivers.surface()[j] != 0 ? 0.5 : 1.0;
+        double start = rivers.outlet()[i] ? 0.5 : 0;
+        double x = (i % side + 0.5) * pixelsPerCell;
+        double z = (i / side + 0.5) * pixelsPerCell;
+        double endX = x + dx * pixelsPerCell * length;
+        double endZ = z + dz * pixelsPerCell * length;
+        float stroke = (float) (pixelsPerCell
+                * (0.14 + 0.25 * smooth(0, PreviewHydrology.MAIN_FLOW, rivers.discharge()[i])));
+        g.setStroke(new BasicStroke(stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setColor(rivers.inland()[i] ? INLAND_CHANNEL : SEA_CHANNEL);
+        int wrapX = endX <= 0 ? width : endX >= width ? -width : 0;
+        int wrapZ = endZ <= 0 ? width : endZ >= width ? -width : 0;
+        for (int tx = 0; tx <= (wrapX == 0 ? 0 : 1); tx++) {
+            for (int tz = 0; tz <= (wrapZ == 0 ? 0 : 1); tz++) {
+                line.setLine(x + dx * pixelsPerCell * start + tx * wrapX,
+                        z + dz * pixelsPerCell * start + tz * wrapZ,
+                        endX + tx * wrapX, endZ + tz * wrapZ);
+                g.draw(line);
+            }
         }
-        ImageIO.write(image, "png", dir.resolve("drainage.png").toFile());
     }
 
     private int localStep(int from, int to) {
         return Math.floorMod(to - from + 1, side) - 1;
     }
 
-    private void paintCells(Graphics2D g, int zoom, java.util.function.IntUnaryOperator color) {
-        for (int i = 0; i < cells; i++) {
-            g.setColor(new Color(color.applyAsInt(i)));
-            g.fillRect(i % side * zoom, i / side * zoom, zoom, zoom);
+    private record Region(int x, int z, int width, int height) {}
+    private static final int TILE_CELLS = 128;
+
+    @FunctionalInterface
+    private interface MapPainter {
+        void paint(Graphics2D g, int zoom, Region region);
+    }
+
+    private void writeMap(Path dir, String name, int zoom, int overviewZoom, MapPainter painter) throws IOException {
+        Region world = new Region(0, 0, side, side);
+        if (resolution < 8) {
+            writeImage(dir.resolve(name + ".png"), zoom, world, painter);
+            return;
+        }
+        writeImage(dir.resolve(name + ".png"), overviewZoom, world, painter);
+        Path tiles = Files.createDirectories(dir.resolve("tiles").resolve(name));
+        for (int z = 0; z < side; z += TILE_CELLS) {
+            for (int x = 0; x < side; x += TILE_CELLS) {
+                Region region = new Region(x, z, Math.min(TILE_CELLS, side - x), Math.min(TILE_CELLS, side - z));
+                writeImage(tiles.resolve(x / TILE_CELLS + "-" + z / TILE_CELLS + ".png"), zoom, region, painter);
+            }
+        }
+    }
+
+    private static void writeImage(Path path, int zoom, Region region, MapPainter painter) throws IOException {
+        var image = new BufferedImage(region.width * zoom, region.height * zoom, BufferedImage.TYPE_INT_RGB);
+        var g = image.createGraphics();
+        try {
+            g.translate(-region.x * zoom, -region.z * zoom);
+            painter.paint(g, zoom, region);
+        } finally {
+            g.dispose();
+        }
+        ImageIO.write(image, "png", path.toFile());
+    }
+
+    private void paintCells(Graphics2D g, int zoom, Region region, java.util.function.IntUnaryOperator color) {
+        for (int z = region.z; z < region.z + region.height; z++) {
+            for (int x = region.x; x < region.x + region.width; x++) {
+                g.setColor(new Color(color.applyAsInt(z * side + x)));
+                g.fillRect(x * zoom, z * zoom, zoom, zoom);
+            }
         }
     }
 
     private void write(Path dir, String name, java.util.function.IntUnaryOperator color, boolean arrows)
             throws IOException {
-        int zoom = 4;
-        var image = new BufferedImage(side * zoom, side * zoom, BufferedImage.TYPE_INT_RGB);
-        var g = image.createGraphics();
-        try {
-            paintCells(g, zoom, color);
+        writeMap(dir, name, 4, 1, (g, zoom, region) -> {
+            paintCells(g, zoom, region, color);
             if (arrows) {
                 g.setColor(Color.WHITE);
                 for (Plate plate : plates) {
@@ -772,10 +895,7 @@ public final class TectonicPrototype {
                     }
                 }
             }
-        } finally {
-            g.dispose();
-        }
-        ImageIO.write(image, "png", dir.resolve(name + ".png").toFile());
+        });
     }
 
     private int relief(double[] height, int i, boolean sea) {
@@ -819,12 +939,16 @@ public final class TectonicPrototype {
     private static void writeDetailPage(Path dir, long[] seeds, double land) throws IOException {
         var seedOptions = new StringBuilder();
         var fineDirectories = new StringBuilder();
+        var tileDirectories = new StringBuilder();
         for (int i = 0; i < seeds.length; i++) {
             String path = detailSeedPath(i, seeds[i]);
             seedOptions.append("<option value=\"").append(path)
                     .append("\">").append(seeds[i]).append("</option>");
             if (Files.isRegularFile(dir.resolve(path + "64/summary.txt"))) {
                 fineDirectories.append('"').append(path).append("\",");
+            }
+            if (Files.isRegularFile(dir.resolve(path + "32/summary.txt"))) {
+                tileDirectories.append('"').append(path).append("\",");
             }
         }
         Files.writeString(dir.resolve("index.html"), """
@@ -841,6 +965,8 @@ public final class TectonicPrototype {
                   img[src$="/drainage.png"] { image-rendering: auto; }
                   a { color: #a4daf3; }
                   select { font: inherit; }
+                  dialog { width: min(90vw, 64rem); background: #17232a; color: #edf3f5; }
+                  dialog img { width: auto; max-width: 100%%; margin: 0 auto; }
                 </style>
                 <h1>地形采样对照</h1>
                 <p>初始陆地目标 %.0f%% · 世界边长 62,720 方块</p>
@@ -870,10 +996,26 @@ public final class TectonicPrototype {
                     <a><img alt="64 方块网格的地形图"></a>
                     <p><a class="summary">统计</a> · 980 × 980 采样格</p>
                   </section>
+                  <section data-grid="32" hidden><h2>32 方块 / 格</h2>
+                    <a><img alt="32 方块网格的地形图"></a>
+                    <p><a class="summary">统计</a> · 1,960 × 1,960 采样格 · 点击地图查看局部原图</p>
+                  </section>
                 </main>
+                <dialog id="detail-tile" aria-labelledby="tile-position">
+                  <form method="dialog"><button>关闭</button></form>
+                  <p id="tile-position"></p>
+                  <button type="button" data-dx="-1" data-dz="0">向西</button>
+                  <button type="button" data-dx="1" data-dz="0">向东</button>
+                  <button type="button" data-dx="0" data-dz="-1">向北</button>
+                  <button type="button" data-dx="0" data-dz="1">向南</button>
+                  <img alt="所选区域的原始分辨率地图">
+                </dialog>
                 <p>各档地图覆盖同一范围。细网格重新推演后，局部海岸和河网可能变化。</p>
                 <script>
                   const fineDirectories = new Set([%s]);
+                  const tileDirectories = new Set([%s]);
+                  const tileSize = %d;
+                  const fineSide = %d;
                   const layers = {
                     terrain: ['', '蓝色为海洋，绿色为低地，棕灰色为高地，白色为高山。'],
                     plates: ['-plates', '每种颜色代表一个板块编号。'],
@@ -890,7 +1032,8 @@ public final class TectonicPrototype {
                     const imageName = step.disabled ? 'drainage.png' : 'step-' + step.value + suffix + '.png';
                     document.getElementById('legend').textContent = legend;
                     for (const panel of document.querySelectorAll('[data-grid]')) {
-                      panel.hidden = panel.dataset.grid === '64' && !fineDirectories.has(seed.value);
+                      panel.hidden = (panel.dataset.grid === '64' && !fineDirectories.has(seed.value))
+                                  || (panel.dataset.grid === '32' && !tileDirectories.has(seed.value));
                       if (panel.hidden) continue;
                       const directory = seed.value + panel.dataset.grid + '/';
                       const image = panel.querySelector('img');
@@ -900,11 +1043,41 @@ public final class TectonicPrototype {
                       image.alt = panel.dataset.grid + ' 方块网格的' + layer.selectedOptions[0].text + '图';
                     }
                   }
+                  const fineLink = document.querySelector('[data-grid="32"] a');
+                  const dialog = document.getElementById('detail-tile');
+                  const tileCount = Math.ceil(fineSide / tileSize);
+                  let tileX = 0, tileZ = 0, tilePath;
+                  function showTile() {
+                    dialog.querySelector('img').src = tilePath + tileX + '-' + tileZ + '.png';
+                    document.getElementById('tile-position').textContent =
+                      '地图瓦片 · 列 ' + (tileX + 1) + ' / ' + tileCount + ' · 行 ' + (tileZ + 1) + ' / ' + tileCount;
+                  }
+                  fineLink.addEventListener('click', event => {
+                    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                    event.preventDefault();
+                    const bounds = fineLink.querySelector('img').getBoundingClientRect();
+                    const tileAt = ratio => Math.min(tileCount - 1, Math.max(0, Math.floor(ratio * fineSide / tileSize)));
+                    tileX = event.detail && bounds.width ? tileAt((event.clientX - bounds.left) / bounds.width) : 0;
+                    tileZ = event.detail && bounds.height ? tileAt((event.clientY - bounds.top) / bounds.height) : 0;
+                    const path = fineLink.getAttribute('href');
+                    const split = path.lastIndexOf('/') + 1;
+                    tilePath = path.slice(0, split) + 'tiles/' + path.slice(split, -4) + '/';
+                    showTile();
+                    dialog.showModal();
+                  });
+                  for (const button of dialog.querySelectorAll('[data-dx]')) {
+                    button.addEventListener('click', () => {
+                      tileX = (tileX + Number(button.dataset.dx) + tileCount) %% tileCount;
+                      tileZ = (tileZ + Number(button.dataset.dz) + tileCount) %% tileCount;
+                      showTile();
+                    });
+                  }
                   for (const control of [seed, step, layer]) control.addEventListener('change', refresh);
                   refresh();
                 </script>
                 </html>
-                """.formatted(land * 100, seedOptions, fineDirectories));
+                """.formatted(land * 100, seedOptions, fineDirectories, tileDirectories, TILE_CELLS,
+                        WorldTopology.DEFAULT_SIDE / 32));
     }
 
     private static String detailSeedPath(int index, long seed) {
@@ -912,10 +1085,16 @@ public final class TectonicPrototype {
     }
 
     public static void main(String[] args) throws IOException {
-        if (args.length >= 4 && (args[0].equals("--detail") || args[0].equals("--detail-64"))) {
+        if (args.length >= 4 && (args[0].equals("--detail") || args[0].equals("--detail-64")
+                || args[0].equals("--detail-32"))) {
             Path dir = Path.of(args[1]);
             double land = Double.parseDouble(args[3]);
-            boolean addFine = args[0].equals("--detail-64");
+            int gridSize = switch (args[0]) {
+                case "--detail-64" -> 64;
+                case "--detail-32" -> 32;
+                default -> 0;
+            };
+            boolean addFine = gridSize != 0;
             long[] seeds = java.util.stream.LongStream.concat(
                     java.util.stream.LongStream.of(Long.parseLong(args[2])),
                     Arrays.stream(args, 4, args.length).mapToLong(Long::parseLong)).distinct().toArray();
@@ -923,9 +1102,9 @@ public final class TectonicPrototype {
                 for (int i = 0; i < seeds.length; i++) {
                     long seed = seeds[i];
                     Path seedDir = dir.resolve(detailSeedPath(i, seed));
-                    for (String grid : new String[]{"256", "128", "64"}) {
+                    for (String grid : new String[]{"256", "128", "64", "32"}) {
                         Path summary = seedDir.resolve(grid).resolve("summary.txt");
-                        if (grid.equals("64") && !Files.exists(summary)) continue;
+                        if ((grid.equals("64") || grid.equals("32")) && !Files.exists(summary)) continue;
                         if (!Files.isRegularFile(summary) || !Files.readAllLines(summary).containsAll(Arrays.asList(
                                 "seed=" + seed, "requested land fraction=" + land, "grid cell size (blocks)=" + grid))) {
                             throw new IllegalArgumentException("Existing comparison parameters mismatch: " + summary);
@@ -937,9 +1116,11 @@ public final class TectonicPrototype {
                 long seed = seeds[i];
                 Path seedDir = dir.resolve(detailSeedPath(i, seed));
                 if (addFine) {
-                    Path fine = seedDir.resolve("64");
+                    Path fine = seedDir.resolve(Integer.toString(gridSize));
                     if (!Files.isRegularFile(fine.resolve("summary.txt"))) {
-                        new TectonicPrototype(seed, land, 4).export(fine, seed, 4, false);
+                        int scale = WorldTopology.DEFAULT_CELL / gridSize;
+                        System.out.printf("Generating seed %d at %d blocks per cell%n", seed, gridSize);
+                        new TectonicPrototype(seed, land, scale).export(fine, seed, scale, false);
                     }
                     writeDetailPage(dir, seeds, land);
                 } else {

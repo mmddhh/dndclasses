@@ -584,19 +584,34 @@ public final class TectonicPrototype {
     }
 
     private void export(Path dir, long seed, int substeps, boolean traceRift) throws IOException {
+        export(dir, seed, substeps, traceRift, false);
+    }
+
+    private void export(Path dir, long seed, int substeps, boolean traceRift, boolean timed) throws IOException {
         Files.createDirectories(dir);
+        long phase = System.nanoTime();
+        long tectonics = 0, erosion = 0, images = 0;
         double[] events = new double[2];
         Crust crust = initial;
         verifyPlates(initial.plate);
         writeFrame(dir, new Frame(0, crust));
+        images += System.nanoTime() - phase;
         StringBuilder trace = new StringBuilder(
                 "step,baseline_land_connected_to_ocean,low_land_not_connected_to_ocean,small_plate_fragments\n");
         boolean[] baselineSea = null;
         for (int step = 1; step <= STEPS; step++) {
+            phase = System.nanoTime();
             for (int sub = 0; sub < substeps; sub++) crust = advance(crust, 1.0 / substeps, events);
+            tectonics += System.nanoTime() - phase;
+            phase = System.nanoTime();
             if (step % 2 == 0) erode(crust.height);
+            erosion += System.nanoTime() - phase;
             if (step % 18 == 0 || (traceRift && step >= 18 && step <= 36)) {
+                phase = System.nanoTime();
                 writeFrame(dir, new Frame(step, crust));
+                images += System.nanoTime() - phase;
+                if (timed) System.out.printf("Step %d/%d: tectonics %.1f s, erosion %.1f s, maps %.1f s%n",
+                        step, STEPS, seconds(tectonics), seconds(erosion), seconds(images));
             }
             if (traceRift && step >= 18 && step <= 36) {
                 boolean[] sea = ocean(crust.height);
@@ -623,6 +638,7 @@ public final class TectonicPrototype {
         }
         int finalFragments = smallFragments(crust.plate);
         crust = null;
+        phase = System.nanoTime();
         Drainage water = drain(height);
         verify(water);
         double[] evaporation = new double[cells];
@@ -656,10 +672,23 @@ public final class TectonicPrototype {
             lengths[i] = length + (end < 0 ? 0 : lengths[end]);
             longest = Math.max(longest, lengths[i]);
         }
+        long hydrology = System.nanoTime() - phase;
+        phase = System.nanoTime();
         write(dir, "plates", i -> plateColor(initial, i), true);
         write(dir, "initial", i -> relief(initial.height, i, initial.height[i] <= 0), false);
         write(dir, "evolved", i -> relief(height, i, water.sea[i]), false);
         writeDrainage(dir, height, water, rivers);
+        images += System.nanoTime() - phase;
+        if (timed) {
+            long seaCells = 0;
+            for (boolean sea : water.sea) if (sea) seaCells++;
+            var timings = String.format(java.util.Locale.ROOT,
+                    "tectonics_seconds=%.3f%nerosion_seconds=%.3f%nfinal_hydrology_seconds=%.3f%n"
+                            + "map_export_seconds=%.3f%nopen_ocean_fraction=%.6f%n",
+                    seconds(tectonics), seconds(erosion), seconds(hydrology), seconds(images), seaCells / (double) cells);
+            Files.writeString(dir.resolve("timings.txt"), timings);
+            System.out.print(timings);
+        }
         int[] area = new int[PLATES];
         for (int p : initial.plate) area[p]++;
         long continental = java.util.stream.IntStream.range(0, cells).filter(i -> initial.land[i] > 0.5).count();
@@ -692,6 +721,10 @@ public final class TectonicPrototype {
                 + "\ndry / seasonal / overflowing / closed basin cells=" + basinCells[1]
                 + " / " + basinCells[2] + " / " + basinCells[3] + " / " + basinCells[4]
                 + "\nlongest visible channel reach (grid segments)=" + longest + "\n");
+    }
+
+    private static double seconds(long nanoseconds) {
+        return nanoseconds / 1e9;
     }
 
     private void verify(Drainage water) {
@@ -972,6 +1005,10 @@ public final class TectonicPrototype {
     }
 
     private static void writeDetailPage(Path dir, long[] seeds, double land) throws IOException {
+        writeDetailPage(dir, seeds, land, false);
+    }
+
+    private static void writeDetailPage(Path dir, long[] seeds, double land, boolean fineOnly) throws IOException {
         var seedOptions = new StringBuilder();
         var fineDirectories = new StringBuilder();
         var tileDirectories = new StringBuilder();
@@ -1020,11 +1057,11 @@ public final class TectonicPrototype {
                 <p id="legend"></p>
                 <main>
                   <section data-grid="256"><h2>256 方块 / 格</h2>
-                    <a href="256/evolved.png"><img src="256/evolved.png" alt="256 方块网格的地形图"></a>
+                    <a><img alt="256 方块网格的地形图"></a>
                     <p><a href="256/summary.txt" class="summary">统计</a> · 245 × 245 采样格</p>
                   </section>
                   <section data-grid="128"><h2>128 方块 / 格</h2>
-                    <a href="128/evolved.png"><img src="128/evolved.png" alt="128 方块网格的地形图"></a>
+                    <a><img alt="128 方块网格的地形图"></a>
                     <p><a href="128/summary.txt" class="summary">统计</a> · 490 × 490 采样格</p>
                   </section>
                   <section data-grid="64" hidden><h2>64 方块 / 格</h2>
@@ -1051,6 +1088,7 @@ public final class TectonicPrototype {
                   const tileDirectories = new Set([%s]);
                   const tileSize = %d;
                   const fineSide = %d;
+                  const fineOnly = %s;
                   const layers = {
                     terrain: ['', '蓝色为海洋，绿色为低地，棕灰色为高地，白色为高山。'],
                     plates: ['-plates', '每种颜色代表一个板块编号。'],
@@ -1067,7 +1105,8 @@ public final class TectonicPrototype {
                     const imageName = step.disabled ? 'drainage.png' : 'step-' + step.value + suffix + '.png';
                     document.getElementById('legend').textContent = legend;
                     for (const panel of document.querySelectorAll('[data-grid]')) {
-                      panel.hidden = (panel.dataset.grid === '64' && !fineDirectories.has(seed.value))
+                      panel.hidden = (fineOnly && ['256', '128'].includes(panel.dataset.grid))
+                                  || (panel.dataset.grid === '64' && !fineDirectories.has(seed.value))
                                   || (panel.dataset.grid === '32' && !tileDirectories.has(seed.value));
                       if (panel.hidden) continue;
                       const directory = seed.value + panel.dataset.grid + '/';
@@ -1112,7 +1151,7 @@ public final class TectonicPrototype {
                 </script>
                 </html>
                 """.formatted(land * 100, seedOptions, fineDirectories, tileDirectories, TILE_CELLS,
-                        WorldTopology.DEFAULT_SIDE / 32));
+                        WorldTopology.DEFAULT_SIDE / 32, fineOnly));
     }
 
     private static String detailSeedPath(int index, long seed) {
@@ -1120,6 +1159,23 @@ public final class TectonicPrototype {
     }
 
     public static void main(String[] args) throws IOException {
+        if (args.length == 4 && args[0].equals("--benchmark-32")) {
+            Path dir = Path.of(args[1]);
+            long seed = Long.parseLong(args[2]);
+            double land = Double.parseDouble(args[3]);
+            int scale = WorldTopology.DEFAULT_CELL / 32;
+            long start = System.nanoTime();
+            var prototype = new TectonicPrototype(seed, land, scale);
+            long initialization = System.nanoTime() - start;
+            System.out.printf("Initialized in %.3f s%n", seconds(initialization));
+            prototype.export(dir.resolve("32"), seed, scale, false, true);
+            writeDetailPage(dir, new long[]{seed}, land, true);
+            var totals = String.format(java.util.Locale.ROOT, "initialization_seconds=%.3f%ntotal_seconds=%.3f%n",
+                    seconds(initialization), seconds(System.nanoTime() - start));
+            Files.writeString(dir.resolve("32/timings.txt"), totals, java.nio.file.StandardOpenOption.APPEND);
+            System.out.print(totals);
+            return;
+        }
         if (args.length >= 4 && (args[0].equals("--detail") || args[0].equals("--detail-64")
                 || args[0].equals("--detail-32"))) {
             Path dir = Path.of(args[1]);
